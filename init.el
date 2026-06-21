@@ -110,7 +110,10 @@
         evil-insert-state-cursor   'bar
         evil-replace-state-cursor  'hbar
         evil-operator-state-cursor 'hbar
-        evil-emacs-state-cursor    'hollow)
+        evil-emacs-state-cursor    'hollow
+        ;; Never blink the terminal cursor in any state: emit the steady
+        ;; DECSCUSR codes (ESC [ 2/4/6 q) instead of the blinking ones.
+        etcc-use-blink             nil)
   :config
   (evil-terminal-cursor-changer-activate))
 
@@ -119,6 +122,12 @@
   (interactive)
   (evil-window-vsplit)
   (evil-window-right 1))
+
+(defun neoemacs/vsplit-ghostel ()
+  "Open a vertical split, move focus into it, and launch ghostel there."
+  (interactive)
+  (neoemacs/vsplit-window-follow)
+  (ghostel))
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
 (use-package general
@@ -204,7 +213,12 @@
 
 ;; Magit: Git interface.
 (use-package magit
-  :bind ("C-x g" . magit-status))
+  :bind ("C-x g" . magit-status)
+  :custom
+  ;; Open magit-status in the current window instead of splitting; diffs and
+  ;; other secondary buffers still pop to another window as usual.
+  (magit-display-buffer-function
+   #'magit-display-buffer-same-window-except-diff-v1))
 
 ;; Dirvish: a polished dired replacement with previews and icons.
 (use-package dirvish
@@ -213,6 +227,14 @@
   (dirvish-override-dired-mode 1)
   :custom
   (dirvish-attributes '(nerd-icons file-size git-msg subtree-state vc-state))
+  ;; `-A' ("almost all") lists dotfiles but omits the `.' and `..' entries;
+  ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
+  (dired-listing-switches "-Al")
+  ;; Show a real block cursor in dired/dirvish buffers. By default dirvish
+  ;; hides it (`cursor-type' nil + a zero-width `evil-normal-state-cursor')
+  ;; and relies on the hl-line highlight; keeping it visible makes dirvish
+  ;; use a `(box . 4)' block, which etcc renders as a terminal block cursor.
+  (dirvish-hide-cursor nil)
   :bind ("C-c f" . dirvish)
   :config
   ;; Vim-style navigation: h goes up a directory, l enters the file/dir.
@@ -220,7 +242,8 @@
    :states 'normal
    :keymaps 'dired-mode-map
    "h" 'dired-up-directory
-   "l" 'dired-find-file))
+   "l" 'dired-find-file
+   "TAB" 'dirvish-subtree-toggle))
 
 ;; kkp: Kitty Keyboard Protocol support for terminal Emacs, enabling
 ;; key combinations the terminal would otherwise swallow (e.g. C-S-x).
@@ -236,7 +259,8 @@
 ;; Ghostel: terminal emulator powered by libghostty. The native module is a
 ;; prebuilt binary that auto-downloads on first use.
 (use-package ghostel
-  :bind ("s-t" . ghostel))
+  :commands (ghostel)
+  :bind ("s-t" . neoemacs/vsplit-ghostel))
 
 ;; evil-ghostel: keeps the terminal cursor in sync with Emacs point across
 ;; evil state transitions, so normal-state hjkl navigation works.
