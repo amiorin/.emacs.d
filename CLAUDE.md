@@ -42,9 +42,11 @@ Three layers, used deliberately:
    commands here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
    `dired-jump` in normal state, `s-hjkl` window movement, `s-w` window
-   delete, `v`/`V` expand/contract region in visual state, dired `h`/`l`).
+   delete, `v`/`V` expand/contract region in visual state, dired `h`/`l` and
+   `TAB` → `dirvish-subtree-toggle`).
 3. **`use-package :bind`** for plain global chords tied to a package
-   (`C-s` consult-line, `C-x g` magit, etc.).
+   (`C-s` consult-line, `C-x g` magit, `s-t` → `neoemacs/vsplit-ghostel`,
+   etc.).
 
 Evil is the editing model: `evil` + `evil-collection` (with
 `evil-want-keybinding nil` set *before* load, as evil-collection requires).
@@ -69,8 +71,31 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
 - `custom-set-variables` / `custom-set-faces` blocks at the end of `init.el`
   are written by Emacs's Custom system. Edit configuration by hand above them,
   not inside those blocks.
+- This config is built to run in a terminal (`emacs -nw`) **inside zellij**.
+  Several features below send raw terminal escape sequences (cursor shape, tab
+  name); zellij forwards them to the host terminal natively and, unlike tmux,
+  needs no passthrough wrapping (and sets no `$TMUX`).
 - Terminal key support: `kkp` (Kitty Keyboard Protocol) is enabled so chords
-  the terminal would otherwise swallow reach Emacs.
+  the terminal would otherwise swallow reach Emacs. **Gotcha:** kkp re-encodes
+  `C-g` as an escape sequence (`ESC [ 103;5 u`) instead of the raw byte 7, so
+  Emacs's low-level quit detection during a blocking `call-process` can't see
+  it. `envrc--export` runs direnv synchronously and advertises "C-g to abort",
+  so an `:around` advice (`neoemacs--envrc-export-restore-quit`) tears kkp down
+  for the duration of the call and re-enables it after — restoring the abort.
+  Any other synchronous command that relies on `C-g` would need the same.
+- Cursor: `evil-terminal-cursor-changer` reflects the evil state in the host
+  terminal's cursor via DECSCUSR sequences (`cursor-type` alone only affects
+  GUI Emacs). Shapes: normal/visual/motion = block, insert = bar,
+  replace/operator = underline, emacs = hollow. `etcc-use-blink nil` forces the
+  *steady* variants in every state (no blinking).
+- Zellij tab name: `neoemacs--zellij-update-tab-name` keeps the focused zellij
+  tab named `<parent>/<dir>` for the current buffer — projectile root, else a
+  dired buffer's listed dir, else the visited file's dir (else unchanged). It's
+  gated on `$ZELLIJ`, deduped per-frame (via a frame parameter), and runs on
+  `window-selection-change-functions` / `window-buffer-change-functions` /
+  `dired-after-readin-hook` / `dirvish-setup-hook` — the dired/dirvish hooks
+  are needed because in-place directory navigation doesn't change the selected
+  window, so the window hooks alone miss it.
 - Clipboard: `clipetty` (`global-clipetty-mode`) sends kills to the host
   system clipboard via the OSC 52 escape sequence, so copying works over SSH
   and through tmux.
@@ -78,6 +103,12 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
   gutter line numbers and highlight the cursor's line. `display-line-numbers-
   type` is `t` (absolute); switch to `'relative`/`'visual` for Vim-style.
 - `dirvish` overrides `dired` globally (`dirvish-override-dired-mode`).
+  `dirvish-hide-cursor nil` keeps a real (block) cursor visible instead of
+  hiding it behind the hl-line. `dired-listing-switches` is `-Al` (`-A` =
+  "almost all": shows dotfiles but omits `.`/`..`). `TAB` toggles subtrees.
+- `magit-display-buffer-function` is
+  `magit-display-buffer-same-window-except-diff-v1`, so `magit-status` opens in
+  the current window (diffs still pop elsewhere).
 - Environment: `envrc` (`envrc-global-mode`) applies each buffer's directory
   `.envrc` via direnv. It's enabled on `after-init` *deliberately* — the
   global mode must layer on top of other global modes, so don't move it

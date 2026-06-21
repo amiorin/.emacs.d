@@ -31,12 +31,13 @@ M-x nerd-icons-install-fonts
   popups.
 - **Completion** — vertico, orderless, marginalia, and consult.
 - **Project & Git** — projectile, consult-projectile, and
-  [magit](https://magit.vc/).
+  [magit](https://magit.vc/) (`magit-status` opens in the current window).
 - **Environment** — [envrc](https://github.com/purcell/envrc) gives each
   buffer the environment from its directory's `.envrc` (needs the `direnv`
   binary).
 - **Files** — [dirvish](https://github.com/alexluigit/dirvish) as a polished
-  dired replacement.
+  dired replacement: dotfiles shown but `.`/`..` hidden, a visible block
+  cursor, and `TAB` to expand/collapse subtrees inline.
 - **Markdown** — [markdown-mode](https://github.com/jrblevin/markdown-mode);
   `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown).
 - **Look** — doom-one theme, doom-modeline, nerd-icons; line numbers in the
@@ -48,6 +49,12 @@ M-x nerd-icons-install-fonts
 - Terminal Emacs gets full key support via the Kitty Keyboard Protocol (kkp),
   and copies to the host clipboard over SSH/tmux via OSC 52
   ([clipetty](https://github.com/spudlyo/clipetty)).
+- **Cursor** — the terminal cursor shape follows the evil state (block in
+  normal, bar in insert, underline in replace), steady/non-blinking, via
+  [evil-terminal-cursor-changer](https://github.com/7696122/evil-terminal-cursor-changer).
+- **Zellij** — when running inside [zellij](https://zellij.dev/), the focused
+  tab is automatically renamed to `<parent>/<dir>` of the current project,
+  dired directory, or file.
 
 ## Key bindings
 
@@ -67,10 +74,11 @@ elsewhere.
 | `-`       | jump to dired (current dir)     |
 | `s-h/j/k/l` | move between windows          |
 | `s-w`     | delete current window           |
-| `s-t`     | open ghostel terminal           |
+| `s-t`     | vsplit + open ghostel terminal in it |
 | `v` / `V` | expand / contract region (visual state) |
 
-In dired, `h` goes up a directory and `l` enters the file/directory.
+In dired, `h` goes up a directory, `l` enters the file/directory, and `TAB`
+toggles a directory's subtree.
 
 ## Files
 
