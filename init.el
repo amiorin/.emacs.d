@@ -313,6 +313,59 @@
       (apply orig-fn args)))
   (advice-add 'envrc--export :around #'neoemacs--envrc-export-restore-quit))
 
+;; Zellij tab name: keep the focused zellij tab named after the current
+;; buffer's location, as "<parent>/<dir>". Precedence:
+;;   1. inside a projectile project -> the project root,
+;;   2. else a dired buffer        -> the listed directory,
+;;   3. else a file-visiting buffer -> the file's directory,
+;;   4. otherwise leave the tab name unchanged.
+;; Updated on buffer/window switch, only when running inside zellij ($ZELLIJ),
+;; and deduped so we shell out only when the computed name actually changes.
+(defun neoemacs--parent-and-dir (dir)
+  "Return \"<parent>/<dir>\" for absolute DIR (just the dir name if no parent)."
+  (let* ((dir (directory-file-name (expand-file-name dir)))
+         (name (file-name-nondirectory dir))
+         (parent (file-name-nondirectory
+                  (directory-file-name (file-name-directory dir)))))
+    (if (string-empty-p parent) name (concat parent "/" name))))
+
+(defun neoemacs--zellij-tab-name ()
+  "Compute the zellij tab name for the current buffer, or nil to leave it."
+  (cond
+   ((and (fboundp 'projectile-project-root) (projectile-project-root))
+    (neoemacs--parent-and-dir (projectile-project-root)))
+   ((derived-mode-p 'dired-mode)
+    (neoemacs--parent-and-dir default-directory))
+   (buffer-file-name
+    (neoemacs--parent-and-dir (file-name-directory buffer-file-name)))
+   (t nil)))
+
+(defun neoemacs--zellij-update-tab-name (&rest _)
+  "Rename the focused zellij tab to reflect the selected window's buffer.
+The last name is remembered per-frame (each Emacs frame maps to a zellij
+pane/tab) so separate frames don't clobber each other's dedup state."
+  (when (getenv "ZELLIJ")
+    (with-current-buffer (window-buffer (selected-window))
+      (let ((name (neoemacs--zellij-tab-name))
+            (last (frame-parameter nil 'neoemacs--zellij-last-tab-name)))
+        (when (and name (not (equal name last)))
+          (set-frame-parameter nil 'neoemacs--zellij-last-tab-name name)
+          ;; Destination 0: run async and discard output so buffer switches
+          ;; never block on the zellij subprocess.
+          (call-process "zellij" nil 0 nil "action" "rename-tab" name))))))
+
+;; Trigger on the full range of context changes: window focus
+;; (`window-selection-change-functions'), a window's buffer changing
+;; (`window-buffer-change-functions', e.g. `switch-to-buffer'), and dired/
+;; dirvish directory navigation -- the latter changes the buffer/directory
+;; in place without changing the selected window, so the window hooks miss
+;; it. The per-frame dedup makes redundant firings cheap (no zellij call).
+(dolist (hook '(window-selection-change-functions
+                window-buffer-change-functions
+                dired-after-readin-hook
+                dirvish-setup-hook))
+  (add-hook hook #'neoemacs--zellij-update-tab-name))
+
 (provide 'init)
 ;;; init.el ends here
 (custom-set-variables
