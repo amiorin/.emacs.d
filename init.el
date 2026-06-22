@@ -127,7 +127,10 @@
   "Open a vertical split, move focus into it, and launch ghostel there."
   (interactive)
   (neoemacs/vsplit-window-follow)
-  (ghostel))
+  (evil-buffer-new)
+  ;; Non-numeric prefix arg => always create a fresh ghostel buffer in the
+  ;; new split, rather than switching to an existing terminal.
+  (ghostel '(4)))
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
 (use-package general
@@ -139,6 +142,8 @@
     :prefix "SPC"
     :global-prefix "C-SPC")
   (neoemacs/leader
+    "SPC" '(projectile-find-file :which-key "find file in project")
+    ","  '(consult-buffer :which-key "switch buffer")
     "f"  '(:ignore t :which-key "files")
     "ff" '(find-file :which-key "find file")
     "fr" '(consult-recent-file :which-key "recent file")
@@ -168,6 +173,7 @@
    "s-l" 'evil-window-right
    "s-n" 'neoemacs/vsplit-window-follow
    "s-w" 'evil-window-delete
+   "S-s-[" 'evil-window-rotate-downwards
    "S-s-]" 'delete-other-windows))
 
 ;; expand-region: grow/shrink the selection by semantic units. In visual
