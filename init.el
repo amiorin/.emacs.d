@@ -197,7 +197,8 @@
     "pb" '(projectile-switch-to-buffer :which-key "project buffer")
     "g"  '(:ignore t :which-key "git")
     "gg" '(magit-status :which-key "status")
-    "gb" '(magit-blame :which-key "blame"))
+    "gb" '(magit-blame :which-key "blame")
+    "h"  '(help-command :which-key "help"))
   ;; `-' in normal state jumps to dired (vinegar-style).
   (general-define-key
    :states 'normal
@@ -455,7 +456,10 @@ pane/tab) so separate frames don't clobber each other's dedup state."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages nil))
+ '(package-selected-packages nil)
+ '(safe-local-variable-values
+   '((cider-clojure-cli-aliases . ":dev")
+     (cider-preferred-build-tool . clojure-cli))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
