@@ -130,9 +130,16 @@
   (interactive)
   (neoemacs/vsplit-window-follow)
   (evil-buffer-new)
-  ;; Non-numeric prefix arg => always create a fresh ghostel buffer in the
-  ;; new split, rather than switching to an existing terminal.
-  (ghostel '(4)))
+  ;; `evil-buffer-new' shows the empty "*new*" buffer in the window via
+  ;; `set-window-buffer' without making it current, so grab it from the window.
+  (let ((placeholder (window-buffer))
+        ;; Non-numeric prefix arg => always create a fresh ghostel buffer in the
+        ;; new split, rather than switching to an existing terminal.
+        (ghostel-buffer (ghostel '(4))))
+    ;; ghostel swaps in its own buffer; drop the empty placeholder.
+    (when (and (buffer-live-p placeholder)
+               (not (eq placeholder ghostel-buffer)))
+      (kill-buffer placeholder))))
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
 (use-package general
