@@ -228,7 +228,11 @@
 
 ;; Magit: Git interface.
 (use-package magit
-  :bind ("C-x g" . magit-status)
+  :bind (("C-x g" . magit-status)
+         ;; In magit-status, `e' diffs the working tree against HEAD via ediff
+         ;; (overrides the default `magit-ediff-dwim').
+         :map magit-status-mode-map
+         ("e" . magit-ediff-show-working-tree))
   :custom
   ;; Open magit-status in the current window instead of splitting; diffs and
   ;; other secondary buffers still pop to another window as usual.
