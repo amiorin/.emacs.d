@@ -174,7 +174,9 @@
   (interactive)
   (let ((sym (symbol-at-point)))
     (if sym
-        (describe-symbol sym)
+        (progn
+          (describe-symbol sym)
+          (select-window (get-buffer-window "*Help*")))
       (user-error "No symbol at point"))))
 
 ;;; --- Keybindings -----------------------------------------------------------
