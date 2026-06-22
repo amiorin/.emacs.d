@@ -121,6 +121,11 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
 - `magit-display-buffer-function` is
   `magit-display-buffer-same-window-except-diff-v1`, so `magit-status` opens in
   the current window (diffs still pop elsewhere).
+- Help: `neoemacs/describe-symbol-at-point` (`K` in normal state in
+  `emacs-lisp-mode`/`lisp-interaction-mode`) describes the symbol under point
+  with no minibuffer prompt, then `select-window`s the `*Help*` buffer so focus
+  lands there (so you can immediately scroll/navigate it and `q` to dismiss).
+  `SPC h` is bound to `help-command` for the rest of the help map.
 - Environment: `envrc` (`envrc-global-mode`) applies each buffer's directory
   `.envrc` via direnv. It's enabled on `after-init` *deliberately* — the
   global mode must layer on top of other global modes, so don't move it

@@ -41,6 +41,9 @@ M-x nerd-icons-install-fonts
 - **Terminal** — `ghostel`, a libghostty-backed terminal. `s-t` opens a
   vertical split and launches a fresh terminal in it; `evil-ghostel` keeps the
   cursor in sync so normal-state `hjkl` navigation works inside it.
+- **Help** — in Elisp buffers, `K` (normal state) describes the symbol under
+  point with no prompt and moves focus into the `*Help*` window so you can
+  scroll it and `q` to dismiss. `SPC h` is the help prefix.
 - **Markdown** — [markdown-mode](https://github.com/jrblevin/markdown-mode);
   `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown).
 - **Look** — doom-one theme, doom-modeline, nerd-icons; line numbers in the
@@ -86,6 +89,8 @@ elsewhere.
 | `S-s-]`   | maximize window (delete others) |
 | `s-t`     | vsplit + open fresh ghostel terminal in it |
 | `v` / `V` | expand / contract region (visual state) |
+| `SPC h`   | help prefix                     |
+| `K`       | describe symbol at point (Elisp buffers, focuses `*Help*`) |
 
 In dired, `h` goes up a directory, `l` enters the file/directory, and `TAB`
 toggles a directory's subtree.
