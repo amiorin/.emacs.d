@@ -1,13 +1,17 @@
 ;;; init.el --- Main initialization -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Main configuration entry point.  Bootstraps the package system and
-;; loads the doom-one theme.
+;; Main configuration entry point.  Bootstraps the package system, then
+;; configures each package with one `use-package' form.  See CLAUDE.md for
+;; the architecture overview (keybinding layers, completion stack, terminal
+;; integration).
 
 ;;; Code:
 
-;; Package system setup.  `package-enable-at-startup' is disabled in
-;; early-init.el, so initialize explicitly here.
+;;; --- Package system --------------------------------------------------------
+
+;; `package-enable-at-startup' is disabled in early-init.el, so initialize
+;; explicitly here.
 (require 'package)
 (setq package-archives
       '(("gnu"   . "https://elpa.gnu.org/packages/")
@@ -20,6 +24,8 @@
   (package-install 'use-package))
 (require 'use-package)
 (setq use-package-always-ensure t)
+
+;;; --- Core editor settings --------------------------------------------------
 
 ;; Disable backup files (the `filename~' clutter).
 (setq make-backup-files nil)
@@ -75,6 +81,8 @@
                       recentf-max-saved-items))))
   (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save))
 
+;;; --- Appearance: theme, icons, modeline ------------------------------------
+
 ;; doom-one theme.
 (use-package doom-themes
   :config
@@ -91,6 +99,8 @@
   :after nerd-icons
   :init
   (doom-modeline-mode 1))
+
+;;; --- Evil: Vim emulation ---------------------------------------------------
 
 ;; Evil: Vim emulation.
 (use-package evil
@@ -135,6 +145,8 @@
   :config
   (evil-terminal-cursor-changer-activate))
 
+;;; --- Window management helpers ---------------------------------------------
+
 (defun neoemacs/vsplit-window-follow ()
   "Split the window horizontally and move focus into the new split."
   (interactive)
@@ -156,6 +168,8 @@
     (when (and (buffer-live-p placeholder)
                (not (eq placeholder ghostel-buffer)))
       (kill-buffer placeholder))))
+
+;;; --- Keybindings -----------------------------------------------------------
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
 (use-package general
@@ -218,6 +232,8 @@
   (setq which-key-idle-delay 0.5)
   (which-key-mode 1))
 
+;;; --- Completion stack ------------------------------------------------------
+
 ;; Vertico: vertical completion UI in the minibuffer.
 (use-package vertico
   :init
@@ -241,6 +257,8 @@
          ("M-y"   . consult-yank-pop)
          ("M-g g" . consult-goto-line)
          ("M-g i" . consult-imenu)))
+
+;;; --- Git -------------------------------------------------------------------
 
 ;; Magit: Git interface.
 (use-package magit
@@ -272,6 +290,8 @@
       (apply orig-fn args)))
   (advice-add 'ediff-quit :around #'neoemacs--ediff-quit-no-confirm))
 
+;;; --- Dired / file management -----------------------------------------------
+
 ;; Dirvish: a polished dired replacement with previews and icons.
 (use-package dirvish
   :after (nerd-icons general)
@@ -297,6 +317,8 @@
    "l" 'dired-find-file
    "TAB" 'dirvish-subtree-toggle))
 
+;;; --- Terminal integration --------------------------------------------------
+
 ;; kkp: Kitty Keyboard Protocol support for terminal Emacs, enabling
 ;; key combinations the terminal would otherwise swallow (e.g. C-S-x).
 (use-package kkp
@@ -320,6 +342,8 @@
   :after (ghostel evil)
   :hook (ghostel-mode . evil-ghostel-mode))
 
+;;; --- Project navigation ----------------------------------------------------
+
 ;; Projectile: project interaction and navigation.
 (use-package projectile
   :init
@@ -331,12 +355,16 @@
 (use-package consult-projectile
   :after (consult projectile))
 
+;;; --- Languages -------------------------------------------------------------
+
 ;; markdown-mode: major mode for editing Markdown. `gfm-mode' is used for
 ;; README.md and other GitHub-Flavored Markdown files.
 (use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'"       . markdown-mode)
          ("\\.markdown\\'" . markdown-mode)))
+
+;;; --- Environment: direnv ---------------------------------------------------
 
 ;; envrc: per-buffer environment from direnv `.envrc' files. Enable the global
 ;; mode late (on `after-init') so it layers on top of other global modes, as
@@ -365,8 +393,10 @@
       (apply orig-fn args)))
   (advice-add 'envrc--export :around #'neoemacs--envrc-export-restore-quit))
 
-;; Zellij tab name: keep the focused zellij tab named after the current
-;; buffer's location, as "<parent>/<dir>". Precedence:
+;;; --- Zellij tab name -------------------------------------------------------
+
+;; Keep the focused zellij tab named after the current buffer's location, as
+;; "<parent>/<dir>". Precedence:
 ;;   1. inside a projectile project -> the project root,
 ;;   2. else a dired buffer        -> the listed directory,
 ;;   3. else a file-visiting buffer -> the file's directory,
