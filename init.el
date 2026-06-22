@@ -97,7 +97,9 @@
   :init
   (setq evil-want-integration t
         evil-want-keybinding nil
-        evil-want-C-u-scroll t)
+        evil-want-C-u-scroll t
+        ;; Don't echo "-- INSERT --"/"-- VISUAL --" etc. in the echo area.
+        evil-echo-state nil)
   :config
   (evil-mode 1))
 
