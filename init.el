@@ -91,6 +91,8 @@
 (use-package evil-collection
   :after evil
   :config
+  ;; Don't load evil bindings for magit — keep its native keymap.
+  (setq evil-collection-mode-list (delq 'magit evil-collection-mode-list))
   (evil-collection-init))
 
 ;; evil-terminal-cursor-changer: reflect the current evil state in the host
