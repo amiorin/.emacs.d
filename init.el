@@ -169,6 +169,14 @@
                (not (eq placeholder ghostel-buffer)))
       (kill-buffer placeholder))))
 
+(defun neoemacs/describe-symbol-at-point ()
+  "Describe the symbol under point without prompting in the minibuffer."
+  (interactive)
+  (let ((sym (symbol-at-point)))
+    (if sym
+        (describe-symbol sym)
+      (user-error "No symbol at point"))))
+
 ;;; --- Keybindings -----------------------------------------------------------
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
@@ -214,7 +222,12 @@
    "s-n" 'neoemacs/vsplit-window-follow
    "s-w" 'evil-window-delete
    "S-s-[" 'evil-window-rotate-downwards
-   "S-s-]" 'delete-other-windows))
+   "S-s-]" 'delete-other-windows)
+  ;; `K' in Elisp buffers describes the symbol under point (no prompt).
+  (general-define-key
+   :states 'normal
+   :keymaps '(emacs-lisp-mode-map lisp-interaction-mode-map)
+   "K" 'neoemacs/describe-symbol-at-point))
 
 ;; expand-region: grow/shrink the selection by semantic units. In visual
 ;; state `v' expands the region and `V' contracts it.
