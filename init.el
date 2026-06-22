@@ -58,6 +58,8 @@
 ;; recentf: track recently opened files (used by `consult-recent-file').
 (use-package recentf
   :ensure nil
+  :custom
+  (recentf-max-saved-items 100)
   :init
   (recentf-mode 1))
 
