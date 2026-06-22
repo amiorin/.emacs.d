@@ -38,18 +38,22 @@ Three layers, used deliberately:
 
 1. **Leader key** via `general` — `neoemacs/leader` is a definer with prefix
    `SPC` (and `C-SPC` as a global fallback for non-normal states). Mnemonic
-   groups: `f` files, `b` buffers, `p` project, `g` git. Add user-facing
-   commands here with a `:which-key` label.
+   groups: `f` files, `b` buffers, `p` project, `g` git, plus two top-level
+   shortcuts (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`).
+   Add user-facing commands here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
-   `dired-jump` in normal state, `s-hjkl` window movement, `s-w` window
-   delete, `v`/`V` expand/contract region in visual state, dired `h`/`l` and
-   `TAB` → `dirvish-subtree-toggle`).
+   `dired-jump` in normal state, `s-hjkl` window movement, `s-n` vsplit +
+   follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
+   `delete-other-windows`, `v`/`V` expand/contract region in visual state,
+   dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`).
 3. **`use-package :bind`** for plain global chords tied to a package
    (`C-s` consult-line, `C-x g` magit, `s-t` → `neoemacs/vsplit-ghostel`,
    etc.).
 
 Evil is the editing model: `evil` + `evil-collection` (with
 `evil-want-keybinding nil` set *before* load, as evil-collection requires).
+`magit` is removed from `evil-collection-mode-list` before `evil-collection-init`
+so its native keymap is preserved (no evil bindings layered on magit buffers).
 
 ### Projectile prefix gotcha
 
@@ -99,6 +103,14 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
 - Clipboard: `clipetty` (`global-clipetty-mode`) sends kills to the host
   system clipboard via the OSC 52 escape sequence, so copying works over SSH
   and through tmux.
+- Terminal: `ghostel` is a libghostty-backed terminal (the native module is a
+  prebuilt binary that auto-downloads on first use). `s-t` runs
+  `neoemacs/vsplit-ghostel`, which vsplits, follows focus into the new window,
+  creates a fresh buffer, and calls `(ghostel '(4))` — the non-numeric prefix
+  arg forces a *new* terminal rather than reusing an existing one.
+  `evil-ghostel` (`evil-ghostel-mode`, hooked on `ghostel-mode`) keeps the
+  terminal cursor in sync with point across evil state changes so normal-state
+  `hjkl` works in the terminal buffer.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
   gutter line numbers and highlight the cursor's line. `display-line-numbers-
   type` is `t` (absolute); switch to `'relative`/`'visual` for Vim-style.

@@ -38,6 +38,9 @@ M-x nerd-icons-install-fonts
 - **Files** — [dirvish](https://github.com/alexluigit/dirvish) as a polished
   dired replacement: dotfiles shown but `.`/`..` hidden, a visible block
   cursor, and `TAB` to expand/collapse subtrees inline.
+- **Terminal** — `ghostel`, a libghostty-backed terminal. `s-t` opens a
+  vertical split and launches a fresh terminal in it; `evil-ghostel` keeps the
+  cursor in sync so normal-state `hjkl` navigation works inside it.
 - **Markdown** — [markdown-mode](https://github.com/jrblevin/markdown-mode);
   `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown).
 - **Look** — doom-one theme, doom-modeline, nerd-icons; line numbers in the
@@ -63,18 +66,25 @@ elsewhere.
 
 | Key       | Action                          |
 |-----------|---------------------------------|
+| `SPC SPC` | find file in project            |
+| `SPC ,`   | switch buffer                   |
 | `SPC f f` | find file                       |
 | `SPC f r` | recent file                     |
 | `SPC b b` | switch buffer                   |
 | `SPC b d` | kill buffer                     |
+| `SPC b n` / `SPC b p` | next / previous buffer |
 | `SPC p p` | switch project                  |
 | `SPC p f` | find file in project            |
+| `SPC p b` | switch to project buffer        |
 | `SPC g g` | magit status                    |
 | `SPC g b` | magit blame                     |
 | `-`       | jump to dired (current dir)     |
 | `s-h/j/k/l` | move between windows          |
+| `s-n`     | vertical split + follow focus   |
 | `s-w`     | delete current window           |
-| `s-t`     | vsplit + open ghostel terminal in it |
+| `S-s-[`   | rotate windows                  |
+| `S-s-]`   | maximize window (delete others) |
+| `s-t`     | vsplit + open fresh ghostel terminal in it |
 | `v` / `V` | expand / contract region (visual state) |
 
 In dired, `h` goes up a directory, `l` enters the file/directory, and `TAB`
