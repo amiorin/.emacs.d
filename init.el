@@ -235,6 +235,23 @@
   (magit-display-buffer-function
    #'magit-display-buffer-same-window-except-diff-v1))
 
+;; Ediff: skip the "Quit this Ediff session? (y or n)" confirmation. `ediff-quit'
+;; hard-codes a `y-or-n-p' before tearing down; locally stub it to always answer
+;; yes for the duration of the call so `q' quits immediately.
+(use-package ediff
+  :ensure nil
+  :custom
+  ;; Side-by-side diff buffers (vertical divider) instead of stacked, and keep
+  ;; the control panel in the same frame rather than a popup.
+  (ediff-split-window-function #'split-window-horizontally)
+  (ediff-window-setup-function #'ediff-setup-windows-plain)
+  :config
+  (defun neoemacs--ediff-quit-no-confirm (orig-fn &rest args)
+    "Run ORIG-FN with `y-or-n-p' auto-confirmed so ediff quits silently."
+    (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
+      (apply orig-fn args)))
+  (advice-add 'ediff-quit :around #'neoemacs--ediff-quit-no-confirm))
+
 ;; Dirvish: a polished dired replacement with previews and icons.
 (use-package dirvish
   :after (nerd-icons general)
