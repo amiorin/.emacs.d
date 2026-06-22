@@ -33,14 +33,36 @@
           (lambda ()
             (setq file-name-handler-alist neoemacs--file-name-handler-alist)))
 
-;; Disable UI chrome as early as possible to prevent a momentary flash and
-;; the cost of initializing then removing these elements.
-(push '(menu-bar-lines . 0) default-frame-alist)
-(push '(tool-bar-lines . 0) default-frame-alist)
-(push '(vertical-scroll-bars) default-frame-alist)
-(setq menu-bar-mode nil
-      tool-bar-mode nil
-      scroll-bar-mode nil)
+;; Hide the UI until the doom-one theme is in place.  Emacs paints the
+;; default (unthemed) faces first, then repaints once `load-theme' runs
+;; partway through init.el -- the user perceives this as the theme
+;; "appearing" with a delay.  Suppress all redisplay (and stray startup
+;; messages) for the whole init sequence and paint exactly once at the
+;; end, so the first frame the user ever sees is already themed.  This is
+;; set first, before any of the chrome tweaks below, so nothing they do
+;; can paint either.
+;;
+;; `emacs-startup-hook' runs even when init.el signals an error (Emacs
+;; catches it), so redisplay is always restored -- the screen can't get
+;; stuck blank.
+(setq inhibit-redisplay t
+      inhibit-message t)
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq inhibit-redisplay nil
+                  inhibit-message nil)
+            (redisplay)))
+
+;; Disable UI chrome.  In `-nw' the terminal frame is created in C before
+;; early-init.el is loaded, so it already exists with a menu-bar line --
+;; setting `default-frame-alist' (consulted only at frame creation) can't
+;; fix it.  Calling the mode functions does: each runs
+;; `modify-all-frames-parameters', which drops the bar on the live frame
+;; *and* updates `default-frame-alist' for future frames.
+;; (`inhibit-redisplay' above keeps this from flashing.)
+(menu-bar-mode -1)
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
 
 ;; Suppress the GUI startup screen and reduce early redisplay work.
 (setq inhibit-startup-screen t
