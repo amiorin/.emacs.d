@@ -61,7 +61,19 @@
   :custom
   (recentf-max-saved-items 100)
   :init
-  (recentf-mode 1))
+  (recentf-mode 1)
+  :config
+  ;; Multiple Emacs instances each keep their own in-memory `recentf-list'
+  ;; and overwrite the shared save file on exit, losing the other's entries.
+  ;; Re-read the on-disk list and merge it in before every save so the last
+  ;; writer wins without discarding what the other instance recorded.
+  (defun neoemacs--recentf-merge-on-save (&rest _)
+    (let ((mem recentf-list))
+      (recentf-load-list)               ; reloads `recentf-list' from disk
+      (setq recentf-list
+            (seq-take (delete-dups (append mem recentf-list))
+                      recentf-max-saved-items))))
+  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save))
 
 ;; doom-one theme.
 (use-package doom-themes
