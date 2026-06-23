@@ -119,6 +119,13 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
   while point is parked off the live cursor in a motion-capable evil state
   (`normal`/`visual`/`operator`/`motion`); auto-follow resumes on return to
   insert or to the cursor row, and FORCE anchors (paste/yank) are untouched.
+  **Wheel scroll:** in insert state the anchor is still live, so a mouse-wheel
+  scroll into scrollback is snapped right back. The `evil-ghostel-wheel-normal`
+  advice (in `init.el`) flips the buffer to normal state on any wheel event —
+  ghostel redispatches the wheel to `mwheel-scroll` when it scrolls the Emacs
+  buffer, so that's the advised function. It only switches *from* `insert`/`emacs`
+  (normal/visual already roam, and a visual selection mustn't be dropped); press
+  `i`/`a` to return to insert and resume live auto-follow.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
   gutter line numbers and highlight the cursor's line. `display-line-numbers-
   type` is `t` (absolute); switch to `'relative`/`'visual` for Vim-style.

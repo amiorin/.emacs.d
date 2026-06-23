@@ -379,7 +379,25 @@
              ghostel--cursor-char-pos
              (/= (point) ghostel--cursor-char-pos))
         nil
-      (funcall orig window force))))
+      (funcall orig window force)))
+
+  ;; Wheel scroll => leave insert. In insert state the redraw anchor
+  ;; (`ghostel--anchor-window') re-snaps the viewport to the live cursor, so a
+  ;; mouse-wheel scroll into scrollback is immediately yanked back. Normal state
+  ;; is exactly where `evil-ghostel-roam' (above) suppresses that anchor, so flip
+  ;; to normal on any wheel event over a ghostel buffer. ghostel redispatches
+  ;; wheel events to `mwheel-scroll' when it scrolls the Emacs buffer (mouse
+  ;; tracking off); advise that. Only switch *from* insert/emacs (normal/visual
+  ;; already roam, and we mustn't drop a visual selection). Re-enter insert
+  ;; (`i'/`a') yourself to resume live auto-follow.
+  (define-advice mwheel-scroll
+      (:before (event &rest _) evil-ghostel-wheel-normal)
+    (let ((buf (window-buffer (posn-window (event-start event)))))
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (when (and (bound-and-true-p evil-ghostel-mode)
+                     (memq evil-state '(insert emacs)))
+            (evil-normal-state)))))))
 
 ;;; --- Project navigation ----------------------------------------------------
 
