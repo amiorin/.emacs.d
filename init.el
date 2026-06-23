@@ -395,8 +395,18 @@
           (setq unread-command-events (cons event unread-command-events)))
         (ghostel-send-key "escape"))))
 
+  (defun neoemacs/ghostel-send-current-control ()
+    "Send the current Ctrl+letter key to ghostel."
+    (interactive)
+    (let ((base (event-basic-type last-command-event)))
+      (unless (and (integerp base) (<= ?a base) (<= base ?z))
+        (user-error "Not a Ctrl+letter key: %S" last-command-event))
+      (ghostel-send-key (string base) "ctrl")))
+
   (evil-define-key* 'insert evil-ghostel-mode-map
-                    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim)
+                    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
+                    (kbd "C-c") #'neoemacs/ghostel-send-current-control
+                    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
 
   ;; Let normal-state motion roam over animated output. Each redraw,
   ;; `ghostel--redraw-now' re-anchors any window following the live viewport
