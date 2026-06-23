@@ -292,6 +292,17 @@
   (magit-display-buffer-function
    #'magit-display-buffer-same-window-except-diff-v1))
 
+;; Transient: the popup-menu engine behind magit (and many other packages).
+;; Make `<escape>' an alias for `C-g' (transient-quit-one) so pressing Esc backs
+;; out of any transient popup one level, just like C-g. Bound in `transient-map'
+;; so it applies to every transient, not only magit's. Note: in a terminal Esc
+;; is also the Meta prefix, so this slightly trades away Meta chords *inside* an
+;; open transient — acceptable here since transient popups rarely need them.
+(use-package transient
+  :ensure nil
+  :config
+  (define-key transient-map (kbd "<escape>") #'transient-quit-one))
+
 ;; Ediff: skip the "Quit this Ediff session? (y or n)" confirmation. `ediff-quit'
 ;; hard-codes a `y-or-n-p' before tearing down; locally stub it to always answer
 ;; yes for the duration of the call so `q' quits immediately.
