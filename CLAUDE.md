@@ -110,7 +110,15 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
   arg forces a *new* terminal rather than reusing an existing one.
   `evil-ghostel` (`evil-ghostel-mode`, hooked on `ghostel-mode`) keeps the
   terminal cursor in sync with point across evil state changes so normal-state
-  `hjkl` works in the terminal buffer.
+  `hjkl` works in the terminal buffer. **Anchor seam:** each redraw,
+  `ghostel--redraw-now` re-anchors any window following the live viewport via
+  `ghostel--anchor-window`, whose `set-window-point` snaps point back to the
+  terminal cursor. On an *animated* terminal (~30fps) that fights normal-state
+  motion — evil-ghostel preserves point in its `ghostel--redraw` advice but not
+  the anchor. The `evil-ghostel-roam` advice (in `init.el`) skips the anchor
+  while point is parked off the live cursor in a motion-capable evil state
+  (`normal`/`visual`/`operator`/`motion`); auto-follow resumes on return to
+  insert or to the cursor row, and FORCE anchors (paste/yank) are untouched.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
   gutter line numbers and highlight the cursor's line. `display-line-numbers-
   type` is `t` (absolute); switch to `'relative`/`'visual` for Vim-style.

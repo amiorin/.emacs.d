@@ -359,7 +359,27 @@
 ;; evil state transitions, so normal-state hjkl navigation works.
 (use-package evil-ghostel
   :after (ghostel evil)
-  :hook (ghostel-mode . evil-ghostel-mode))
+  :hook (ghostel-mode . evil-ghostel-mode)
+  :config
+  ;; Let normal-state motion roam over animated output. Each redraw,
+  ;; `ghostel--redraw-now' re-anchors any window following the live viewport
+  ;; via `ghostel--anchor-window', whose final `set-window-point' snaps point
+  ;; back to the terminal cursor (`ghostel--cursor-char-pos'). On a static
+  ;; terminal redraws are rare so it's invisible; on an animated one (~30fps)
+  ;; it fights every hjkl. evil-ghostel preserves point in its `ghostel--redraw'
+  ;; advice but never touches the anchor, so off-prompt normal-state motion is
+  ;; the unhandled seam. Skip the anchor while parked off the live cursor in a
+  ;; motion-capable evil state; auto-follow resumes on return to insert or to
+  ;; the cursor row. FORCE anchors (paste/yank) are always honored.
+  (define-advice ghostel--anchor-window
+      (:around (orig &optional window force) evil-ghostel-roam)
+    (if (and (bound-and-true-p evil-ghostel-mode)
+             (not force)
+             (memq evil-state '(normal visual operator motion))
+             ghostel--cursor-char-pos
+             (/= (point) ghostel--cursor-char-pos))
+        nil
+      (funcall orig window force))))
 
 ;;; --- Project navigation ----------------------------------------------------
 
