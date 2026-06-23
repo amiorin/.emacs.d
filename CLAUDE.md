@@ -126,6 +126,11 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
   buffer, so that's the advised function. It only switches *from* `insert`/`emacs`
   (normal/visual already roam, and a visual selection mustn't be dropped); press
   `i`/`a` to return to insert and resume live auto-follow.
+  **Escape routing:** `neoemacs/ghostel-escape-dwim` replaces the
+  `evil-ghostel` insert-state `<escape>` binding. It waits
+  `neoemacs/ghostel-escape-timeout` seconds (0.25s) for a second Escape; a
+  single `Esc` is sent to the terminal, while `Esc Esc` is intercepted and runs
+  Evil's insert-state Escape binding so the terminal receives no Escape.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
   gutter line numbers and highlight the cursor's line. `display-line-numbers-
   type` is `t` (absolute); switch to `'relative`/`'visual` for Vim-style.

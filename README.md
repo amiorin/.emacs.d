@@ -40,7 +40,9 @@ M-x nerd-icons-install-fonts
   cursor, and `TAB` to expand/collapse subtrees inline.
 - **Terminal** — `ghostel`, a libghostty-backed terminal. `s-t` opens a
   vertical split and launches a fresh terminal in it; `evil-ghostel` keeps the
-  cursor in sync so normal-state `hjkl` navigation works inside it.
+  cursor in sync so normal-state `hjkl` navigation works inside it. In ghostel
+  insert state, a single `Esc` is sent to the terminal, while `Esc Esc` returns
+  to Evil normal state.
 - **Help** — in Elisp buffers, `K` (normal state) describes the symbol under
   point with no prompt and moves focus into the `*Help*` window so you can
   scroll it and `q` to dismiss. `SPC h` is the help prefix.

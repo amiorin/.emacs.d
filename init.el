@@ -372,6 +372,32 @@
   :after (ghostel evil)
   :hook (ghostel-mode . evil-ghostel-mode)
   :config
+  (defvar neoemacs/ghostel-escape-timeout 0.25
+    "Seconds to wait for a second ESC in ghostel insert state.")
+
+  (defun neoemacs/ghostel--escape-event-p (event)
+    "Return non-nil when EVENT is an Escape key event."
+    (or (eq event 'escape)
+        (and (integerp event) (= event ?\e))))
+
+  (defun neoemacs/ghostel--evil-insert-escape ()
+    "Run Evil's insert-state Escape binding."
+    (let ((cmd (lookup-key evil-insert-state-map (kbd "<escape>"))))
+      (call-interactively (if (commandp cmd) cmd #'evil-force-normal-state))))
+
+  (defun neoemacs/ghostel-escape-dwim ()
+    "Send a single ESC to ghostel, but let double ESC leave insert state."
+    (interactive)
+    (let ((event (read-event nil nil neoemacs/ghostel-escape-timeout)))
+      (if (neoemacs/ghostel--escape-event-p event)
+          (neoemacs/ghostel--evil-insert-escape)
+        (when event
+          (setq unread-command-events (cons event unread-command-events)))
+        (ghostel-send-key "escape"))))
+
+  (evil-define-key* 'insert evil-ghostel-mode-map
+                    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim)
+
   ;; Let normal-state motion roam over animated output. Each redraw,
   ;; `ghostel--redraw-now' re-anchors any window following the live viewport
   ;; via `ghostel--anchor-window', whose final `set-window-point' snaps point
