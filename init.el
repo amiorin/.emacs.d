@@ -336,7 +336,13 @@
   (dirvish-attributes '(nerd-icons file-size git-msg subtree-state vc-state))
   ;; `-A' ("almost all") lists dotfiles but omits the `.' and `..' entries;
   ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
-  (dired-listing-switches "-Al")
+  ;; `--group-directories-first' sorts directories ahead of files, but it's a
+  ;; GNU `ls' extension; macOS ships BSD `ls' which lacks it, so use Homebrew
+  ;; coreutils `gls' when present and fall back to plain `-Al' otherwise.
+  (insert-directory-program (if (executable-find "gls") "gls" "ls"))
+  (dired-listing-switches (if (executable-find "gls")
+                              "-Al --group-directories-first"
+                            "-Al"))
   ;; Show a real block cursor in dired/dirvish buffers. By default dirvish
   ;; hides it (`cursor-type' nil + a zero-width `evil-normal-state-cursor')
   ;; and relies on the hl-line highlight; keeping it visible makes dirvish
