@@ -208,6 +208,7 @@
     "g"  '(:ignore t :which-key "git")
     "gg" '(magit-status :which-key "status")
     "gb" '(magit-blame :which-key "blame")
+    "gl" '(magit-log-buffer-file :which-key "log (this file)")
     "h"  '(help-command :which-key "help"))
   ;; `-' in normal state jumps to dired (vinegar-style).
   (general-define-key
