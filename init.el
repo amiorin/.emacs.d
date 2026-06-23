@@ -30,6 +30,11 @@
 ;; Disable backup files (the `filename~' clutter).
 (setq make-backup-files nil)
 
+;; Answer long yes/no prompts with a single `y' or `n', no RET required.
+(if (boundp 'use-short-answers)
+    (setq use-short-answers t)
+  (defalias 'yes-or-no-p #'y-or-n-p))
+
 ;; --- Mouse-wheel scrolling: scroll the buffer (view), not point ---
 ;;
 ;; In a terminal the wheel scrolls the buffer ONLY when Emacs receives real
