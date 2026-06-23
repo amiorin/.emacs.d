@@ -139,6 +139,8 @@
         evil-replace-state-cursor  'hbar
         evil-operator-state-cursor 'hbar
         evil-emacs-state-cursor    'hollow
+	;; workaround for Ghostty
+	visible-cursor             nil
         ;; Never blink the terminal cursor in any state: emit the steady
         ;; DECSCUSR codes (ESC [ 2/4/6 q) instead of the blinking ones.
         etcc-use-blink             nil)
