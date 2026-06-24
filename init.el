@@ -186,6 +186,14 @@
           (select-window (get-buffer-window "*Help*")))
       (user-error "No symbol at point"))))
 
+(defun neoemacs/find-file-in-config ()
+  "Find a file under the Emacs config directory (`user-emacs-directory').
+Opens a `find-file' prompt rooted at the private config dir (currently
+`~/.config/neoemacs')."
+  (interactive)
+  (let ((default-directory user-emacs-directory))
+    (call-interactively #'find-file)))
+
 ;;; --- Keybindings -----------------------------------------------------------
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
@@ -202,6 +210,7 @@
     ","  '(consult-buffer :which-key "switch buffer")
     "f"  '(:ignore t :which-key "files")
     "ff" '(find-file :which-key "find file")
+    "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fr" '(consult-recent-file :which-key "recent file")
     "b"  '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch buffer")
@@ -333,7 +342,12 @@
   :init
   (dirvish-override-dired-mode 1)
   :custom
-  (dirvish-attributes '(nerd-icons file-size git-msg subtree-state vc-state))
+  (dirvish-attributes '(nerd-icons git-msg subtree-state vc-state))
+  ;; Show the full `ls -l' detail columns (permissions, link count, owner,
+  ;; group, size, mtime) instead of dirvish's default hidden-details view.
+  ;; `file-size' is dropped from the attributes above because `-l' already
+  ;; prints a real size column, so the overlay would be redundant.
+  (dirvish-hide-details nil)
   ;; `-A' ("almost all") lists dotfiles but omits the `.' and `..' entries;
   ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
   ;; `--group-directories-first' sorts directories ahead of files, but it's a
@@ -357,6 +371,12 @@
    "h" 'dired-up-directory
    "l" 'dired-find-file
    "TAB" 'dirvish-subtree-toggle))
+
+;; Colorize the `ls -l' columns (permission flags, link count, owner, group,
+;; size, mtime) with distinct faces. Dirvish buffers are derived dired
+;; buffers, so hooking `diredfl-mode' onto `dired-mode' tints them too.
+(use-package diredfl
+  :hook (dired-mode . diredfl-mode))
 
 ;;; --- Terminal integration --------------------------------------------------
 
