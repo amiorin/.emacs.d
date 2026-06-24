@@ -291,6 +291,27 @@ Opens a `find-file' prompt rooted at the private config dir (currently
          ("M-g g" . consult-goto-line)
          ("M-g i" . consult-imenu)))
 
+;; Embark: "right-click for Emacs" — a context menu of actions on the target at
+;; point or the current minibuffer candidate. `s-.' acts (matching this config's
+;; other s- chords); `M-.' runs the most likely default action (this overrides
+;; the default `xref-find-definitions' on M-.). `C-h B' lists active bindings as
+;; a searchable, actionable completion list (cf. `C-h b').
+(use-package embark
+  :bind (("s-]" . embark-act)
+         ("M-." . embark-dwim)
+         ("C-h B" . embark-bindings))
+  :init
+  ;; Replace the prefix-key help (e.g. `C-x C-h') with a filterable, actionable
+  ;; list of that prefix's bindings; complements which-key's passive popup.
+  (setq prefix-help-command #'embark-prefix-help-command))
+
+;; embark-consult: glue between Embark and Consult — lets Embark export/act on
+;; consult candidates (e.g. consult-line/grep -> an editable results buffer) and
+;; previews candidates at point inside Embark Collect buffers.
+(use-package embark-consult
+  :after (embark consult)
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
+
 ;;; --- Git -------------------------------------------------------------------
 
 ;; Magit: Git interface.
@@ -362,6 +383,11 @@ Opens a `find-file' prompt rooted at the private config dir (currently
   ;; and relies on the hl-line highlight; keeping it visible makes dirvish
   ;; use a `(box . 4)' block, which etcc renders as a terminal block cursor.
   (dirvish-hide-cursor nil)
+  ;; Two-pane file manager: with two dired/dirvish windows side by side, the
+  ;; rename/copy (`R'/`C') operations default their target to the directory
+  ;; shown in the *other* window, so `R' moves marked files across panes. The
+  ;; prompt is still editable/confirmable.
+  (dired-dwim-target t)
   :bind ("C-c f" . dirvish)
   :config
   ;; Vim-style navigation: h goes up a directory, l enters the file/dir.
