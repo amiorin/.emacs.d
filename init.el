@@ -196,7 +196,7 @@
     :states '(normal visual motion)
     :keymaps 'override
     :prefix "SPC"
-    :global-prefix "C-SPC")
+    :global-prefix "M-SPC")
   (neoemacs/leader
     "SPC" '(projectile-find-file :which-key "find file in project")
     ","  '(consult-buffer :which-key "switch buffer")
