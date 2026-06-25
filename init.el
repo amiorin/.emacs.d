@@ -670,8 +670,16 @@ Wraps the affixation-function returned further down the advice chain
   ;; the same color as the cell behind it -- visible only as a solid colored
   ;; block. Stripping the background (as my Doom vc-gutter module does for the
   ;; fringe) leaves just the foreground, so the glyphs actually show.
-  (dolist (face '(diff-hl-insert diff-hl-delete diff-hl-change))
-    (set-face-background face nil))
+  ;;
+  ;; Loading/enabling any theme re-applies its own face specs, restoring the
+  ;; offending background, so we run this on `enable-theme-functions' (Emacs 29+,
+  ;; called with the theme name after each theme is enabled) and once now for the
+  ;; theme that's already active.
+  (defun +diff-hl-strip-margin-face-backgrounds (&rest _)
+    (dolist (face '(diff-hl-insert diff-hl-delete diff-hl-change))
+      (set-face-background face nil)))
+  (add-hook 'enable-theme-functions #'+diff-hl-strip-margin-face-backgrounds)
+  (+diff-hl-strip-margin-face-backgrounds)
   (add-hook 'magit-pre-refresh-hook  #'diff-hl-magit-pre-refresh)
   (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh)
   ;; Per-file VC status in dired/dirvish buffers. Dirvish buffers are derived
