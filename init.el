@@ -175,6 +175,36 @@
   :config
   (evil-terminal-cursor-changer-activate))
 
+;; evil-surround: operate on surrounding pairs. `ys{motion}{char}' adds, `cs'
+;; changes, `ds' deletes a surrounding pair (e.g. `cs"'' turns "x" into 'x',
+;; `ysiw)' wraps a word in parens). In visual state `S{char}' surrounds the
+;; selection. tpope's vim-surround, ported to evil.
+(use-package evil-surround
+  :after evil
+  :config
+  (global-evil-surround-mode 1))
+
+;; evil-commentary: comment toggling as an evil operator. `gcc' toggles the
+;; current line, `gc{motion}' a region (e.g. `gcap' a paragraph), `gc' in
+;; visual state the selection. Uses the major mode's comment syntax.
+(use-package evil-commentary
+  :after evil
+  :config
+  (evil-commentary-mode))
+
+;; evil-goggles: briefly flash the region an edit acts on (yank, delete,
+;; change, paste, indent, ...) so the affected text is visible -- useful in a
+;; terminal where there's no other visual cue. `evil-goggles-use-diff-faces'
+;; tints adds/deletes with the `diff-added'/`diff-removed' faces. Pulsing is
+;; disabled (steady flash) since pulse animation is costly over a terminal.
+(use-package evil-goggles
+  :after evil
+  :config
+  (setq evil-goggles-duration 0.1
+        evil-goggles-pulse nil)
+  (evil-goggles-use-diff-faces)
+  (evil-goggles-mode))
+
 ;;; --- Window management helpers ---------------------------------------------
 
 (defun neoemacs/vsplit-window-follow ()
@@ -304,6 +334,10 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "gg" '(magit-status :which-key "status")
     "gb" '(magit-blame :which-key "blame")
     "gl" '(magit-log-buffer-file :which-key "log (this file)")
+    "gj" '(diff-hl-next-hunk :which-key "next hunk")
+    "gk" '(diff-hl-previous-hunk :which-key "prev hunk")
+    "gs" '(diff-hl-stage-current-hunk :which-key "stage hunk")
+    "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
     "o"  '(:ignore t :which-key "open")
     "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
     "u"  '(vundo :which-key "undo tree")
@@ -375,6 +409,21 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   :init
   (vertico-mode 1))
 
+;; vertico-directory: ships with the vertico package (`:ensure nil', it's an
+;; extension file on vertico's load-path). Makes the minibuffer behave like a
+;; path editor when completing file names: `RET' on a directory enters it
+;; instead of exiting, `DEL'/`M-DEL' delete a path component at a time. The
+;; `rfn-eshadow-update-overlay' tidy hook removes the shadowed `~/' or `/'
+;; prefix when you type an absolute path.
+(use-package vertico-directory
+  :ensure nil
+  :after vertico
+  :bind (:map vertico-map
+         ("RET"   . vertico-directory-enter)
+         ("DEL"   . vertico-directory-delete-char)
+         ("M-DEL" . vertico-directory-delete-word))
+  :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+
 ;; Orderless: space-separated, order-independent completion matching.
 (use-package orderless
   :init
@@ -385,6 +434,47 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
 (use-package marginalia
   :init
   (marginalia-mode 1))
+
+;; nerd-icons-completion: prepend a colored nerd-font icon to each completion
+;; candidate (file/dir/buffer/...), matching the icons dirvish already shows.
+;; It works by wrapping the category's `affixation-function' (via an advice on
+;; `completion-metadata-get'), so files get an extension-colored icon and
+;; directories a distinct folder icon -- the "icons" half of colored find-file.
+;;
+;; The "text color" half: `neoemacs--completion-color-dirs' is a second advice
+;; that runs *outside* nerd-icons (added last => outermost), post-processing the
+;; affixation tuples nerd-icons returns and tinting the *name* of directory
+;; candidates (those ending in `/') with `nerd-icons-completion-dir-face' -- the
+;; same color as the folder icon. File names keep their default face; their type
+;; color comes from the icon. Composes cleanly because nerd-icons preserves the
+;; candidate string it's handed, and we only add a face property to it.
+(use-package nerd-icons-completion
+  :after (marginalia nerd-icons)
+  :config
+  (defun neoemacs--completion-color-dirs (orig metadata prop)
+    "Tint directory candidate names in `file' completion.
+Wraps the affixation-function returned further down the advice chain
+\(including nerd-icons') and faces the name of any candidate ending in `/'."
+    (let ((res (funcall orig metadata prop)))
+      (if (and (eq prop 'affixation-function)
+               res
+               (eq (completion-metadata-get metadata 'category) 'file))
+          (lambda (cands)
+            (mapcar (lambda (item)
+                      ;; Each item is (CAND PREFIX SUFFIX); CAND is the name.
+                      (if (and (consp item)
+                               (stringp (car item))
+                               (string-suffix-p "/" (car item)))
+                          (cons (propertize (car item)
+                                            'face 'nerd-icons-completion-dir-face)
+                                (cdr item))
+                        item))
+                    (funcall res cands)))
+        res)))
+  ;; Enable nerd-icons' advice first so ours, added next, sits outermost and
+  ;; post-processes its output.
+  (nerd-icons-completion-mode 1)
+  (advice-add 'completion-metadata-get :around #'neoemacs--completion-color-dirs))
 
 ;; Consult: enhanced search and navigation commands.
 (use-package consult
@@ -544,6 +634,26 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) t)))
       (apply orig-fn args)))
   (advice-add 'ediff-quit :around #'neoemacs--ediff-quit-no-confirm))
+
+;; diff-hl: VC diff indicators (added/changed/removed) next to each line.
+;; `diff-hl-margin-mode' renders them in the *margin* with text glyphs rather
+;; than the fringe -- the fringe doesn't exist in terminal Emacs (`emacs -nw'),
+;; so the default fringe display would show nothing. `global-diff-hl-mode' turns
+;; it on everywhere; both modes are autoloaded, so calling them in `:init' pulls
+;; the package in at startup (we want the indicators live from the start).
+;;
+;; Magit doesn't update VC state the way save-based diff-hl expects, so the two
+;; refresh hooks keep the indicators in sync when magit stages/commits. They're
+;; added to magit's hooks here; magit loads lazily and runs them when it does.
+;; Hunk navigation/staging is on the leader: `SPC g j/k/s/x' (see the general
+;; block).
+(use-package diff-hl
+  :init
+  (global-diff-hl-mode 1)
+  (diff-hl-margin-mode 1)
+  :config
+  (add-hook 'magit-pre-refresh-hook  #'diff-hl-magit-pre-refresh)
+  (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh))
 
 ;;; --- Dired / file management -----------------------------------------------
 
