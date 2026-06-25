@@ -649,8 +649,16 @@ Wraps the affixation-function returned further down the advice chain
 ;; block).
 (use-package diff-hl
   :init
-  (global-diff-hl-mode 1)
-  (diff-hl-margin-mode 1)
+  ;; Enable on `emacs-startup-hook' rather than eagerly. At startup the only
+  ;; buffers are `*scratch*'/`*Messages*' (no VC state to show), so loading
+  ;; diff-hl during init buys nothing but ~50ms on the critical path. The hook
+  ;; fires once, right after init -- after `emacs-init-time' is recorded and
+  ;; after the first frame paints -- so the package (and its dired/magit hooks
+  ;; in `:config') is ready before you could open a file, off the startup clock.
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (global-diff-hl-mode 1)
+              (diff-hl-margin-mode 1)))
   :custom
   ;; The text glyphs shown in the margin per change type. These are diff-hl's
   ;; own defaults, pinned here explicitly so the look is stable and documented
