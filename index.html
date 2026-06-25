@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>init.el — annotated walkthrough</title>
+<style>
+  :root{
+    --bg:#ffffff; --ink:#1f2328; --muted:#57606a; --line:#d8dee4;
+    --codebg:#f6f8fa; --accent:#0969da; --accent2:#8250df;
+    --c-comment:#6a737d; --c-string:#0a7f3f; --c-keyword:#8250df;
+    --c-colon:#1b7c83; --c-fn:#0550ae; --c-paren:#7d8590; --c-num:#bc4c00;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  .top{
+    position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92);
+    backdrop-filter:saturate(1.4) blur(6px);
+    border-bottom:1px solid var(--line); padding:14px 28px;
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+  }
+  .top h1{font-size:18px; margin:0; font-weight:650}
+  .top .sub{color:var(--muted); font-size:13px}
+  .top .nav{margin-left:auto; display:flex; gap:14px; flex-wrap:wrap; font-size:13px}
+  .top .nav a{color:var(--accent); text-decoration:none}
+  .top .nav a:hover{text-decoration:underline}
+  .main{max-width:1280px; margin:0 auto; padding:0 28px 120px}
+  .intro{padding:36px 0 8px; max-width:760px}
+  .intro h2{font-size:26px; margin:0 0 10px}
+  .intro p{color:var(--muted)}
+  .intro code{background:var(--codebg); padding:1px 5px; border-radius:5px; font-size:14px}
+  .sec-head{
+    margin:46px 0 4px; padding-top:14px; border-top:2px solid var(--line);
+    scroll-margin-top:70px;
+  }
+  .sec-head h2{font-size:20px; margin:0 0 2px; color:var(--ink)}
+  .sec-head p{margin:0; color:var(--muted); font-size:14px}
+  .row{
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:0; border:1px solid var(--line); border-radius:10px;
+    overflow:hidden; margin:16px 0; background:var(--bg);
+  }
+  .row > pre.code{
+    margin:0; padding:16px 18px; background:var(--codebg);
+    border-right:1px solid var(--line);
+    font:13.5px/1.6 "SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    overflow-x:auto; white-space:pre; tab-size:2;
+  }
+  .row > .prose{padding:16px 20px}
+  .row > .prose > :first-child{margin-top:0}
+  .row > .prose > :last-child{margin-bottom:0}
+  .prose p{margin:0 0 10px}
+  .prose ul{margin:0 0 10px; padding-left:20px}
+  .prose li{margin:3px 0}
+  .prose code{
+    background:var(--codebg); padding:1px 5px; border-radius:5px;
+    font:12.5px/1.4 "SF Mono",Menlo,Consolas,monospace; color:#24292f;
+  }
+  .prose .why{
+    margin-top:10px; padding:9px 12px; border-left:3px solid var(--accent2);
+    background:#faf8ff; border-radius:0 6px 6px 0; font-size:14px;
+  }
+  .prose .gotcha{
+    margin-top:10px; padding:9px 12px; border-left:3px solid var(--c-num);
+    background:#fff8f3; border-radius:0 6px 6px 0; font-size:14px;
+  }
+  .tag{font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase}
+  .why .tag{color:var(--accent2)} .gotcha .tag{color:var(--c-num)}
+  /* syntax */
+  .t-comment{color:var(--c-comment); font-style:italic}
+  .t-string{color:var(--c-string)}
+  .t-keyword{color:var(--c-keyword); font-weight:600}
+  .t-colon{color:var(--c-colon)}
+  .t-fn{color:var(--c-fn)}
+  .t-paren{color:var(--c-paren)}
+  .t-num{color:var(--c-num)}
+  .footer{color:var(--muted); font-size:13px; text-align:center; padding:30px 0; border-top:1px solid var(--line)}
+  @media (max-width:860px){
+    .row{grid-template-columns:1fr}
+    .row > pre.code{border-right:none; border-bottom:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>init.el</h1>
+  <span class="sub">neoemacs · annotated walkthrough</span>
+  <div class="nav">
+    <a href="#pkg">Packages</a>
+    <a href="#core">Core</a>
+    <a href="#evil">Evil</a>
+    <a href="#keys">Keys</a>
+    <a href="#completion">Completion</a>
+    <a href="#git">Git</a>
+    <a href="#dired">Dired</a>
+    <a href="#term">Terminal</a>
+    <a href="#env">direnv</a>
+    <a href="#zellij">Zellij</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="intro">
+    <h2>The config, explained side by side</h2>
+    <p>This is a personal terminal-Emacs configuration (<code>emacs -nw</code> inside
+    zellij) living at <code>~/.config/neoemacs</code>. It bootstraps
+    <code>package.el</code> + <code>use-package</code>, then configures one package per
+    form. On the left are the relevant elisp blocks from <code>init.el</code>; on the
+    right is the explanation, including the <em>why</em> and the terminal-specific gotchas.</p>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="pkg"><h2>Package system</h2><p>Bootstrapping the package manager and use-package.</p></div>
+
+  <div class="row">
+<pre class="code">;;; --- Package system ---
+
+(require 'package)
+(setq package-archives
+      '(("gnu"   . "https://elpa.gnu.org/packages/")
+        ("melpa" . "https://melpa.org/packages/")))
+(setq package-quickstart t)
+(let* ((qs (locate-user-emacs-file "package-quickstart.el"))
+       (qsc (concat qs "c")))
+  (cond
+   ((file-readable-p qsc) (load qsc nil 'nomessage))
+   ((file-readable-p qs)  (load qs nil 'nomessage))
+   (t (package-initialize)
+      (package-quickstart-refresh))))</pre>
+    <div class="prose">
+      <p><code>require 'package</code> loads the built-in package manager.</p>
+      <p><code>package-archives</code> declares the two repositories packages are fetched
+      from: <strong>GNU ELPA</strong> (the official, copyright-assigned archive) and
+      <strong>MELPA</strong> (the large community archive). Each entry is a
+      <code>(name . url)</code> cons cell.</p>
+      <p><code>package-quickstart</code> makes package.el maintain a single quickstart file
+      containing package autoloads, load paths, and the activated package list. Loading
+      that compiled bundle is much faster than scanning every installed package directory
+      on every startup.</p>
+      <p>The <code>let*</code> chooses the fastest available path: load
+      <code>package-quickstart.elc</code>, then plain <code>package-quickstart.el</code>, and
+      only on a first run or after deleting the quickstart file do a full
+      <code>package-initialize</code> followed by <code>package-quickstart-refresh</code>.</p>
+      <div class="why"><span class="tag">Why explicit</span> <code>early-init.el</code>
+      sets <code>package-enable-at-startup</code> to <code>nil</code> to skip Emacs's
+      automatic startup activation, so package activation is deliberately owned here.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+(require 'use-package)
+(setq use-package-always-ensure t)</pre>
+    <div class="prose">
+      <p>Self-bootstrapping: if <code>use-package</code> isn't installed yet (first ever
+      launch), download the archive contents index (<code>package-refresh-contents</code>)
+      and install it. On every subsequent launch the <code>unless</code> is a no-op.</p>
+      <p><code>require</code> then loads it, and
+      <code>use-package-always-ensure&nbsp;t</code> makes <em>every</em>
+      <code>use-package</code> form auto-install its package from ELPA if missing.</p>
+      <div class="gotcha"><span class="tag">Gotcha</span> Because of <code>always-ensure</code>,
+      packages that <em>ship with Emacs</em> (like <code>recentf</code>, <code>which-key</code>,
+      <code>ediff</code>) must add <code>:ensure nil</code> — otherwise use-package tries
+      to fetch them from ELPA and fails.</div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="core"><h2>Core editor settings</h2><p>Backups, mouse-wheel scrolling, line numbers, recent files.</p></div>
+
+  <div class="row">
+<pre class="code">;; Disable backup files (the `filename~' clutter).
+(setq make-backup-files nil)</pre>
+    <div class="prose">
+      <p>Turns off Emacs's automatic <code>file~</code> backup copies, which otherwise
+      litter every directory you edit in. Pure preference.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(if (boundp 'use-short-answers)
+    (setq use-short-answers t)
+  (defalias 'yes-or-no-p #'y-or-n-p))</pre>
+    <div class="prose">
+      <p>Lets you answer the long <code>yes-or-no-p</code> prompts ("Quit? (yes or no)") with a
+      single <kbd>y</kbd>/<kbd>n</kbd> instead of typing the whole word plus <kbd>RET</kbd>.</p>
+      <p>Modern Emacs (28+) exposes the <code>use-short-answers</code> variable, so when it's
+      <code>boundp</code> just set it. On older Emacs the variable doesn't exist, so the
+      <code>else</code> branch falls back to aliasing <code>yes-or-no-p</code> straight to the
+      already-short <code>y-or-n-p</code>.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(xterm-mouse-mode 1)</pre>
+    <div class="prose">
+      <p>Enables Emacs's own mouse reporting in the terminal, so the wheel arrives as
+      real <code>mouse-4</code>/<code>mouse-5</code> events that route to
+      <code>mwheel-scroll</code>.</p>
+      <div class="gotcha"><span class="tag">The bug this fixes</span> Without it, the
+      terminal's "alternate scroll" translates the wheel into <strong>Up/Down arrow
+      keys</strong>, which move <em>point</em> (the cursor) instead of scrolling the view.
+      Trade-off: with mouse mode on, text selection now uses Emacs's mouse, not the
+      terminal's — hold <kbd>Shift</kbd>/<kbd>Fn</kbd> for native terminal selection.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(setq mouse-wheel-follow-mouse t
+      mouse-wheel-progressive-speed nil
+      mouse-wheel-scroll-amount '(2 ((shift) . 1) ((control) . text-scale))
+      scroll-conservatively 101
+      scroll-step 1
+      scroll-margin 0
+      make-cursor-line-fully-visible nil)</pre>
+    <div class="prose">
+      <p>Tunes scrolling so the <strong>view</strong> moves, not point:</p>
+      <ul>
+        <li><code>mouse-wheel-follow-mouse</code> — scroll the window under the pointer.</li>
+        <li><code>mouse-wheel-progressive-speed nil</code> — constant speed; don't accelerate on fast spins.</li>
+        <li><code>mouse-wheel-scroll-amount</code> — 2 lines per notch; <kbd>Shift</kbd>+wheel = 1 line; <kbd>Ctrl</kbd>+wheel = text zoom.</li>
+        <li><code>scroll-conservatively 101</code> + <code>scroll-step 1</code> — scroll one line at a time for keyboard motion, never recenter with a jump.</li>
+        <li><code>scroll-margin 0</code> — let the cursor reach the very top/bottom edge before the view is dragged.</li>
+        <li><code>make-cursor-line-fully-visible nil</code> — don't force a recenter after a wheel scroll.</li>
+      </ul>
+      <div class="gotcha"><span class="tag">Deliberately omitted</span>
+      <code>scroll-preserve-screen-position</code> is left <code>nil</code> on purpose —
+      setting it pins point to a screen row so the cursor <em>tracks</em> the scroll, the
+      opposite of what's wanted. Inherent limit: point must stay visible, so scrolling far
+      enough still drags the cursor along at the window edge.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(setq display-line-numbers-type t)
+(global-display-line-numbers-mode 1)
+(global-hl-line-mode 1)</pre>
+    <div class="prose">
+      <p><code>display-line-numbers-type t</code> selects <strong>absolute</strong> line
+      numbers (switch to <code>'relative</code> or <code>'visual</code> for Vim-style
+      relative numbering).</p>
+      <p><code>global-display-line-numbers-mode</code> shows them in the gutter
+      everywhere; <code>global-hl-line-mode</code> highlights the line point is on.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package recentf
+  :ensure nil
+  :custom
+  (recentf-max-saved-items 100)
+  :init
+  (recentf-mode 1)
+  :config
+  (defun neoemacs--recentf-merge-on-save (&amp;rest _)
+    (let ((mem recentf-list))
+      (recentf-load-list)
+      (setq recentf-list
+            (seq-take (delete-dups (append mem recentf-list))
+                      recentf-max-saved-items))))
+  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save))</pre>
+    <div class="prose">
+      <p><code>recentf</code> tracks recently opened files (consumed by
+      <code>consult-recent-file</code> at <code>SPC f r</code>). <code>:ensure nil</code>
+      because it ships with Emacs. <code>:custom</code> raises the remembered count to 100;
+      <code>:init (recentf-mode 1)</code> turns it on.</p>
+      <p>The <code>:config</code> block fixes a multi-instance race. Each Emacs holds its own
+      in-memory <code>recentf-list</code> and overwrites the shared save file on exit, so the
+      last one to quit would erase the other's history.</p>
+      <ul>
+        <li><code>mem</code> snapshots this instance's list.</li>
+        <li><code>recentf-load-list</code> re-reads what's currently on disk.</li>
+        <li><code>append</code> + <code>delete-dups</code> merges both, then
+        <code>seq-take</code> caps it at the max.</li>
+      </ul>
+      <div class="why"><span class="tag">Why <code>:before</code></span> The advice runs
+      right <em>before</em> every <code>recentf-save-list</code>, so the merged list is what
+      gets written — the last writer wins without discarding the other instance's entries.</div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head"><h2>Appearance</h2><p>Theme, icon fonts, modeline.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package doom-themes
+  :config
+  (setq doom-themes-enable-bold t
+        doom-themes-enable-italic t)
+  (load-theme 'doom-one t))</pre>
+    <div class="prose">
+      <p>Installs the <strong>doom-themes</strong> pack, enables bold and italic face
+      variants, and loads <code>doom-one</code> (the dark theme from Doom Emacs). The
+      <code>t</code> second argument to <code>load-theme</code> means "no confirmation,
+      trust this theme."</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package nerd-icons)
+
+(use-package doom-modeline
+  :after nerd-icons
+  :init
+  (doom-modeline-mode 1))</pre>
+    <div class="prose">
+      <p><code>nerd-icons</code> supplies the glyph fonts that the modeline and dirvish draw
+      file-type icons from.</p>
+      <p><code>doom-modeline</code> is the rich status bar matching the theme.
+      <code>:after nerd-icons</code> guarantees the icon library loads first;
+      <code>:init</code> activates the mode.</p>
+      <div class="gotcha"><span class="tag">One-time setup</span> Run
+      <code>M-x nerd-icons-install-fonts</code> once after first launch, or the icons render
+      as tofu boxes.</div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="evil"><h2>Evil — Vim emulation</h2><p>The editing model, plus collection bindings and terminal cursor shapes.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package evil
+  :init
+  (setq evil-want-integration t
+        evil-want-keybinding nil
+        evil-want-C-u-scroll t
+        evil-echo-state nil)
+  :config
+  (evil-mode 1))</pre>
+    <div class="prose">
+      <p>Evil brings modal Vim editing. Settings are in <code>:init</code> because they must
+      be set <em>before</em> the package loads:</p>
+      <ul>
+        <li><code>evil-want-integration t</code> — load Evil's integration layer.</li>
+        <li><code>evil-want-keybinding nil</code> — <strong>required</strong> so that
+        <code>evil-collection</code> (next) provides the keybindings instead of Evil's own
+        defaults; the two would clash otherwise.</li>
+        <li><code>evil-want-C-u-scroll t</code> — restore Vim's <kbd>C-u</kbd> half-page
+        scroll (Emacs normally uses <kbd>C-u</kbd> as a prefix arg).</li>
+        <li><code>evil-echo-state nil</code> — don't print <code>-- INSERT --</code> etc. in
+        the echo area (the modeline already shows the state).</li>
+      </ul>
+      <p><code>:config (evil-mode 1)</code> turns it on globally.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package evil-collection
+  :after evil
+  :config
+  (setq evil-collection-mode-list (delq 'magit evil-collection-mode-list))
+  (evil-collection-init))</pre>
+    <div class="prose">
+      <p><code>evil-collection</code> supplies consistent Evil bindings for hundreds of
+      built-in and third-party modes (dired, help, magit, …). <code>:after evil</code>
+      orders it after Evil.</p>
+      <p><code>delq 'magit …</code> removes magit from the list of modes it will touch
+      <em>before</em> <code>evil-collection-init</code> applies the rest.</p>
+      <div class="why"><span class="tag">Why drop magit</span> Magit's native keymap is
+      carefully designed; layering Evil bindings on top would override its single-key
+      commands. Keeping it out preserves magit's own keys.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package evil-terminal-cursor-changer
+  :after evil
+  :init
+  (setq evil-normal-state-cursor   'box
+        evil-visual-state-cursor   'box
+        evil-motion-state-cursor   'box
+        evil-insert-state-cursor   'bar
+        evil-replace-state-cursor  'hbar
+        evil-operator-state-cursor 'hbar
+        evil-emacs-state-cursor    'hollow
+        ;; workaround for Ghostty
+        visible-cursor             nil
+        etcc-use-blink             nil)
+  :config
+  (evil-terminal-cursor-changer-activate))</pre>
+    <div class="prose">
+      <p>In GUI Emacs, <code>cursor-type</code> alone changes the cursor shape — but in
+      <code>emacs -nw</code> it does nothing. This package emits <strong>DECSCUSR</strong>
+      escape sequences on each Evil state change so the host terminal's cursor reflects the
+      mode:</p>
+      <ul>
+        <li>normal / visual / motion → <strong>block</strong></li>
+        <li>insert → vertical <strong>bar</strong></li>
+        <li>replace / operator → <strong>underline</strong> (<code>hbar</code>)</li>
+        <li>emacs state → <strong>hollow</strong> box</li>
+      </ul>
+      <p><code>etcc-use-blink nil</code> forces the <em>steady</em> DECSCUSR codes
+      (<code>ESC [ 2/4/6 q</code>) in every state — no blinking.</p>
+      <div class="gotcha"><span class="tag">Ghostty workaround</span> <code>visible-cursor nil</code>
+      tells Emacs not to use the terminal's "very visible" (blinking) cursor. Under Ghostty this
+      is needed so the steady DECSCUSR shapes actually stick instead of being overridden back to a
+      blinking cursor.</div>
+      <div class="why"><span class="tag">Why no passthrough</span> Running inside zellij,
+      which forwards DECSCUSR to the real terminal natively. Because <code>$TMUX</code> is
+      unset, the package sends plain sequences with no tmux-style DCS wrapping.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package evil-surround
+  :after evil
+  :config
+  (global-evil-surround-mode 1))
+
+(use-package evil-commentary
+  :after evil
+  :config
+  (evil-commentary-mode))</pre>
+    <div class="prose">
+      <p><code>evil-surround</code> ports Vim surround operations:
+      <code>ys</code> adds, <code>cs</code> changes, and <code>ds</code> deletes surrounding
+      pairs; visual-state <code>S</code> surrounds the selected region.</p>
+      <p><code>evil-commentary</code> adds comment operators: <code>gcc</code> toggles the
+      current line, <code>gc{motion}</code> comments a motion, and <code>gc</code> works on
+      a visual selection using the major mode's comment syntax.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package evil-goggles
+  :after evil
+  :config
+  (setq evil-goggles-duration 0.1
+        evil-goggles-pulse nil)
+  (evil-goggles-use-diff-faces)
+  (evil-goggles-mode))</pre>
+    <div class="prose">
+      <p><code>evil-goggles</code> briefly highlights the text affected by edits such as
+      yank, delete, change, paste, and indent. Diff faces make additions/deletions easy
+      to spot, while pulse animation is disabled to keep terminal redraws cheap.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="keys"><h2>Window helpers &amp; keybindings</h2><p>Custom commands, then the SPC leader and state-scoped keys via <code>general</code>.</p></div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/vsplit-window-follow ()
+  "Split the window horizontally and move focus into the new split."
+  (interactive)
+  (evil-window-vsplit)
+  (evil-window-right 1))</pre>
+    <div class="prose">
+      <p>A vertical split that also <em>follows</em> focus into the new pane. Evil's
+      <code>evil-window-vsplit</code> by itself leaves point in the original window; the
+      <code>evil-window-right 1</code> moves into the freshly created one. <code>interactive</code>
+      makes it a callable command. Bound to <code>s-n</code> below.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/vsplit-ghostel ()
+  "Open a vertical split, move focus into it, and launch ghostel there."
+  (interactive)
+  (neoemacs/vsplit-window-follow)
+  (evil-buffer-new)
+  (let ((placeholder (window-buffer))
+        (ghostel-buffer (ghostel '(4))))
+    (when (and (buffer-live-p placeholder)
+               (not (eq placeholder ghostel-buffer)))
+      (kill-buffer placeholder))))</pre>
+    <div class="prose">
+      <p>Opens a terminal in a fresh split (bound to <code>s-t</code>):</p>
+      <ul>
+        <li><code>vsplit-window-follow</code> makes the split and moves into it.</li>
+        <li><code>evil-buffer-new</code> shows an empty <code>*new*</code> buffer there.</li>
+        <li><code>(ghostel '(4))</code> launches the terminal. The <em>non-numeric</em>
+        prefix arg <code>'(4)</code> forces a <strong>new</strong> terminal rather than
+        reusing an existing one.</li>
+      </ul>
+      <div class="gotcha"><span class="tag">The cleanup dance</span>
+      <code>evil-buffer-new</code> puts its placeholder in the window via
+      <code>set-window-buffer</code> without making it current — so it's grabbed back with
+      <code>(window-buffer)</code>. Ghostel then swaps in its own buffer; the
+      <code>when</code> kills the leftover placeholder, but only if it's still alive and
+      genuinely different from the ghostel buffer.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/describe-symbol-at-point ()
+  "Describe the symbol under point without prompting in the minibuffer."
+  (interactive)
+  (let ((sym (symbol-at-point)))
+    (if sym
+        (progn
+          (helpful-symbol sym)
+          (when-let ((win (seq-find
+                           (lambda (w)
+                             (provided-mode-derived-p
+                              (buffer-local-value 'major-mode (window-buffer w))
+                              'helpful-mode))
+                           (window-list))))
+            (select-window win)))
+      (user-error "No symbol at point"))))</pre>
+    <div class="prose">
+      <p>A no-prompt help command (bound to <code>K</code> in elisp buffers, Vim-style).
+      <code>symbol-at-point</code> grabs the symbol under the cursor; if there is one,
+      <code>helpful-symbol</code> opens the richer Helpful buffer without the usual
+      minibuffer prompt.</p>
+      <p>The <code>when-let</code> scans live windows for one whose buffer is derived from
+      <code>helpful-mode</code>, then selects it. Focus lands in the help window, so you
+      can immediately scroll it and press <code>q</code> to dismiss. If there's no
+      symbol, <code>user-error</code> reports it cleanly (no stack trace).</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/find-file-in-config ()
+  "Find a file under the Emacs config directory (`user-emacs-directory')."
+  (interactive)
+  (let ((default-directory user-emacs-directory))
+    (call-interactively #'find-file)))</pre>
+    <div class="prose">
+      <p>Opens a normal <code>find-file</code> prompt rooted at this config directory.
+      It is bound to <code>SPC f p</code>, so editing the private config never depends
+      on the current project or buffer.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/dired-quick-look ()
+  "Preview the file under point in dired/dirvish via macOS Quick Look."
+  (interactive)
+  (let ((file (dired-get-filename nil t)))
+    (unless file
+      (user-error "No file on this line"))
+    (start-process "ql" nil "qlmanage" "-p" file)))</pre>
+    <div class="prose">
+      <p><code>SPC f i</code> previews the dired/dirvish file at point with macOS Quick
+      Look. It delegates to <code>qlmanage -p</code> asynchronously so terminal Emacs
+      does not block or need to render media itself.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/open-in-finder ()
+  "Reveal the current directory in macOS Finder."
+  (interactive)
+  (let ((dir (cond ((derived-mode-p 'dired-mode) (dired-current-directory))
+                   (t default-directory))))
+    (start-process "open-finder" nil "open" (expand-file-name dir))))</pre>
+    <div class="prose">
+      <p><code>SPC f o</code> opens the relevant directory in Finder. In dired/dirvish
+      it follows the listed directory; elsewhere it uses <code>default-directory</code>.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/open-in-obsidian ()
+  "Open the current file in Obsidian."
+  (interactive)
+  (let ((file ...))
+    (let ((root (locate-dominating-file file ".obsidian")))
+      (unless root
+        (user-error "Not inside an Obsidian vault ..."))
+      (start-process "open-obsidian" nil "open" obsidian-url))))</pre>
+    <div class="prose">
+      <p><code>SPC o o</code> opens the current file in Obsidian. It detects the nearest
+      parent directory containing <code>.obsidian</code>, uses that directory name as the
+      vault name, builds an <code>obsidian://open</code> URL for the file relative to the
+      vault root, and hands it to macOS <code>open</code>.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package general
+  :after evil
+  :config
+  (general-create-definer neoemacs/leader
+    :states '(normal visual motion)
+    :keymaps 'override
+    :prefix "SPC"
+    :global-prefix "M-SPC")</pre>
+    <div class="prose">
+      <p><code>general</code> is the keybinding DSL. <code>general-create-definer</code>
+      builds a reusable <strong>leader</strong> command, <code>neoemacs/leader</code>:</p>
+      <ul>
+        <li><code>:states</code> — active in normal, visual, and motion Evil states.</li>
+        <li><code>:keymaps 'override</code> — bind in an override map so nothing shadows the
+        leader.</li>
+        <li><code>:prefix "SPC"</code> — <kbd>Space</kbd> is the leader.</li>
+        <li><code>:global-prefix "M-SPC"</code> — <kbd>M-Space</kbd> works as a fallback in
+        insert/emacs states where Space inserts text.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">  (neoemacs/leader
+    "SPC" '(projectile-find-file :which-key "find file in project")
+    ","  '(consult-buffer :which-key "switch buffer")
+    "f"  '(:ignore t :which-key "files")
+    "ff" '(find-file :which-key "find file")
+    "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
+    "fr" '(consult-recent-file :which-key "recent file")
+    "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
+    "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
+    "b"  '(:ignore t :which-key "buffers")
+    "bb" '(consult-buffer :which-key "switch buffer")
+    "bd" '(kill-current-buffer :which-key "kill buffer")
+    "bi" '(ibuffer :which-key "ibuffer")
+    "bn" '(next-buffer :which-key "next buffer")
+    "bp" '(previous-buffer :which-key "previous buffer")
+    "p"  '(:ignore t :which-key "project")
+    "pp" '(consult-projectile :which-key "switch project")
+    "pf" '(projectile-find-file :which-key "find file in project")
+    "pb" '(projectile-switch-to-buffer :which-key "project buffer")
+    "g"  '(:ignore t :which-key "git")
+    "gg" '(magit-status :which-key "status")
+    "gb" '(magit-blame :which-key "blame")
+    "gl" '(magit-log-buffer-file :which-key "log (this file)")
+    "gj" '(diff-hl-next-hunk :which-key "next hunk")
+    "gk" '(diff-hl-previous-hunk :which-key "prev hunk")
+    "gs" '(diff-hl-stage-current-hunk :which-key "stage hunk")
+    "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
+    "o"  '(:ignore t :which-key "open")
+    "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
+    "u"  '(vundo :which-key "undo tree")
+    "h"  '(help-command :which-key "help"))</pre>
+    <div class="prose">
+      <p>The leader menu. Each entry maps a key sequence to a command plus a
+      <code>:which-key</code> label shown in the popup. Two top-level shortcuts:
+      <code>SPC SPC</code> → find file in project, <code>SPC ,</code> → switch buffer.</p>
+      <p>Mnemonic groups, where <code>:ignore t</code> defines a prefix that only carries a
+      which-key label (no command of its own):</p>
+      <ul>
+        <li><strong>f</strong> files — <code>ff</code> find, <code>fp</code> config file,
+        <code>fr</code> recent, <code>fi</code> Quick Look, <code>fo</code> Finder.</li>
+        <li><strong>b</strong> buffers — switch / kill / ibuffer / next / prev.</li>
+        <li><strong>p</strong> project — <code>pp</code> switch project, <code>pf</code> find file, <code>pb</code> project buffer.</li>
+        <li><strong>g</strong> git — status, blame, file log, and diff-hl hunk navigation/stage/revert.</li>
+        <li><strong>o</strong> open — <code>oo</code> opens the current file in Obsidian.</li>
+        <li><strong>u</strong> → <code>vundo</code>, a visual undo tree.</li>
+        <li><strong>h</strong> → the whole <code>help-command</code> map.</li>
+      </ul>
+      <div class="gotcha"><span class="tag">Why <code>SPC p p</code></span> Projectile's
+      command map is reached at <code>C-c p</code>, which isn't a real prefix until projectile
+      loads — so <code>consult-projectile</code> is exposed through the leader instead.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(define-key help-map "t" #'emacs-init-time)</pre>
+    <div class="prose">
+      <p>With the dashboard gone, startup time is exposed through the normal help map:
+      <code>SPC h t</code> and <code>C-h t</code> both call <code>emacs-init-time</code>.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">  (general-define-key
+   :states 'normal
+   :keymaps 'override
+   "-" 'dired-jump)
+  (general-define-key
+   :keymaps 'override
+   "s-h" 'evil-window-left
+   "s-j" 'evil-window-down
+   "s-k" 'evil-window-up
+   "s-l" 'evil-window-right
+   "s-n" 'neoemacs/vsplit-window-follow
+   "s-w" 'evil-window-delete
+   "S-s-[" 'evil-window-rotate-downwards
+   "S-s-]" 'delete-other-windows)
+  (general-define-key
+   :states 'normal
+   :keymaps '(emacs-lisp-mode-map lisp-interaction-mode-map)
+   "K" 'neoemacs/describe-symbol-at-point))</pre>
+    <div class="prose">
+      <p>State- and keymap-scoped bindings (layer 2 of the keybinding architecture):</p>
+      <ul>
+        <li><code>-</code> in normal state → <code>dired-jump</code> (vim-vinegar-style
+        "jump to the directory of this file").</li>
+        <li><code>s-h/j/k/l</code> — move between windows (the Super/Cmd key + hjkl).</li>
+        <li><code>s-n</code> — vertical split and follow; <code>s-w</code> — delete window.</li>
+        <li><code>S-s-[</code> — rotate windows; <code>S-s-]</code> — maximize (delete
+        others).</li>
+        <li><code>K</code> — only in <code>emacs-lisp-mode</code> /
+        <code>lisp-interaction-mode</code>, describe the symbol under point.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package expand-region
+  :after (evil general)
+  :commands (er/expand-region er/contract-region)
+  :init
+  (general-define-key
+   :states 'visual
+   "v" 'er/expand-region
+   "V" 'er/contract-region))</pre>
+    <div class="prose">
+      <p><code>expand-region</code> grows/shrinks the selection by <em>semantic</em> units
+      (word → string → sexp → defun …). In visual state, <code>v</code> expands the region
+      and <code>V</code> contracts it — keep tapping <code>v</code> to widen the selection
+      one syntactic level at a time.</p>
+      <div class="why"><span class="tag">Deferred</span> The visual-state bindings are
+      created during init, but the package itself loads only when
+      <code>er/expand-region</code> or <code>er/contract-region</code> is first used.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package vundo
+  :commands (vundo)
+  :config
+  (setq vundo-glyph-alist vundo-unicode-symbols))</pre>
+    <div class="prose">
+      <p><code>vundo</code> visualizes the built-in undo history as a tree. It does not
+      replace Emacs undo and does not create persistent undo-history files. It is reached
+      via <code>SPC u</code>, and the Unicode glyphs make the tree clearer in the terminal.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package which-key
+  :ensure nil
+  :config
+  (setq which-key-idle-delay 0.5)
+  (which-key-mode 1))</pre>
+    <div class="prose">
+      <p><code>which-key</code> shows a popup of the available follow-up keys after you
+      start a prefix (this is what renders the leader menu labels). <code>:ensure nil</code>
+      because it's built in to modern Emacs. <code>which-key-idle-delay 0.5</code> waits
+      half a second before showing the popup.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="completion"><h2>Completion stack</h2><p>Vertico, Orderless, Marginalia, icons, Consult, Embark, Helpful, and ibuffer.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package vertico
+  :init
+  (vertico-mode 1))</pre>
+    <div class="prose">
+      <p><strong>Vertico</strong> is the UI layer: it turns minibuffer completion into a
+      clean <em>vertical</em> list of candidates instead of the default horizontal one.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package vertico-directory
+  :ensure nil
+  :after vertico
+  :bind (:map vertico-map
+         ("RET"   . vertico-directory-enter)
+         ("DEL"   . vertico-directory-delete-char)
+         ("M-DEL" . vertico-directory-delete-word))
+  :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))</pre>
+    <div class="prose">
+      <p><code>vertico-directory</code> ships with Vertico and makes file-name
+      completion behave like a path editor. <code>RET</code> enters directories,
+      <code>DEL</code> deletes one character, and <code>M-DEL</code> deletes a whole path
+      component. The tidy hook removes shadowed path prefixes like stale <code>~/</code>
+      text when an absolute path is typed.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package orderless
+  :init
+  (setq completion-styles '(orderless basic)
+        completion-category-overrides '((file (styles partial-completion)))))</pre>
+    <div class="prose">
+      <p><strong>Orderless</strong> is the matching layer: type space-separated fragments in
+      any order (e.g. <code>buf swi</code> matches "switch-buffer"). <code>completion-styles</code>
+      tries <code>orderless</code> first, falling back to <code>basic</code>.</p>
+      <p>The <code>file</code> category override uses <code>partial-completion</code> so path
+      completion keeps the familiar <code>/u/s/b</code> → <code>/usr/share/bin</code>
+      shorthand.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package marginalia
+  :init
+  (marginalia-mode 1))</pre>
+    <div class="prose">
+      <p><strong>Marginalia</strong> is the annotation layer: it adds rich notes in the
+      right margin of each candidate — docstrings for commands, file sizes and permissions,
+      variable values, and so on.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package nerd-icons-completion
+  :after (marginalia nerd-icons)
+  :config
+  (defun neoemacs--completion-color-dirs (orig metadata prop)
+    ...
+    (wrap file affixation candidates ending in "/"))
+  (nerd-icons-completion-mode 1)
+  (advice-add 'completion-metadata-get
+              :around #'neoemacs--completion-color-dirs))</pre>
+    <div class="prose">
+      <p><code>nerd-icons-completion</code> adds colored icons to file, directory, and
+      buffer candidates. A local advice then post-processes file completion
+      affixations and tints directory names with the same face as the folder icon, while
+      regular file names keep their default text face.</p>
+      <div class="why"><span class="tag">Advice order</span> The icon mode is enabled
+      first, then the local advice is added so it wraps outside the icon advice and can
+      safely post-process its output.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package consult
+  :bind (("C-s"   . consult-line)
+         ("C-x b" . consult-buffer)
+         ("M-y"   . consult-yank-pop)
+         ("M-g g" . consult-goto-line)
+         ("M-g i" . consult-imenu)))</pre>
+    <div class="prose">
+      <p><strong>Consult</strong> is the commands layer — enhanced search/navigation that
+      feeds candidates into Vertico. Bound via plain global chords:</p>
+      <ul>
+        <li><code>C-s</code> — <code>consult-line</code> (live in-buffer search).</li>
+        <li><code>C-x b</code> — buffer switcher with previews.</li>
+        <li><code>M-y</code> — browse the kill ring on paste.</li>
+        <li><code>M-g g</code> — go to line; <code>M-g i</code> — jump via imenu.</li>
+      </ul>
+      <div class="why"><span class="tag">They're a set</span> These four packages are
+      coupled: changing one (e.g. <code>completion-styles</code>) affects how all of them
+      behave.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package embark
+  :bind (("s-]" . embark-act)
+         ("M-." . embark-dwim)
+         :map help-map
+         ("b" . embark-bindings))
+  :init
+  (setq prefix-help-command #'embark-prefix-help-command))
+
+(use-package embark-consult
+  :after (embark consult)
+  :hook (embark-collect-mode . consult-preview-at-point-mode))</pre>
+    <div class="prose">
+      <p><code>embark</code> is the context-action layer: <code>s-]</code> opens actions
+      for the current target or minibuffer candidate, and <code>M-.</code> runs the
+      default action. <code>C-h b</code> / <code>SPC h b</code> are upgraded to
+      <code>embark-bindings</code>, a searchable active-keybinding view.</p>
+      <p><code>embark-consult</code> connects Embark exports and previews to Consult
+      candidate buffers, so search results can be exported into editable or actionable
+      buffers.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package wgrep
+  :commands (wgrep-change-to-wgrep-mode)
+  :custom (wgrep-auto-save-buffer t))</pre>
+    <div class="prose">
+      <p><code>wgrep</code> makes grep result buffers editable. A typical flow is
+      <code>consult-ripgrep</code>, <code>embark-export</code>, then
+      <code>C-c C-p</code> to enter wgrep mode; edits are saved back to the touched files
+      with <code>C-c C-c</code>. Auto-save is enabled so changed buffers are written when
+      the wgrep edit is committed.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package helpful
+  :bind (:map help-map
+         ("f" . helpful-callable)
+         ("v" . helpful-variable)
+         ("k" . helpful-key)
+         ("x" . helpful-command)
+         ("o" . helpful-symbol))
+  :config
+  (advice-add 'helpful--calculate-references :override #'ignore))</pre>
+    <div class="prose">
+      <p><code>helpful</code> replaces the common help commands under both
+      <code>C-h</code> and <code>SPC h</code>. It shows source, values, callers, keybindings,
+      and richer symbol context than the built-in help buffers.</p>
+      <div class="why"><span class="tag">Performance trade-off</span> The references
+      section is disabled because <code>elisp-refs</code> scans large source files and can
+      make help for core symbols take seconds. Other Helpful sections stay intact.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package ibuffer
+  :ensure nil
+  :bind (("C-x C-b" . ibuffer))
+  :hook (ibuffer-mode . ibuffer-auto-mode)
+  :custom
+  (ibuffer-expert t)
+  (ibuffer-show-empty-filter-groups nil))
+
+(use-package ibuffer-projectile
+  :hook (ibuffer-mode . ibuffer-projectile-set-filter-groups))</pre>
+    <div class="prose">
+      <p><code>ibuffer</code> is the bulk buffer-management view, bound to
+      <code>C-x C-b</code> and <code>SPC b i</code>. Evil collection supplies familiar
+      navigation and marking keys. <code>ibuffer-auto-mode</code> keeps the list live, and
+      <code>ibuffer-expert</code> removes repetitive kill confirmations.</p>
+      <p><code>ibuffer-projectile</code> groups buffers by Projectile project. Embark can
+      also export a narrowed <code>consult-buffer</code> candidate set directly into
+      ibuffer for bulk actions.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="git"><h2>Git — magit, ediff, diff-hl</h2><p>The Git porcelain, diff-session tweaks, and terminal hunk indicators.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package magit
+  :bind (("C-x g" . magit-status)
+         :map magit-status-mode-map
+         ("e" . magit-ediff-show-working-tree))
+  :custom
+  (magit-display-buffer-function
+   #'magit-display-buffer-same-window-except-diff-v1))</pre>
+    <div class="prose">
+      <p><strong>Magit</strong> is the Git interface. <code>C-x g</code> opens status.
+      Inside the status buffer, <code>e</code> is rebound to
+      <code>magit-ediff-show-working-tree</code> — diffing the working tree against HEAD in
+      ediff (overriding magit's default <code>magit-ediff-dwim</code> on that key).</p>
+      <p><code>magit-display-buffer-function</code> = the
+      <code>…same-window-except-diff-v1</code> variant: <code>magit-status</code> opens in
+      the <em>current</em> window, while diffs and other secondary buffers still pop to
+      another window.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package transient
+  :ensure nil
+  :defer t
+  :config
+  (define-key transient-map (kbd "&lt;escape&gt;") #'transient-quit-one))</pre>
+    <div class="prose">
+      <p><strong>Transient</strong> is the popup-menu engine behind magit (and many other
+      packages) — <code>:ensure nil</code> because it ships with Emacs, and
+      <code>:defer t</code> keeps it off the startup path. This makes
+      <kbd>Esc</kbd> an alias for <kbd>C-g</kbd> (<code>transient-quit-one</code>), so pressing
+      Escape backs out of any open transient one level. Bound in <code>transient-map</code>, so
+      it applies to <em>every</em> transient, not just magit's.</p>
+      <div class="gotcha"><span class="tag">The Meta trade-off</span> In a terminal, <kbd>Esc</kbd>
+      is also the Meta prefix, so this slightly gives up Meta chords <em>inside</em> an open
+      transient — acceptable here since transient popups rarely need them.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package ediff
+  :ensure nil
+  :defer t
+  :custom
+  (ediff-split-window-function #'split-window-horizontally)
+  (ediff-window-setup-function #'ediff-setup-windows-plain)
+  :config
+  (defun neoemacs--ediff-quit-no-confirm (orig-fn &amp;rest args)
+    "Run ORIG-FN with `y-or-n-p' auto-confirmed so ediff quits silently."
+    (cl-letf (((symbol-function 'y-or-n-p) (lambda (&amp;rest _) t)))
+      (apply orig-fn args)))
+  (advice-add 'ediff-quit :around #'neoemacs--ediff-quit-no-confirm))</pre>
+    <div class="prose">
+      <p>Built-in <code>ediff</code> (<code>:ensure nil</code>), deferred until a diff
+      session starts, and tuned two ways:</p>
+      <ul>
+        <li><code>ediff-split-window-function</code> = horizontal split → the two diff
+        buffers sit <strong>side by side</strong> with a vertical divider, not stacked.</li>
+        <li><code>ediff-window-setup-function</code> = <code>plain</code> → the control panel
+        stays in the same frame instead of spawning a popup frame.</li>
+      </ul>
+      <div class="why"><span class="tag">The quit hack</span> <code>ediff-quit</code>
+      hard-codes a <code>y-or-n-p</code> "Quit this Ediff session?" prompt. The
+      <code>:around</code> advice temporarily rebinds <code>y-or-n-p</code> (via
+      <code>cl-letf</code>, which restores it afterward) to always return <code>t</code>, so
+      pressing <code>q</code> quits immediately — no confirmation.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package diff-hl
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (global-diff-hl-mode 1)
+              (diff-hl-margin-mode 1)))
+  :custom
+  (diff-hl-margin-symbols-alist '((insert . "+")
+                                  (delete . "-")
+                                  (change . "!")))
+  :config
+  (add-hook 'magit-pre-refresh-hook  #'diff-hl-magit-pre-refresh)
+  (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh)
+  (add-hook 'dired-mode-hook #'diff-hl-dired-mode-unless-remote))</pre>
+    <div class="prose">
+      <p><code>diff-hl</code> shows version-control changes in the terminal margin with
+      text glyphs, because fringe indicators are invisible in <code>emacs -nw</code>.
+      It is enabled on <code>emacs-startup-hook</code> so it is ready after init without
+      costing startup time.</p>
+      <p>The Magit hooks refresh indicators around stage/commit operations, and the
+      dired hook shows per-file VC status in dirvish/dired buffers. The actual config
+      also strips theme-applied background colors from diff-hl faces so the terminal
+      shows readable <code>+</code>, <code>-</code>, and <code>!</code> glyphs instead of solid
+      color blocks.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="dired"><h2>Dired — dirvish</h2><p>A polished file manager replacing dired globally.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package dirvish
+  :after (nerd-icons general)
+  :init
+  (dirvish-override-dired-mode 1)
+  (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
+  :custom
+  (dirvish-attributes '(nerd-icons subtree-state))
+  (dirvish-hide-details nil)
+  (insert-directory-program (if (executable-find "gls") "gls" "ls"))
+  (dired-listing-switches (if (executable-find "gls")
+                              "-Al --group-directories-first"
+                            "-Al"))
+  (dirvish-hide-cursor nil)
+  (dired-dwim-target t)
+  :bind ("C-c f" . dirvish)
+  :config
+  (general-define-key
+   :states 'normal
+   :keymaps 'dired-mode-map
+   "h" 'dired-up-directory
+   "l" 'dired-find-file
+   "TAB" 'dirvish-subtree-toggle))</pre>
+    <div class="prose">
+      <p><strong>Dirvish</strong> upgrades dired with previews and icons.
+      <code>dirvish-override-dired-mode</code> makes it the default for <em>all</em> dired.
+      <code>:after (nerd-icons general)</code> ensures icons and the keybinding DSL are
+      ready.</p>
+      <ul>
+        <li>The dired hook disables line numbers in file-manager buffers.</li>
+        <li><code>dirvish-attributes</code> — show icons and subtree-expansion state.
+        VC state is handled by <code>diff-hl-dired-mode</code> instead because it is
+        visible in terminal margins.</li>
+        <li><code>dirvish-hide-details nil</code> — keep the full <code>ls -l</code>
+        detail columns visible.</li>
+        <li><code>dired-listing-switches</code> — <code>-A</code> "almost all" shows
+        dotfiles but hides <code>.</code>/<code>..</code>; <code>-l</code> long format. When GNU
+        <code>ls</code> (Homebrew coreutils <code>gls</code>) is present,
+        <code>--group-directories-first</code> is added to sort directories ahead of files, and
+        <code>insert-directory-program</code> is pointed at <code>gls</code>.</li>
+        <li><code>dirvish-hide-cursor nil</code> — keep a real block cursor visible (dirvish
+        normally hides it and relies on hl-line; here etcc renders a proper terminal
+        block).</li>
+        <li><code>dired-dwim-target t</code> — with two dired/dirvish panes, copy and
+        rename default to the directory in the other pane.</li>
+      </ul>
+      <p><code>C-c f</code> opens dirvish. In normal state inside dired: <code>h</code> goes
+      up a directory, <code>l</code> enters the file/dir, <code>TAB</code> toggles a subtree
+      inline.</p>
+      <div class="gotcha"><span class="tag">macOS / BSD ls</span>
+      <code>--group-directories-first</code> is a GNU <code>ls</code> extension; the BSD
+      <code>ls</code> that ships with macOS rejects it. The <code>executable-find "gls"</code>
+      guard keeps directory-first grouping where coreutils is installed and falls back to plain
+      <code>-Al</code> otherwise, so dired never errors out.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package diredfl
+  :hook (dired-mode . diredfl-mode))
+
+(use-package dired-x
+  :ensure nil
+  :hook (dired-mode . dired-omit-mode)
+  :config
+  (setq dired-omit-verbose nil))</pre>
+    <div class="prose">
+      <p><code>diredfl</code> colorizes the long-listing columns such as permissions,
+      owner, group, size, and modification time. Since dirvish buffers derive from dired,
+      the hook covers both.</p>
+      <p><code>dired-x</code> enables <code>dired-omit-mode</code>, hiding uninteresting
+      files such as lock/autosave entries and common compiled artifacts. The omit message is
+      silenced with <code>dired-omit-verbose nil</code>.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="term"><h2>Terminal integration</h2><p>Keyboard protocol, clipboard, embedded terminal.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package kkp
+  :config
+  (global-kkp-mode 1))</pre>
+    <div class="prose">
+      <p><strong>kkp</strong> enables the <strong>Kitty Keyboard Protocol</strong> in
+      terminal Emacs, so chords the terminal would otherwise swallow (e.g. <kbd>C-S-x</kbd>,
+      distinguishing <kbd>C-i</kbd> from <kbd>Tab</kbd>) actually reach Emacs.</p>
+      <div class="gotcha"><span class="tag">Side effect (see direnv)</span> kkp re-encodes
+      <kbd>C-g</kbd> as an escape sequence instead of the raw byte 7, which breaks Emacs's
+      low-level quit detection during blocking calls — handled later by the envrc advice.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package clipetty
+  :hook (after-init . global-clipetty-mode))</pre>
+    <div class="prose">
+      <p><strong>clipetty</strong> sends kills (copies) to the host system clipboard via the
+      <strong>OSC 52</strong> escape sequence, so yanking in terminal Emacs works even over
+      SSH and through tmux. Enabled on <code>after-init</code>.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package ghostel
+  :commands (ghostel)
+  :bind ("s-t" . neoemacs/vsplit-ghostel)
+  :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1))))
+
+(use-package evil-ghostel
+  :after (ghostel evil)
+  :hook (ghostel-mode . evil-ghostel-mode)
+  :config
+  ...)</pre>
+    <div class="prose">
+      <p><strong>ghostel</strong> is a terminal emulator powered by libghostty; its native
+      module is a prebuilt binary that auto-downloads on first use.
+      <code>:commands (ghostel)</code> sets up the autoload, and <code>s-t</code> runs the
+      vsplit-and-launch helper from earlier. Terminal buffers turn line numbers off
+      locally because the gutter is not useful there.</p>
+      <p><strong>evil-ghostel</strong> keeps the terminal cursor in sync with Emacs point
+      across Evil state changes, so normal-state <code>hjkl</code> navigation works inside
+      the terminal buffer. It hooks onto <code>ghostel-mode</code>. Its <code>:config</code>
+      block (broken out in the rows below) adds Escape routing, <kbd>C-c</kbd>/<kbd>C-x</kbd>
+      passthrough, and two advices that tame the redraw anchor on an animated terminal.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">  (defvar neoemacs/ghostel-escape-timeout 0.25
+    "Seconds to wait for a second ESC in ghostel insert state.")
+
+  (defun neoemacs/ghostel--escape-event-p (event)
+    "Return non-nil when EVENT is an Escape key event."
+    (or (eq event 'escape)
+        (and (integerp event) (= event ?\e))))
+
+  (defun neoemacs/ghostel--evil-insert-escape ()
+    "Run Evil's insert-state Escape binding."
+    (let ((cmd (lookup-key evil-insert-state-map (kbd "&lt;escape&gt;"))))
+      (call-interactively (if (commandp cmd) cmd #'evil-force-normal-state))))
+
+  (defun neoemacs/ghostel-escape-dwim ()
+    "Send a single ESC to ghostel, but let double ESC leave insert state."
+    (interactive)
+    (let ((event (with-timeout (neoemacs/ghostel-escape-timeout nil)
+                   (read-key nil t))))
+      (if (neoemacs/ghostel--escape-event-p event)
+          (neoemacs/ghostel--evil-insert-escape)
+        (when event
+          (setq unread-command-events (cons event unread-command-events)))
+        (ghostel-send-key "escape"))))</pre>
+    <div class="prose">
+      <p><strong>Escape DWIM.</strong> A single <kbd>Esc</kbd> is something a terminal program
+      legitimately wants (vi, less, menus), but <kbd>Esc</kbd> is also how you leave Evil's
+      insert state. This disambiguates by timing.</p>
+      <ul>
+        <li><code>read-key</code> inside <code>with-timeout</code> waits up to
+        <code>neoemacs/ghostel-escape-timeout</code> (0.25s) for a <em>second</em> key.
+        <code>read-key</code> is used because it decodes KKP/input-decode-map sequences;
+        raw <code>read-event</code> can leak bytes to ghostel as control characters.</li>
+        <li>If that second key is itself an Escape (<code>--escape-event-p</code>), the user
+        meant "leave insert" → run Evil's normal insert-state <kbd>Esc</kbd> binding and send
+        <em>nothing</em> to the terminal.</li>
+        <li>Otherwise it was a lone <kbd>Esc</kbd> (or <kbd>Esc</kbd> followed by another key):
+        push the stray key back onto <code>unread-command-events</code> so it isn't lost, and
+        forward a real <code>escape</code> to ghostel.</li>
+      </ul>
+      <div class="gotcha"><span class="tag">Esc vs Esc Esc</span> So: <kbd>Esc</kbd> = "send
+      Escape to the terminal", <kbd>Esc Esc</kbd> = "exit insert state." This replaces the
+      plain insert-state <kbd>Esc</kbd> binding that evil-ghostel installs.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">  (defun neoemacs/ghostel-send-current-control ()
+    "Send the current Ctrl+letter key to ghostel."
+    (interactive)
+    (let ((base (event-basic-type last-command-event)))
+      (unless (and (integerp base) (&lt;= ?a base) (&lt;= base ?z))
+        (user-error "Not a Ctrl+letter key: %S" last-command-event))
+      (ghostel-send-key (string base) "ctrl")))
+
+  (evil-define-key* 'insert evil-ghostel-mode-map
+                    (kbd "&lt;escape&gt;") #'neoemacs/ghostel-escape-dwim
+                    (kbd "C-c") #'neoemacs/ghostel-send-current-control
+                    (kbd "C-x") #'neoemacs/ghostel-send-current-control)</pre>
+    <div class="prose">
+      <p><strong>Ctrl passthrough.</strong> <kbd>C-c</kbd> and <kbd>C-x</kbd> are precious Emacs
+      prefixes, but inside a terminal you usually want them to reach the program running there
+      (<kbd>C-c</kbd> to interrupt, etc.). <code>ghostel-send-current-control</code> recovers the
+      base letter from <code>last-command-event</code> via <code>event-basic-type</code> and
+      forwards it as a real Ctrl chord with <code>ghostel-send-key</code>; the guard
+      <code>user-error</code>s if it's somehow not a Ctrl+letter.</p>
+      <p>The <code>evil-define-key*</code> wires up the insert-state map: <kbd>Esc</kbd> → the DWIM
+      handler, <kbd>C-c</kbd>/<kbd>C-x</kbd> → the passthrough.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">  (define-advice ghostel--anchor-window
+      (:around (orig &amp;optional window force) evil-ghostel-roam)
+    (if (and (bound-and-true-p evil-ghostel-mode)
+             (not force)
+             (memq evil-state '(normal visual operator motion))
+             ghostel--cursor-char-pos
+             (/= (point) ghostel--cursor-char-pos))
+        nil
+      (funcall orig window force)))</pre>
+    <div class="prose">
+      <p><strong>Roam advice.</strong> Each redraw, <code>ghostel--redraw-now</code> re-anchors any
+      window following the live viewport via <code>ghostel--anchor-window</code>, whose final
+      <code>set-window-point</code> snaps point back to the terminal cursor. On a <em>static</em>
+      terminal redraws are rare so it's invisible; on an <em>animated</em> one (~30fps) it fights
+      every <code>hjkl</code> in normal state.</p>
+      <p>This <code>:around</code> advice <strong>skips the anchor</strong> exactly when point is
+      parked off the live cursor (<code>(/= (point) ghostel--cursor-char-pos)</code>) in a
+      motion-capable Evil state. Auto-follow resumes the moment you return to insert state or land
+      back on the cursor row.</p>
+      <div class="why"><span class="tag">FORCE is honored</span> Forced anchors (paste/yank) pass
+      <code>force</code> non-nil, so they always call through to the original — only the
+      automatic, every-frame re-anchor is suppressed.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">  (define-advice mwheel-scroll
+      (:before (event &amp;rest _) evil-ghostel-wheel-normal)
+    (let ((buf (window-buffer (posn-window (event-start event)))))
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (when (and (bound-and-true-p evil-ghostel-mode)
+                     (memq evil-state '(insert emacs)))
+            (evil-normal-state)))))))</pre>
+    <div class="prose">
+      <p><strong>Wheel scroll.</strong> In insert state the redraw anchor is still live, so a
+      mouse-wheel scroll into scrollback gets immediately yanked back to the live cursor. Normal
+      state is exactly where the roam advice above suppresses that anchor — so this flips the
+      buffer to normal state on any wheel event.</p>
+      <ul>
+        <li>ghostel redispatches the wheel to <code>mwheel-scroll</code> when it scrolls the Emacs
+        buffer (mouse tracking off), so that's the advised function.</li>
+        <li>It only switches <em>from</em> <code>insert</code>/<code>emacs</code> — normal/visual
+        already roam, and flipping out of visual would drop a selection.</li>
+      </ul>
+      <div class="gotcha"><span class="tag">Getting back</span> Press <kbd>i</kbd>/<kbd>a</kbd> to
+      return to insert and resume live auto-follow.</div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head"><h2>Project navigation &amp; languages</h2><p>Projectile and markdown.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package projectile
+  :defer t
+  :bind-keymap ("C-c p" . projectile-command-map)
+  :config
+  (projectile-mode 1))
+
+(use-package consult-projectile
+  :after (consult projectile))</pre>
+    <div class="prose">
+      <p><strong>projectile</strong> provides project-aware navigation.
+      <code>:defer t</code> keeps it off the startup path, and
+      <code>:bind-keymap</code> installs an autoloaded <code>C-c p</code> prefix that loads
+      <code>projectile-command-map</code> on demand. <code>projectile-mode</code> turns on
+      once the package is actually loaded.</p>
+      <p><strong>consult-projectile</strong> wires projectile into the consult/vertico UI;
+      it's reached at <code>SPC p p</code> through the leader.</p>
+      <div class="gotcha"><span class="tag">The prefix trap</span> Don't bind a sub-key like
+      <code>C-c p SPC</code> globally from another package — at bind time <code>C-c p</code>
+      isn't yet a real prefix and Emacs errors with "starts with non-prefix key." Bind into
+      <code>projectile-command-map</code> or go through the leader.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package markdown-mode
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'"       . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode)))</pre>
+    <div class="prose">
+      <p><strong>markdown-mode</strong> with file-pattern associations. <code>README.md</code>
+      gets <code>gfm-mode</code> (GitHub-Flavored Markdown); other <code>.md</code> /
+      <code>.markdown</code> files get plain <code>markdown-mode</code>. The <code>\\'</code>
+      anchors match the end of the filename.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="env"><h2>Environment — direnv</h2><p>Per-directory environment, plus the C-g abort fix.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package envrc
+  :hook (after-init . envrc-global-mode)
+  :config
+  (defun neoemacs--envrc-export-restore-quit (orig-fn &amp;rest args)
+    "Run ORIG-FN with kkp disabled so C-g aborts the direnv `call-process'."
+    (if (and (fboundp 'kkp--this-terminal-has-active-kkp-p)
+             (kkp--this-terminal-has-active-kkp-p))
+        (let ((terminal (kkp--selected-terminal)))
+          (unwind-protect
+              (progn
+                (kkp--terminal-teardown terminal)
+                (apply orig-fn args))
+            (kkp-enable-in-terminal terminal)))
+      (apply orig-fn args)))
+  (advice-add 'envrc--export :around #'neoemacs--envrc-export-restore-quit))</pre>
+    <div class="prose">
+      <p><strong>envrc</strong> applies each buffer's directory <code>.envrc</code> via
+      <code>direnv</code> (needs the <code>direnv</code> executable on PATH).</p>
+      <div class="why"><span class="tag">Why <code>after-init</code></span> The global mode
+      must layer <em>on top</em> of the other global modes, so it's enabled late and
+      deliberately — don't move it earlier.</div>
+      <div class="gotcha"><span class="tag">The C-g fix</span> <code>envrc--export</code>
+      runs direnv through a synchronous <code>call-process</code> and advertises "C-g to
+      abort." That abort relies on Emacs seeing the raw <kbd>C-g</kbd> byte (ASCII 7) — but
+      kkp re-encodes it as <code>ESC [ 103;5 u</code>, so the blocking call never sees the
+      quit. The <code>:around</code> advice tears kkp down for the duration (restoring the
+      raw byte), runs the export, and an <code>unwind-protect</code> re-enables kkp
+      afterward no matter what. When kkp isn't active (e.g. GUI), it just calls through.</div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="zellij"><h2>Zellij tab name</h2><p>Keep the focused tab named after the current buffer's location.</p></div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs--parent-and-dir (dir)
+  "Return \"&lt;parent&gt;/&lt;dir&gt;\" for absolute DIR (just the dir name if no parent)."
+  (let* ((dir (directory-file-name (expand-file-name dir)))
+         (name (file-name-nondirectory dir))
+         (parent (file-name-nondirectory
+                  (directory-file-name (file-name-directory dir)))))
+    (if (string-empty-p parent) name (concat parent "/" name))))</pre>
+    <div class="prose">
+      <p>A formatting helper. Given an absolute directory, it returns
+      <code>&lt;parent&gt;/&lt;dir&gt;</code> — e.g. <code>~/.config/neoemacs</code> →
+      <code>config/neoemacs</code>.</p>
+      <ul>
+        <li><code>directory-file-name</code> + <code>expand-file-name</code> normalize the
+        path (strip trailing slash, make absolute).</li>
+        <li><code>name</code> is the last component; <code>parent</code> is the one above.</li>
+        <li>If there's no parent (root), just return the name.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs--zellij-tab-name ()
+  "Compute the zellij tab name for the current buffer, or nil to leave it."
+  (cond
+   ((and (fboundp 'projectile-project-root) (projectile-project-root))
+    (neoemacs--parent-and-dir (projectile-project-root)))
+   ((derived-mode-p 'dired-mode)
+    (neoemacs--parent-and-dir default-directory))
+   (buffer-file-name
+    (neoemacs--parent-and-dir (file-name-directory buffer-file-name)))
+   (t nil)))</pre>
+    <div class="prose">
+      <p>Picks <em>which</em> directory names the tab, in precedence order:</p>
+      <ol>
+        <li>Inside a projectile project → the <strong>project root</strong>.</li>
+        <li>Else a dired buffer → the <strong>listed directory</strong>.</li>
+        <li>Else a file-visiting buffer → the <strong>file's directory</strong>.</li>
+        <li>Otherwise <code>nil</code> → leave the tab name unchanged.</li>
+      </ol>
+      <p><code>fboundp</code> guards the projectile call in case it isn't loaded yet.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs--zellij-update-tab-name (&amp;rest _)
+  "Rename the focused zellij tab to reflect the selected window's buffer.
+The last name is remembered per-frame ..."
+  (when (getenv "ZELLIJ")
+    (with-current-buffer (window-buffer (selected-window))
+      (let ((name (neoemacs--zellij-tab-name))
+            (last (frame-parameter nil 'neoemacs--zellij-last-tab-name)))
+        (when (and name (not (equal name last)))
+          (set-frame-parameter nil 'neoemacs--zellij-last-tab-name name)
+          (when (executable-find "zellij")
+            (start-process "zellij-rename-tab" nil
+                           "zellij" "action" "rename-tab" name)))))))</pre>
+    <div class="prose">
+      <p>The worker. Gated on the <code>$ZELLIJ</code> env var, so it's a no-op outside
+      zellij. It looks at the <em>selected window's</em> buffer (the hooks may fire with a
+      different current buffer), computes the name, and compares it to the last name
+      <strong>stored per frame</strong> (each Emacs frame maps to its own zellij pane).</p>
+      <p>Only when the name actually changed does it update the frame parameter and shell
+      out. The <code>executable-find</code> guard avoids errors if the env var is present
+      but the binary is unavailable, and <code>start-process</code> runs asynchronously with
+      output discarded, so buffer switches never block on the subprocess.</p>
+      <div class="why"><span class="tag">Why per-frame dedup</span> Two frames don't clobber
+      each other's "last name" state, and redundant hook firings are cheap — no zellij
+      process is spawned unless the computed name differs.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(dolist (hook '(window-selection-change-functions
+                window-buffer-change-functions
+                dired-after-readin-hook
+                dirvish-setup-hook))
+  (add-hook hook #'neoemacs--zellij-update-tab-name))</pre>
+    <div class="prose">
+      <p>Registers the worker on the full range of context changes:</p>
+      <ul>
+        <li><code>window-selection-change-functions</code> — window focus moved.</li>
+        <li><code>window-buffer-change-functions</code> — a window's buffer changed (e.g.
+        <code>switch-to-buffer</code>).</li>
+        <li><code>dired-after-readin-hook</code> / <code>dirvish-setup-hook</code> —
+        directory navigation.</li>
+      </ul>
+      <div class="gotcha"><span class="tag">Why the dired hooks too</span> In-place directory
+      navigation changes the buffer/directory <em>without</em> changing the selected window,
+      so the two window hooks alone would miss it.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(provide 'init)
+;;; init.el ends here
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ )
+(custom-set-faces)</pre>
+    <div class="prose">
+      <p><code>provide 'init</code> registers the feature so <code>require</code> works.</p>
+      <p>The <code>custom-set-variables</code> / <code>custom-set-faces</code> blocks are
+      written by Emacs's <strong>Custom</strong> system — edit config by hand <em>above</em>
+      them, never inside. They are currently empty placeholders, but Emacs keeps them at
+      the end of the file.</p>
+    </div>
+  </div>
+
+  <div class="footer">Generated from <code>init.el</code> · open this file in any browser.</div>
+</div>
+
+<script>
+(function(){
+  const KEYWORDS = new Set([
+    "use-package","defun","defvar","defmacro","defcustom","setq","setq-default",
+    "let","let*","when","unless","if","cond","progn","lambda","require","provide",
+    "dolist","dotimes","while","and","or","not","advice-add","add-hook","interactive",
+    "unwind-protect","cl-letf","with-current-buffer","seq-take","delete-dups","append",
+    "fboundp","getenv","call-process","start-process","apply","concat","defalias",
+    "boundp","file-readable-p","load","package-initialize","package-quickstart-refresh",
+    "locate-user-emacs-file","when-let","seq-find","provided-mode-derived-p",
+    "buffer-local-value","window-list","define-advice","define-key","evil-define-key*",
+    "read-event","read-key","with-timeout","lookup-key","call-interactively",
+    "executable-find","memq","bound-and-true-p","user-error","locate-dominating-file",
+    "url-hexify-string"
+  ]);
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/[<]/g,"&lt;").replace(/[>]/g,"&gt;");}
+  function span(cls,txt){
+    const lt = String.fromCharCode(60);
+    return lt+'span class="t-'+cls+'">'+esc(txt)+lt+'/span>';
+  }
+  function classify(word, callee){
+    if(word[0]===':') return span('colon',word);
+    if(KEYWORDS.has(word)) return span('keyword',word);
+    if(/^-?[0-9]+$/.test(word)) return span('num',word);
+    if(callee) return span('fn',word);
+    return esc(word);
+  }
+  function isSym(c){return /[^\s()'`,";]/.test(c);}
+  function highlight(text){
+    let out='', i=0, n=text.length, afterOpen=false;
+    while(i<n){
+      const c=text[i];
+      if(c===';'){let j=i;while(j<n&&text[j]!=='\n')j++;out+=span('comment',text.slice(i,j));i=j;afterOpen=false;continue;}
+      if(c==='"'){let j=i+1;while(j<n){if(text[j]==='\\'){j+=2;continue;}if(text[j]==='"'){j++;break;}j++;}out+=span('string',text.slice(i,j));i=j;afterOpen=false;continue;}
+      if(c==='('){out+=span('paren',c);i++;afterOpen=true;continue;}
+      if(c===')'){out+=span('paren',c);i++;afterOpen=false;continue;}
+      if(c==="'"||c==='`'||c===','){out+=span('quote'in{}?'paren':'paren',c);i++;continue;}
+      if(/\s/.test(c)){out+=c;i++;continue;}
+      let j=i;while(j<n&&isSym(text[j]))j++;
+      if(j===i){out+=esc(c);i++;continue;}
+      const word=text.slice(i,j);
+      out+=classify(word,afterOpen);
+      afterOpen=false;
+      i=j;
+    }
+    return out;
+  }
+  document.querySelectorAll('pre.code').forEach(function(pre){
+    pre.innerHTML=highlight(pre.textContent);
+  });
+})();
+</script>
+</body>
+</html>
