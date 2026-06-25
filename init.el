@@ -54,9 +54,14 @@
 (setq make-backup-files nil)
 
 ;; Answer long yes/no prompts with a single `y' or `n', no RET required.
-(if (boundp 'use-short-answers)
-    (setq use-short-answers t)
-  (defalias 'yes-or-no-p #'y-or-n-p))
+(setq use-short-answers t)
+
+;; Keep Custom's machine-written settings out of init.el. With `custom-file'
+;; unset, Custom defaults to `user-init-file' and rewrites its blocks into
+;; init.el (which is how stale entries crept in before). Point it at its own
+;; (gitignored) file so init.el stays hand-edited only.
+(setq custom-file (locate-user-emacs-file "custom.el"))
+(load custom-file 'noerror 'nomessage)
 
 ;; --- Mouse-wheel scrolling: scroll the buffer (view), not point ---
 ;;
@@ -77,8 +82,9 @@
       mouse-wheel-progressive-speed nil
       mouse-wheel-scroll-amount '(2 ((shift) . 1) ((control) . text-scale))
       ;; Smooth keyboard scrolling too: one line at a time, no recentering.
+      ;; (`scroll-step' is intentionally omitted -- it's ignored whenever
+      ;; `scroll-conservatively' is > 100.)
       scroll-conservatively 101
-      scroll-step 1
       ;; Let the cursor reach the very window edge before it's pushed along.
       scroll-margin 0
       ;; Don't force the cursor line fully visible after a wheel scroll.
@@ -980,15 +986,3 @@ pane/tab) so separate frames don't clobber each other's dedup state."
 
 (provide 'init)
 ;;; init.el ends here
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
