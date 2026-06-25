@@ -286,7 +286,9 @@ the visited file.  The vault is auto-detected by walking up to the
 directory containing `.obsidian', whose folder name becomes the vault
 name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   (interactive)
-  (let ((file (cond ((derived-mode-p 'dired-mode) (dired-get-filename nil t))
+  (let ((file (cond ((derived-mode-p 'dired-mode)
+                     (or (dired-get-filename nil t)
+                         (user-error "No file on this line")))
                     ((buffer-file-name))
                     (t (user-error "No file on this line or in this buffer")))))
     (setq file (expand-file-name file))
@@ -623,8 +625,8 @@ Wraps the affixation-function returned further down the advice chain
 ;; `diff-hl-margin-mode' renders them in the *margin* with text glyphs rather
 ;; than the fringe -- the fringe doesn't exist in terminal Emacs (`emacs -nw'),
 ;; so the default fringe display would show nothing. `global-diff-hl-mode' turns
-;; it on everywhere; both modes are autoloaded, so calling them in `:init' pulls
-;; the package in at startup (we want the indicators live from the start).
+;; it on everywhere; both modes are autoloaded, so the startup hook below can
+;; enable them after init without requiring the package during the init path.
 ;;
 ;; Magit doesn't update VC state the way save-based diff-hl expects, so the two
 ;; refresh hooks keep the indicators in sync when magit stages/commits. They're
@@ -632,6 +634,7 @@ Wraps the affixation-function returned further down the advice chain
 ;; Hunk navigation/staging is on the leader: `SPC g j/k/s/x' (see the general
 ;; block).
 (use-package diff-hl
+  :defer t
   :init
   ;; Enable on `emacs-startup-hook' rather than eagerly. At startup the only
   ;; buffers are `*scratch*'/`*Messages*' (no VC state to show), so loading
@@ -957,9 +960,11 @@ pane/tab) so separate frames don't clobber each other's dedup state."
             (last (frame-parameter nil 'neoemacs--zellij-last-tab-name)))
         (when (and name (not (equal name last)))
           (set-frame-parameter nil 'neoemacs--zellij-last-tab-name name)
-          ;; Destination 0: run async and discard output so buffer switches
-          ;; never block on the zellij subprocess.
-          (call-process "zellij" nil 0 nil "action" "rename-tab" name))))))
+          ;; Run async and discard output so buffer switches never block on the
+          ;; zellij subprocess.
+          (when (executable-find "zellij")
+            (start-process "zellij-rename-tab" nil
+                           "zellij" "action" "rename-tab" name)))))))
 
 ;; Trigger on the full range of context changes: window focus
 ;; (`window-selection-change-functions'), a window's buffer changing
@@ -980,10 +985,7 @@ pane/tab) so separate frames don't clobber each other's dedup state."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages nil)
- '(safe-local-variable-values
-   '((cider-clojure-cli-aliases . ":dev")
-     (cider-preferred-build-tool . clojure-cli))))
+ )
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
