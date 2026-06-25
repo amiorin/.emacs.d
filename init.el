@@ -344,9 +344,9 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
   ;; seconds"; with it gone, expose `emacs-init-time' under the help map so it's
-  ;; reachable as both `SPC h T' (via the leader's help prefix) and `C-h T'.
+  ;; reachable as both `SPC h t' (via the leader's help prefix) and `C-h t'.
   ;; Bound into `help-map' the same way embark-bindings is (see the embark form).
-  (define-key help-map "T" #'emacs-init-time)
+  (define-key help-map "t" #'emacs-init-time)
   ;; `-' in normal state jumps to dired (vinegar-style).
   (general-define-key
    :states 'normal
