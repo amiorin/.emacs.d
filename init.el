@@ -653,7 +653,14 @@ Wraps the affixation-function returned further down the advice chain
   (diff-hl-margin-mode 1)
   :config
   (add-hook 'magit-pre-refresh-hook  #'diff-hl-magit-pre-refresh)
-  (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh))
+  (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh)
+  ;; Per-file VC status in dired/dirvish buffers. Dirvish buffers are derived
+  ;; dired buffers, so this covers both. It renders via `diff-hl-margin-mode'
+  ;; (enabled above), so the glyphs are visible in terminal Emacs -- unlike
+  ;; dirvish's own `vc-state' attribute, which uses overlays and shows nothing
+  ;; in `emacs -nw'. `-unless-remote' skips TRAMP dirs where the per-file VC
+  ;; lookups would be slow.
+  (add-hook 'dired-mode-hook #'diff-hl-dired-mode-unless-remote))
 
 ;;; --- Dired / file management -----------------------------------------------
 
@@ -666,7 +673,10 @@ Wraps the affixation-function returned further down the advice chain
   ;; manager has no use for it, so switch it back off in dired/dirvish buffers.
   (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
   :custom
-  (dirvish-attributes '(nerd-icons subtree-state vc-state))
+  ;; `vc-state' is dropped here: it's an overlay-based attribute that shows
+  ;; nothing in terminal Emacs. Per-file VC status comes from `diff-hl-dired-mode'
+  ;; instead (see the diff-hl block), which renders in the margin.
+  (dirvish-attributes '(nerd-icons subtree-state))
   ;; Show the full `ls -l' detail columns (permissions, link count, owner,
   ;; group, size, mtime) instead of dirvish's default hidden-details view.
   ;; `file-size' is dropped from the attributes above because `-l' already
@@ -706,6 +716,18 @@ Wraps the affixation-function returned further down the advice chain
 ;; buffers, so hooking `diredfl-mode' onto `dired-mode' tints them too.
 (use-package diredfl
   :hook (dired-mode . diredfl-mode))
+
+;; dired-x ships with Emacs. `dired-omit-mode' hides uninteresting files: the
+;; default `dired-omit-files' regexp drops auto-save/lock files and `.'/`..',
+;; while `dired-omit-extensions' (which defaults to `completion-ignored-
+;; extensions': `.elc', `.o', `.pyc', ...) drops compiled/generated artifacts.
+;; This keeps them out of the listing entirely rather than just dimming them
+;; with diredfl. Covers dirvish too (derived dired).
+(use-package dired-x
+  :ensure nil
+  :hook (dired-mode . dired-omit-mode)
+  :config
+  (setq dired-omit-verbose nil))
 
 ;;; --- Terminal integration --------------------------------------------------
 
