@@ -105,34 +105,6 @@
   :init
   (doom-modeline-mode 1))
 
-;; dashboard: a startup screen shown in place of *scratch*. Its footer reports
-;; the init time (the "Emacs started in N seconds" line, `dashboard-set-init-info'
-;; default t), answering the "how long did startup take" question without extra
-;; code. `dashboard-setup-startup-hook' wires the render into `after-init-hook'/
-;; `emacs-startup-hook'; `initial-buffer-choice' points new frames (and
-;; `emacsclient' ones) at the dashboard buffer too. Loaded after nerd-icons so
-;; the icon faces exist; the projects section is sourced from projectile and the
-;; recents section from the `recentf' list configured above. This is a terminal
-;; config (`emacs -nw'), so dashboard falls back to its text banner -- no image.
-(use-package dashboard
-  :after nerd-icons
-  :custom
-  (dashboard-banner-logo-title "neoemacs")
-  (dashboard-items '((recents  . 5)
-                     (projects . 5)))
-  (dashboard-projects-backend 'projectile)
-  ;; Use the nerd-icons set already installed for doom-modeline/dirvish.
-  (dashboard-icon-type 'nerd-icons)
-  (dashboard-set-heading-icons t)
-  (dashboard-set-file-icons t)
-  ;; Center the content and keep the init-time footer.
-  (dashboard-center-content t)
-  (dashboard-set-init-info t)
-  :config
-  (dashboard-setup-startup-hook)
-  (setq initial-buffer-choice
-        (lambda () (get-buffer-create dashboard-buffer-name))))
-
 ;;; --- Evil: Vim emulation ---------------------------------------------------
 
 ;; Evil: Vim emulation.
@@ -254,6 +226,11 @@ Opens a `find-file' prompt rooted at the private config dir (currently
     "gb" '(magit-blame :which-key "blame")
     "gl" '(magit-log-buffer-file :which-key "log (this file)")
     "h"  '(help-command :which-key "help"))
+  ;; Startup time readout. The dashboard used to show "Emacs started in N
+  ;; seconds"; with it gone, expose `emacs-init-time' under the help map so it's
+  ;; reachable as both `SPC h T' (via the leader's help prefix) and `C-h T'.
+  ;; Bound into `help-map' the same way embark-bindings is (see the embark form).
+  (define-key help-map "T" #'emacs-init-time)
   ;; `-' in normal state jumps to dired (vinegar-style).
   (general-define-key
    :states 'normal
@@ -278,9 +255,15 @@ Opens a `find-file' prompt rooted at the private config dir (currently
 
 ;; expand-region: grow/shrink the selection by semantic units. In visual
 ;; state `v' expands the region and `V' contracts it.
+;; `:after (evil general)' alone would *load* expand-region as soon as general
+;; loads (at startup). The `v'/`V' bindings only reference its autoloaded
+;; commands, so set them up in `:init' (which still runs after evil+general are
+;; available) and keep the package itself deferred via `:commands' -- it loads
+;; the first time you expand a region in visual state.
 (use-package expand-region
   :after (evil general)
-  :config
+  :commands (er/expand-region er/contract-region)
+  :init
   (general-define-key
    :states 'visual
    "v" 'er/expand-region
@@ -373,16 +356,24 @@ Opens a `find-file' prompt rooted at the private config dir (currently
 ;; so it applies to every transient, not only magit's. Note: in a terminal Esc
 ;; is also the Meta prefix, so this slightly trades away Meta chords *inside* an
 ;; open transient — acceptable here since transient popups rarely need them.
+;; Deferred (`:defer t'): nothing at startup uses transient -- it's pulled in
+;; lazily when magit (or another transient command) first opens a popup, and the
+;; `:config' keybinding applies then. Loading it eagerly only slows startup.
 (use-package transient
   :ensure nil
+  :defer t
   :config
   (define-key transient-map (kbd "<escape>") #'transient-quit-one))
 
 ;; Ediff: skip the "Quit this Ediff session? (y or n)" confirmation. `ediff-quit'
 ;; hard-codes a `y-or-n-p' before tearing down; locally stub it to always answer
 ;; yes for the duration of the call so `q' quits immediately.
+;; Deferred (`:defer t'): ediff is a large package only needed when a diff
+;; session starts (e.g. from magit). `:custom' is applied without loading it;
+;; the `:config' quit advice runs once ediff loads on first use.
 (use-package ediff
   :ensure nil
+  :defer t
   :custom
   ;; Side-by-side diff buffers (vertical divider) instead of stacked, and keep
   ;; the control panel in the same frame rather than a popup.
