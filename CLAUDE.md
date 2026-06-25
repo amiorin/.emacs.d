@@ -32,10 +32,11 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
 
 - Built-in `package.el` + `use-package`, with archives GNU ELPA and MELPA.
 - `package-enable-at-startup` is `nil` (set in `early-init.el`), so `init.el`
-  activates packages explicitly. It prefers `package-quickstart.elc` /
-  `package-quickstart.el` for fast startup, falling back to one full
-  `package-initialize` + `package-quickstart-refresh` when the quickstart file
-  is missing.
+  activates packages explicitly. It loads the quickstart bundle by its
+  suffix-less name (`(load (locate-user-emacs-file "package-quickstart") 'noerror
+  'nomessage)`) for fast startup, falling back to one full `package-initialize` +
+  `package-quickstart-refresh` when the bundle is missing. See the load-suffix
+  rule under *Notable conventions* for why it isn't loaded as `.elc`.
 - `use-package-always-ensure t`: every `use-package` auto-installs from ELPA.
   For packages that ship with Emacs (e.g. `recentf`, `which-key`) add
   `:ensure nil` so it doesn't try to fetch them.
@@ -88,6 +89,16 @@ grouped by project with `ibuffer-projectile`.
 
 ## Notable conventions
 
+- **Load files by their suffix-less name, never with an explicit `.elc`.** When
+  calling `load` (or `require`), pass the name without a suffix and let Emacs
+  append `load-suffixes` (`.elc` then `.el`). An explicit `.elc` suffix sets the
+  C loader's `no_native` flag (`lread.c` `Fload`: `bool no_native = suffix_p
+  (file, ".elc")`); `maybe_swap_for_eln` then returns before the eln lookup
+  *and* records the file in `V_comp_no_native_file_h`, so it loads the slower
+  byte-code and opts the file out of native compilation entirely. Suffix-less is
+  the native-comp path — the `load-no-native` docvar documents this contract.
+  This is why the `package-quickstart` load uses the bare name (see *Package
+  management*).
 - `custom-set-variables` / `custom-set-faces` blocks at the end of `init.el`
   are written by Emacs's Custom system. Edit configuration by hand above them,
   not inside those blocks.

@@ -32,14 +32,18 @@
 ;; satisfied without the expensive descriptor scan. The final branch handles the
 ;; first run (or a deleted quickstart file): full-initialize once, then build the
 ;; quickstart file so every subsequent startup takes the fast path.
+;;
+;; Load the bundle by its *suffix-less* name: `load' appends `load-suffixes'
+;; (".elc" then ".el"), so it resolves the same compiled-first preference, and
+;; -- crucially -- lets native-comp swap in a `.eln' when one exists. Passing an
+;; explicit `.elc' would force the slower byte-code: the C loader sets
+;; `no_native' from the `.elc' suffix and `maybe_swap_for_eln' then returns
+;; before the eln lookup *and* marks the file no-native (see lread.c). `load'
+;; with NOERROR returns nil if neither file exists, triggering the fallback.
 (setq package-quickstart t)
-(let* ((qs (locate-user-emacs-file "package-quickstart.el"))
-       (qsc (concat qs "c")))
-  (cond
-   ((file-readable-p qsc) (load qsc nil 'nomessage))
-   ((file-readable-p qs)  (load qs nil 'nomessage))
-   (t (package-initialize)
-      (package-quickstart-refresh))))
+(unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
+  (package-initialize)
+  (package-quickstart-refresh))
 
 ;; Ensure use-package is available.
 (unless (package-installed-p 'use-package)

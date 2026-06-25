@@ -87,7 +87,7 @@
 </head>
 <body>
 <div class="top">
-  <h1>init.el</h1>
+  <h1><a href="https://github.com/amiorin/.emacs.d">init.el</a></h1>
   <span class="sub">neoemacs · annotated walkthrough</span>
   <div class="nav">
     <a href="#pkg">Packages</a>
@@ -124,13 +124,9 @@
       '(("gnu"   . "https://elpa.gnu.org/packages/")
         ("melpa" . "https://melpa.org/packages/")))
 (setq package-quickstart t)
-(let* ((qs (locate-user-emacs-file "package-quickstart.el"))
-       (qsc (concat qs "c")))
-  (cond
-   ((file-readable-p qsc) (load qsc nil 'nomessage))
-   ((file-readable-p qs)  (load qs nil 'nomessage))
-   (t (package-initialize)
-      (package-quickstart-refresh))))</pre>
+(unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
+  (package-initialize)
+  (package-quickstart-refresh))</pre>
     <div class="prose">
       <p><code>require 'package</code> loads the built-in package manager.</p>
       <p><code>package-archives</code> declares the two repositories packages are fetched
@@ -141,10 +137,18 @@
       containing package autoloads, load paths, and the activated package list. Loading
       that compiled bundle is much faster than scanning every installed package directory
       on every startup.</p>
-      <p>The <code>let*</code> chooses the fastest available path: load
-      <code>package-quickstart.elc</code>, then plain <code>package-quickstart.el</code>, and
-      only on a first run or after deleting the quickstart file do a full
+      <p><code>load</code> is given the <em>suffix-less</em> name so it appends
+      <code>load-suffixes</code> itself — trying <code>package-quickstart.elc</code> then
+      <code>package-quickstart.el</code> — which keeps the compiled-first preference and lets
+      native-comp swap in a <code>.eln</code> when one exists. With <code>NOERROR</code>,
+      <code>load</code> returns <code>nil</code> if neither file exists, and only then —
+      a first run or after deleting the quickstart file — does it fall back to a full
       <code>package-initialize</code> followed by <code>package-quickstart-refresh</code>.</p>
+      <div class="why"><span class="tag">Why no <code>.elc</code></span> passing an explicit
+      <code>.elc</code> would force the slower byte-code: the C loader sets its
+      <code>no_native</code> flag from the <code>.elc</code> suffix, and
+      <code>maybe_swap_for_eln</code> then returns before the eln lookup <em>and</em> marks the
+      file no-native (<code>lread.c</code>). Suffix-less is the native-comp path.</div>
       <div class="why"><span class="tag">Why explicit</span> <code>early-init.el</code>
       sets <code>package-enable-at-startup</code> to <code>nil</code> to skip Emacs's
       automatic startup activation, so package activation is deliberately owned here.</div>
