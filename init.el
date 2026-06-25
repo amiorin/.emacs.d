@@ -306,6 +306,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "gl" '(magit-log-buffer-file :which-key "log (this file)")
     "o"  '(:ignore t :which-key "open")
     "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
+    "u"  '(vundo :which-key "undo tree")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
   ;; seconds"; with it gone, expose `emacs-init-time' under the help map so it's
@@ -349,6 +350,16 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
    :states 'visual
    "v" 'er/expand-region
    "V" 'er/contract-region))
+
+;; vundo: visualize the undo history as a tree in a transient buffer. Unlike
+;; `undo-tree' it does not replace Emacs's undo system -- it sits on top of the
+;; built-in undo that evil already drives, so it stays a pure visualizer with
+;; no persistent history files. Reached via `SPC u' (see the leader block).
+;; Use the Unicode box-drawing glyphs for a cleaner tree in the terminal.
+(use-package vundo
+  :commands (vundo)
+  :config
+  (setq vundo-glyph-alist vundo-unicode-symbols))
 
 ;; which-key: popup showing available keybindings.
 (use-package which-key
