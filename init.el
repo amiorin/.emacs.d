@@ -651,7 +651,27 @@ Wraps the affixation-function returned further down the advice chain
   :init
   (global-diff-hl-mode 1)
   (diff-hl-margin-mode 1)
+  :custom
+  ;; The text glyphs shown in the margin per change type. These are diff-hl's
+  ;; own defaults, pinned here explicitly so the look is stable and documented
+  ;; (and matches the terminal indicators in my Doom config). The defcustom's
+  ;; `:set' clears `diff-hl-margin-spec-cache', so setting it via `:custom'
+  ;; (rather than a bare `setq') refreshes the rendered glyphs correctly.
+  (diff-hl-margin-symbols-alist '((insert    . "+")
+                                  (delete    . "-")
+                                  (change    . "!")
+                                  (unknown   . "?")
+                                  (ignored   . "i")
+                                  (reference . " ")))
   :config
+  ;; FIX: doom-one defines `diff-hl-insert/delete/change' with foreground EQUAL
+  ;; to background (e.g. `(diff-hl-insert :foreground vc-added :background
+  ;; vc-added)'). The margin faces inherit those, so the +/-/! glyph is drawn in
+  ;; the same color as the cell behind it -- visible only as a solid colored
+  ;; block. Stripping the background (as my Doom vc-gutter module does for the
+  ;; fringe) leaves just the foreground, so the glyphs actually show.
+  (dolist (face '(diff-hl-insert diff-hl-delete diff-hl-change))
+    (set-face-background face nil))
   (add-hook 'magit-pre-refresh-hook  #'diff-hl-magit-pre-refresh)
   (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh)
   ;; Per-file VC status in dired/dirvish buffers. Dirvish buffers are derived
