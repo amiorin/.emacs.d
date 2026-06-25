@@ -380,7 +380,15 @@ Opens a `find-file' prompt rooted at the private config dir (currently
          ("v" . helpful-variable)
          ("k" . helpful-key)
          ("x" . helpful-command)
-         ("o" . helpful-symbol)))
+         ("o" . helpful-symbol))
+  :config
+  ;; Drop the "References" section. It hands off to `elisp-refs', which reads
+  ;; the *entire* file where the symbol is defined into a buffer and walks
+  ;; every sexp looking for callers — for big core files (`simple.el',
+  ;; `subr.el', ...) that parse is what makes opening a help page take
+  ;; seconds. `ignore' swallows the args and returns nil, so the section is
+  ;; empty and the scan never runs; every other section is untouched.
+  (advice-add 'helpful--calculate-references :override #'ignore))
 
 ;; ibuffer: a `dired'-like buffer list with marks and bulk actions, the heavy
 ;; counterpart to `consult-buffer' (`SPC ,'/`SPC b b'). Built in, so `:ensure
