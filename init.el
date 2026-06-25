@@ -663,7 +663,7 @@ Wraps the affixation-function returned further down the advice chain
   :init
   (dirvish-override-dired-mode 1)
   :custom
-  (dirvish-attributes '(nerd-icons git-msg subtree-state vc-state))
+  (dirvish-attributes '(nerd-icons subtree-state vc-state))
   ;; Show the full `ls -l' detail columns (permissions, link count, owner,
   ;; group, size, mtime) instead of dirvish's default hidden-details view.
   ;; `file-size' is dropped from the attributes above because `-l' already
