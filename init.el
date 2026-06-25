@@ -546,8 +546,8 @@ Wraps the affixation-function returned further down the advice chain
 ;; at `SPC b i'. Evil keys come from evil-collection (ibuffer is in its list, so
 ;; `j'/`k' move, `m'/`u' mark/unmark, `x' executes, `d'/`D' flag/kill, `g'
 ;; refreshes, `RET'/`o' visit, `/' filters). `ibuffer-expert' drops the
-;; per-buffer "really kill?" confirmation; the empty filter groups are hidden;
-;; `ibuffer-auto-mode' keeps the list live as buffers come and go.
+;; per-buffer "really kill?" confirmation; `ibuffer-auto-mode' keeps the list
+;; live as buffers come and go. Groups come from `ibuffer-projectile' below.
 ;;
 ;; Embark + ibuffer workflow: the two meet through `embark-export'. From
 ;; `consult-buffer' (`SPC ,'), type to narrow to the buffers you care about,
@@ -562,27 +562,11 @@ Wraps the affixation-function returned further down the advice chain
   :hook (ibuffer-mode . ibuffer-auto-mode)
   :custom
   (ibuffer-expert t)
-  (ibuffer-show-empty-filter-groups nil)
-  (ibuffer-saved-filter-groups
-   '(("default"
-      ("Dired"   (mode . dired-mode))
-      ("Magit"   (name . "^magit"))
-      ("Org"     (mode . org-mode))
-      ("Term"    (or (mode . ghostel-mode)
-                     (mode . term-mode)
-                     (mode . shell-mode)
-                     (mode . eshell-mode)))
-      ("Emacs"   (or (name . "^\\*scratch\\*$")
-                     (name . "^\\*Messages\\*$")
-                     (name . "^\\*Warnings\\*$")
-                     (name . "^\\*Async-native-compile-log\\*$")))
-      ("Help"    (or (mode . help-mode)
-                     (mode . helpful-mode)
-                     (mode . Info-mode))))))
-  :config
-  ;; Apply the saved groups automatically in every ibuffer.
-  (add-hook 'ibuffer-mode-hook
-            (lambda () (ibuffer-switch-to-saved-filter-groups "default"))))
+  (ibuffer-show-empty-filter-groups nil))
+
+;; ibuffer-projectile: group ibuffer by Projectile project.
+(use-package ibuffer-projectile
+  :hook (ibuffer-mode . ibuffer-projectile-set-filter-groups))
 
 ;;; --- Git -------------------------------------------------------------------
 
