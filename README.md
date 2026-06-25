@@ -122,7 +122,7 @@ toggles a directory's subtree.
 - `early-init.el` — startup performance tuning and UI chrome removal, loaded
   before packages.
 - `init.el` — the main configuration.
-- `init-explained.html` — annotated browser walkthrough of `init.el`.
+- `index.html` — annotated browser walkthrough of `init.el`.
 
 See [CLAUDE.md](CLAUDE.md) for architecture notes and editing conventions, and
-[init-explained.html](init-explained.html) for the side-by-side walkthrough.
+[index.html](index.html) for the side-by-side walkthrough.

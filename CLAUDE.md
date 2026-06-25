@@ -23,7 +23,7 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
 - `init.el` — the real configuration: package bootstrap followed by one
   `use-package` form per package.
 - `README.md` — user-facing overview, install notes, and keybinding table.
-- `init-explained.html` — browser-readable annotated walkthrough of `init.el`.
+- `index.html` — browser-readable annotated walkthrough of `init.el`.
 - Everything else in the repo is generated state ignored by git (`elpa/`,
   `eln-cache/`, `transient/`, `recentf`, `projectile-bookmarks.eld`,
   `package-quickstart.el`, `package-quickstart.elc`).
