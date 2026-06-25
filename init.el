@@ -624,7 +624,10 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   (defun neoemacs/ghostel-escape-dwim ()
     "Send a single ESC to ghostel, but let double ESC leave insert state."
     (interactive)
-    (let ((event (read-event nil nil neoemacs/ghostel-escape-timeout)))
+    ;; `read-key' decodes KKP/input-decode-map sequences; `read-event' would
+    ;; see raw bytes and can leak them to ghostel as control characters.
+    (let ((event (with-timeout (neoemacs/ghostel-escape-timeout nil)
+                   (read-key nil t))))
       (if (neoemacs/ghostel--escape-event-p event)
           (neoemacs/ghostel--evil-insert-escape)
         (when event
