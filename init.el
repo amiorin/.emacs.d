@@ -249,6 +249,27 @@ existing Finder window is reused."
                    (t default-directory))))
     (start-process "open-finder" nil "open" (expand-file-name dir))))
 
+(defun neoemacs/open-in-obsidian ()
+  "Open the current file in Obsidian.
+In a dired/dirvish buffer this is the file under point; elsewhere it is
+the visited file.  The vault is auto-detected by walking up to the
+directory containing `.obsidian', whose folder name becomes the vault
+name.  Hands an `obsidian://open' URL to macOS `open' (async)."
+  (interactive)
+  (let ((file (cond ((derived-mode-p 'dired-mode) (dired-get-filename nil t))
+                    ((buffer-file-name))
+                    (t (user-error "No file on this line or in this buffer")))))
+    (setq file (expand-file-name file))
+    (let ((root (locate-dominating-file file ".obsidian")))
+      (unless root
+        (user-error "Not inside an Obsidian vault (no .obsidian above %s)" file))
+      (setq root (expand-file-name root))
+      (let ((url (format "obsidian://open?vault=%s&file=%s"
+                         (url-hexify-string
+                          (file-name-nondirectory (directory-file-name root)))
+                         (url-hexify-string (file-relative-name file root)))))
+        (start-process "open-obsidian" nil "open" url)))))
+
 ;;; --- Keybindings -----------------------------------------------------------
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
@@ -283,6 +304,8 @@ existing Finder window is reused."
     "gg" '(magit-status :which-key "status")
     "gb" '(magit-blame :which-key "blame")
     "gl" '(magit-log-buffer-file :which-key "log (this file)")
+    "o"  '(:ignore t :which-key "open")
+    "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
   ;; seconds"; with it gone, expose `emacs-init-time' under the help map so it's
