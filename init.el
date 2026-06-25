@@ -200,13 +200,21 @@
       (kill-buffer placeholder))))
 
 (defun neoemacs/describe-symbol-at-point ()
-  "Describe the symbol under point without prompting in the minibuffer."
+  "Describe the symbol under point without prompting in the minibuffer.
+Uses Helpful, then selects the `helpful-mode' window so focus lands there
+\(so you can scroll/navigate it and `q' to dismiss)."
   (interactive)
   (let ((sym (symbol-at-point)))
     (if sym
         (progn
-          (describe-symbol sym)
-          (select-window (get-buffer-window "*Help*")))
+          (helpful-symbol sym)
+          (when-let ((win (seq-find
+                           (lambda (w)
+                             (provided-mode-derived-p
+                              (buffer-local-value 'major-mode (window-buffer w))
+                              'helpful-mode))
+                           (window-list))))
+            (select-window win)))
       (user-error "No symbol at point"))))
 
 (defun neoemacs/find-file-in-config ()
@@ -238,6 +246,7 @@ Opens a `find-file' prompt rooted at the private config dir (currently
     "b"  '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
+    "bi" '(ibuffer :which-key "ibuffer")
     "bn" '(next-buffer :which-key "next buffer")
     "bp" '(previous-buffer :which-key "previous buffer")
     "p"  '(:ignore t :which-key "project")
@@ -357,6 +366,65 @@ Opens a `find-file' prompt rooted at the private config dir (currently
 (use-package wgrep
   :commands (wgrep-change-to-wgrep-mode)
   :custom (wgrep-auto-save-buffer t))
+
+;; Helpful: richer replacements for the built-in help buffers. Each command
+;; opens a `helpful-mode' buffer that adds the symbol's source, callers/
+;; references, current value, and key bindings on top of the default help.
+;; Bindings go in `help-map' (same pattern as the embark form above), so they
+;; apply under both `C-h' and the leader's `SPC h': `f' callable (functions and
+;; macros), `v' variable, `k' key, `x' command, `o' any symbol. `K' in Elisp
+;; buffers (see `neoemacs/describe-symbol-at-point') routes here too.
+(use-package helpful
+  :bind (:map help-map
+         ("f" . helpful-callable)
+         ("v" . helpful-variable)
+         ("k" . helpful-key)
+         ("x" . helpful-command)
+         ("o" . helpful-symbol)))
+
+;; ibuffer: a `dired'-like buffer list with marks and bulk actions, the heavy
+;; counterpart to `consult-buffer' (`SPC ,'/`SPC b b'). Built in, so `:ensure
+;; nil'. Replaces the default `list-buffers' on `C-x C-b' and is on the leader
+;; at `SPC b i'. Evil keys come from evil-collection (ibuffer is in its list, so
+;; `j'/`k' move, `m'/`u' mark/unmark, `x' executes, `d'/`D' flag/kill, `g'
+;; refreshes, `RET'/`o' visit, `/' filters). `ibuffer-expert' drops the
+;; per-buffer "really kill?" confirmation; the empty filter groups are hidden;
+;; `ibuffer-auto-mode' keeps the list live as buffers come and go.
+;;
+;; Embark + ibuffer workflow: the two meet through `embark-export'. From
+;; `consult-buffer' (`SPC ,'), type to narrow to the buffers you care about,
+;; then `embark-act' (`s-]') and `E' (export) — for buffer candidates Embark
+;; exports straight into an *Ibuffer* showing exactly that filtered set. Mark
+;; (`m'), then bulk-act (`D' kill, `S' save, `Q' query-replace, `s-]' on the
+;; row for the full Embark action menu) — i.e. filter in the minibuffer, hand
+;; off to ibuffer for the multi-buffer operation.
+(use-package ibuffer
+  :ensure nil
+  :bind (("C-x C-b" . ibuffer))
+  :hook (ibuffer-mode . ibuffer-auto-mode)
+  :custom
+  (ibuffer-expert t)
+  (ibuffer-show-empty-filter-groups nil)
+  (ibuffer-saved-filter-groups
+   '(("default"
+      ("Dired"   (mode . dired-mode))
+      ("Magit"   (name . "^magit"))
+      ("Org"     (mode . org-mode))
+      ("Term"    (or (mode . ghostel-mode)
+                     (mode . term-mode)
+                     (mode . shell-mode)
+                     (mode . eshell-mode)))
+      ("Emacs"   (or (name . "^\\*scratch\\*$")
+                     (name . "^\\*Messages\\*$")
+                     (name . "^\\*Warnings\\*$")
+                     (name . "^\\*Async-native-compile-log\\*$")))
+      ("Help"    (or (mode . help-mode)
+                     (mode . helpful-mode)
+                     (mode . Info-mode))))))
+  :config
+  ;; Apply the saved groups automatically in every ibuffer.
+  (add-hook 'ibuffer-mode-hook
+            (lambda () (ibuffer-switch-to-saved-filter-groups "default"))))
 
 ;;; --- Git -------------------------------------------------------------------
 
