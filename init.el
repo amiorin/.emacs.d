@@ -312,6 +312,15 @@ Opens a `find-file' prompt rooted at the private config dir (currently
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
+;; wgrep: edit grep results in place and write the changes back to the files.
+;; The project-wide search-and-replace loop: `consult-ripgrep' to find,
+;; `embark-export' (s-] then E) the candidates into a `grep-mode' buffer, then
+;; `C-c C-p' (wgrep-change-to-wgrep-mode) makes it editable — query-replace as
+;; usual and `C-c C-c' saves every touched file (`C-c C-k' aborts).
+(use-package wgrep
+  :commands (wgrep-change-to-wgrep-mode)
+  :custom (wgrep-auto-save-buffer t))
+
 ;;; --- Git -------------------------------------------------------------------
 
 ;; Magit: Git interface.
