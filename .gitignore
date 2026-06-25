@@ -1,5 +1,7 @@
 /eln-cache/
 /elpa/
+/package-quickstart.el
+/package-quickstart.elc
 /transient/
 /projectile-bookmarks.eld
 /recentf
