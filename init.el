@@ -537,10 +537,23 @@ Opens a `find-file' prompt rooted at the private config dir (currently
 ;;; --- Project navigation ----------------------------------------------------
 
 ;; Projectile: project interaction and navigation.
+;;
+;; Deferred (`:defer t'): loading projectile eagerly cost ~85ms+ on the startup
+;; path because projectile.el pulls in `transient' (for its dispatch menu),
+;; `compile' and `comint' the moment it loads. Nothing needs it before the first
+;; project command, so let the autoloaded commands (`projectile-find-file' etc.,
+;; reached via the leader and `C-c p') and `:bind-keymap' pull it in on demand;
+;; `projectile-mode' is then turned on from `:config'. The zellij tab-name hook
+;; calls `projectile-project-root', which is NOT autoloaded, so its
+;; `(fboundp ...)' guard short-circuits to the dired/file-dir fallback until a
+;; real projectile command loads the package -- it never force-loads it at
+;; startup. (Before, the dashboard's projects section forced projectile in; with
+;; the dashboard gone, this deferral is finally a clean win.)
 (use-package projectile
-  :init
-  (projectile-mode 1)
-  :bind-keymap ("C-c p" . projectile-command-map))
+  :defer t
+  :bind-keymap ("C-c p" . projectile-command-map)
+  :config
+  (projectile-mode 1))
 
 ;; consult-projectile: consult-powered project navigation.
 ;; Reached via the leader at `SPC p p' (see the general config above).
