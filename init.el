@@ -294,12 +294,15 @@ Opens a `find-file' prompt rooted at the private config dir (currently
 ;; Embark: "right-click for Emacs" — a context menu of actions on the target at
 ;; point or the current minibuffer candidate. `s-.' acts (matching this config's
 ;; other s- chords); `M-.' runs the most likely default action (this overrides
-;; the default `xref-find-definitions' on M-.). `C-h B' lists active bindings as
-;; a searchable, actionable completion list (cf. `C-h b').
+;; the default `xref-find-definitions' on M-.). Rebinding `b' in `help-map'
+;; makes embark-bindings — a searchable, actionable list of active bindings —
+;; the replacement for the default `describe-bindings' (which it's a superset
+;; of) under every help prefix, i.e. both `C-h b' and the leader's `SPC h b'.
 (use-package embark
   :bind (("s-]" . embark-act)
          ("M-." . embark-dwim)
-         ("C-h B" . embark-bindings))
+         :map help-map
+         ("b" . embark-bindings))
   :init
   ;; Replace the prefix-key help (e.g. `C-x C-h') with a filterable, actionable
   ;; list of that prefix's bindings; complements which-key's passive popup.
