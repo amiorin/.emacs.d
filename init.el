@@ -225,6 +225,30 @@ Opens a `find-file' prompt rooted at the private config dir (currently
   (let ((default-directory user-emacs-directory))
     (call-interactively #'find-file)))
 
+(defun neoemacs/dired-quick-look ()
+  "Preview the file under point in dired/dirvish via macOS Quick Look.
+Terminal Emacs (`emacs -nw') can't render images itself, and ghostel
+only draws Kitty-graphics images under GUI Emacs, so previewing is
+delegated to the OS: `qlmanage -p' pops a native Quick Look panel over
+the frame (Esc/Space to dismiss).  Runs async so Emacs isn't blocked."
+  (interactive)
+  (let ((file (dired-get-filename nil t)))
+    (unless file
+      (user-error "No file on this line"))
+    ;; BUFFER nil discards qlmanage's chatty stdout/stderr.
+    (start-process "ql" nil "qlmanage" "-p" file)))
+
+(defun neoemacs/open-in-finder ()
+  "Reveal the current directory in macOS Finder.
+In a dired/dirvish buffer this is the directory listed at point (so it
+follows you into subdirs); elsewhere it's the visited file's directory,
+falling back to `default-directory'.  Delegates to `open' so the
+existing Finder window is reused."
+  (interactive)
+  (let ((dir (cond ((derived-mode-p 'dired-mode) (dired-current-directory))
+                   (t default-directory))))
+    (start-process "open-finder" nil "open" (expand-file-name dir))))
+
 ;;; --- Keybindings -----------------------------------------------------------
 
 ;; General: convenient keybinding definitions, used here for a SPC leader.
@@ -243,6 +267,8 @@ Opens a `find-file' prompt rooted at the private config dir (currently
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fr" '(consult-recent-file :which-key "recent file")
+    "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
+    "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
     "b"  '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
