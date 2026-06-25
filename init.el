@@ -662,6 +662,9 @@ Wraps the affixation-function returned further down the advice chain
   :after (nerd-icons general)
   :init
   (dirvish-override-dired-mode 1)
+  ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a file
+  ;; manager has no use for it, so switch it back off in dired/dirvish buffers.
+  (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
   :custom
   (dirvish-attributes '(nerd-icons subtree-state vc-state))
   ;; Show the full `ls -l' detail columns (permissions, link count, owner,
@@ -721,7 +724,10 @@ Wraps the affixation-function returned further down the advice chain
 ;; prebuilt binary that auto-downloads on first use.
 (use-package ghostel
   :commands (ghostel)
-  :bind ("s-t" . neoemacs/vsplit-ghostel))
+  :bind ("s-t" . neoemacs/vsplit-ghostel)
+  ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a
+  ;; terminal buffer has no use for it, so turn it off in ghostel buffers.
+  :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1))))
 
 ;; evil-ghostel: keeps the terminal cursor in sync with Emacs point across
 ;; evil state transitions, so normal-state hjkl navigation works.
