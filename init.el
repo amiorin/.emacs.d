@@ -105,6 +105,34 @@
   :init
   (doom-modeline-mode 1))
 
+;; dashboard: a startup screen shown in place of *scratch*. Its footer reports
+;; the init time (the "Emacs started in N seconds" line, `dashboard-set-init-info'
+;; default t), answering the "how long did startup take" question without extra
+;; code. `dashboard-setup-startup-hook' wires the render into `after-init-hook'/
+;; `emacs-startup-hook'; `initial-buffer-choice' points new frames (and
+;; `emacsclient' ones) at the dashboard buffer too. Loaded after nerd-icons so
+;; the icon faces exist; the projects section is sourced from projectile and the
+;; recents section from the `recentf' list configured above. This is a terminal
+;; config (`emacs -nw'), so dashboard falls back to its text banner -- no image.
+(use-package dashboard
+  :after nerd-icons
+  :custom
+  (dashboard-banner-logo-title "neoemacs")
+  (dashboard-items '((recents  . 5)
+                     (projects . 5)))
+  (dashboard-projects-backend 'projectile)
+  ;; Use the nerd-icons set already installed for doom-modeline/dirvish.
+  (dashboard-icon-type 'nerd-icons)
+  (dashboard-set-heading-icons t)
+  (dashboard-set-file-icons t)
+  ;; Center the content and keep the init-time footer.
+  (dashboard-center-content t)
+  (dashboard-set-init-info t)
+  :config
+  (dashboard-setup-startup-hook)
+  (setq initial-buffer-choice
+        (lambda () (get-buffer-create dashboard-buffer-name))))
+
 ;;; --- Evil: Vim emulation ---------------------------------------------------
 
 ;; Evil: Vim emulation.
