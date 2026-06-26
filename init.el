@@ -347,6 +347,16 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     :keymaps 'override
     :prefix "SPC"
     :global-prefix "M-SPC")
+  ;; `,' as a true alias for the `C-c' prefix. `general-simulate-key' replays
+  ;; the real `C-c' sequence through the live keymaps, so `, x' invokes whatever
+  ;; `C-c x' is bound to in the current buffer -- including major-mode maps
+  ;; (`, C-c' -> `C-c C-c', etc.) -- without re-declaring anything. Restricted
+  ;; to normal/visual/motion so a literal comma still types in insert state;
+  ;; this does shadow evil's `,' (repeat-find-backwards) in those states.
+  (general-define-key
+   :states '(normal visual motion)
+   :keymaps 'override
+   "," (general-simulate-key "C-c"))
   (neoemacs/leader
     "SPC" '(projectile-find-file :which-key "find file in project")
     ","  '(consult-buffer :which-key "switch buffer")
