@@ -128,7 +128,20 @@
       (setq recentf-list
             (seq-take (delete-dups (append mem recentf-list))
                       recentf-max-saved-items))))
-  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save))
+  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save)
+
+  ;; Closing the host terminal (e.g. Ghostty) kills Emacs with SIGHUP, and
+  ;; Emacs's C-level shutdown on a fatal signal does NOT run `kill-emacs-hook'
+  ;; — so `recentf-mode's normal save-on-exit never fires and the list is lost.
+  ;; Save on an idle timer (quietly) instead: 5s after you stop interacting,
+  ;; so a freshly visited file is persisted almost immediately with no churn
+  ;; while idle. The merge advice above keeps each save from clobbering a
+  ;; concurrent instance.
+  (defun neoemacs--recentf-save-quietly ()
+    (let ((save-silently t)
+          (inhibit-message t))
+      (recentf-save-list)))
+  (run-with-idle-timer 5 t #'neoemacs--recentf-save-quietly))
 
 ;;; --- Appearance: theme, icons, modeline ------------------------------------
 
