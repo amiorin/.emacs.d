@@ -984,6 +984,7 @@ Wraps the affixation-function returned further down the advice chain
 (setq treesit-language-source-alist
       '((astro      "https://github.com/virchau13/tree-sitter-astro")
         (css        "https://github.com/tree-sitter/tree-sitter-css")
+        (clojure    "https://github.com/sogaiu/tree-sitter-clojure")
         (typescript "https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src")
         (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")))
 
@@ -1015,6 +1016,19 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   :config
   (neoemacs--ensure-treesit-grammars 'astro 'css 'tsx))
 
+;; clojure-ts-mode: tree-sitter major mode for Clojure/ClojureScript/cljc/edn.
+;; Deferred via `:mode' like astro/typescript -- the grammar is ensured
+;; (compiled if missing) on first visit, so there's zero startup cost. eglot
+;; attaches via the shared hook in the eglot block below; cider and
+;; evil-cleverparens hook on at the end of the file.
+(use-package clojure-ts-mode
+  :mode (("\\.clj\\'"  . clojure-ts-mode)
+         ("\\.cljs\\'" . clojure-ts-clojurescript-mode)
+         ("\\.cljc\\'" . clojure-ts-clojurec-mode)
+         ("\\.edn\\'"  . clojure-ts-mode))
+  :init
+  (neoemacs--ensure-treesit-grammars 'clojure))
+
 ;; --- LSP via eglot ---------------------------------------------------------
 ;;
 ;; eglot is built in (`:ensure nil'). It's fully deferred: `eglot-ensure' is
@@ -1025,9 +1039,12 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 (use-package eglot
   :ensure nil
   :defer t
-  :hook ((astro-ts-mode      . eglot-ensure)
-         (typescript-ts-mode . eglot-ensure)
-         (tsx-ts-mode        . eglot-ensure))
+  :hook ((astro-ts-mode                 . eglot-ensure)
+         (typescript-ts-mode            . eglot-ensure)
+         (tsx-ts-mode                   . eglot-ensure)
+         (clojure-ts-mode               . eglot-ensure)
+         (clojure-ts-clojurescript-mode . eglot-ensure)
+         (clojure-ts-clojurec-mode      . eglot-ensure))
   :config
   ;; The Astro language server (`@astrojs/language-server', binary `astro-ls';
   ;; install with `npm i -g @astrojs/language-server'). It needs to be pointed at
@@ -1039,6 +1056,14 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
                '(astro-ts-mode . ("astro-ls" "--stdio"
                                    :initializationOptions
                                    (:typescript (:tsdk "node_modules/typescript/lib")))))
+  ;; clojure-lsp drives the clojure-ts-mode family. eglot's built-in server
+  ;; table only knows the classic clojure-mode names, so register the tree-sitter
+  ;; modes explicitly. clojure-lsp bundles clj-kondo, so linting arrives over
+  ;; eglot's flymake alongside completion/nav/rename -- no separate linter
+  ;; package. Requires the `clojure-lsp' binary on PATH.
+  (add-to-list 'eglot-server-programs
+               '((clojure-ts-mode clojure-ts-clojurescript-mode clojure-ts-clojurec-mode)
+                 . ("clojure-lsp")))
   ;; Don't log every LSP JSON-RPC message to a buffer -- it's a measurable drag
   ;; on a chatty server and only useful when debugging eglot itself. The setting
   ;; was renamed across eglot versions, so set whichever this Emacs has.
@@ -1064,6 +1089,38 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   (add-hook 'emacs-startup-hook #'apheleia-global-mode)
   :config
   (add-to-list 'apheleia-mode-alist '(astro-ts-mode . prettier)))
+
+;;; --- Clojure tooling -------------------------------------------------------
+;;
+;; The major mode (`clojure-ts-mode') and its LSP attach (clojure-lsp via eglot)
+;; are set up above with the other tree-sitter languages. These two add the
+;; editing and REPL layers.
+
+;; evil-cleverparens: paredit-style structural editing (slurp/barf, wrap, etc.)
+;; expressed through evil motions, so paren editing doesn't fight evil's keys.
+;; Pulls in paredit + smartparens as dependencies. Enabled on the Clojure
+;; tree-sitter modes (add emacs-lisp-mode / lisp-mode to the hook for those too).
+(use-package evil-cleverparens
+  :hook ((clojure-ts-mode               . evil-cleverparens-mode)
+         (clojure-ts-clojurescript-mode . evil-cleverparens-mode)
+         (clojure-ts-clojurec-mode      . evil-cleverparens-mode))
+  :init
+  (setq evil-cleverparens-use-additional-bindings t))
+
+;; cider: nREPL-connected REPL, inline eval, debugger, test runner -- the
+;; runtime half of Clojure dev, complementary to clojure-lsp's static analysis
+;; (they intentionally run together). `:after clojure-ts-mode' keeps cider
+;; deferred until the first Clojure file is visited, so it costs nothing at
+;; startup; its `C-c C-...' keymaps are live in Clojure buffers from then on
+;; (`C-c C-j' jacks in a REPL -- needs `clojure'/`clj' or `lein' on PATH). evil
+;; bindings for cider's own buffers come from `evil-collection-init'.
+(use-package cider
+  :after clojure-ts-mode
+  :custom
+  (cider-repl-display-help-banner nil)
+  (cider-repl-pop-to-buffer-on-connect 'display-only)
+  (cider-save-file-on-load t)
+  (cider-font-lock-dynamically '(macro core function var)))
 
 ;;; --- Environment: direnv ---------------------------------------------------
 
