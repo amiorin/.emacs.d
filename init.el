@@ -440,7 +440,16 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
 (use-package which-key
   :ensure nil
   :config
-  (setq which-key-idle-delay 0.5)
+  ;; Mirrors Doom's which-key tuning for readability.
+  (setq which-key-sort-order #'which-key-key-order-alpha
+        which-key-sort-uppercase-first nil
+        which-key-add-column-padding 1
+        which-key-max-display-columns nil
+        which-key-min-display-lines 6
+        which-key-side-window-slot -10)
+  (which-key-setup-side-window-bottom)
+  (add-hook 'which-key-init-buffer-hook
+            (lambda () (setq-local line-spacing 3)))
   (which-key-mode 1))
 
 ;;; --- Completion stack ------------------------------------------------------
