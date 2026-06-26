@@ -14,8 +14,9 @@
 ;; system up explicitly here.
 (require 'package)
 (setq package-archives
-      '(("gnu"   . "https://elpa.gnu.org/packages/")
-        ("melpa" . "https://melpa.org/packages/")))
+      '(("gnu"    . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("melpa"  . "https://melpa.org/packages/")))
 
 ;; Fast activation via `package-quickstart'. A full `package-initialize' scans
 ;; every installed package's directory and `*-autoloads.el' on each startup
@@ -41,6 +42,16 @@
 ;; before the eln lookup *and* marks the file no-native (see lread.c). `load'
 ;; with NOERROR returns nil if neither file exists, triggering the fallback.
 (setq package-quickstart t)
+;; Some `*-ts-mode' packages (e.g. astro-ts-mode) gate their `auto-mode-alist'
+;; entry on a top-level `(treesit-ready-p ...)' call in their autoload file.
+;; package.el bakes those autoload forms into package-quickstart.el, which we
+;; load below -- *before* anything else pulls in treesit.el -- so the form would
+;; hit a void `treesit-ready-p' and abort the whole bundle. `treesit-ready-p'
+;; lives in treesit.el; preload it so those autoload forms evaluate cleanly.
+;; (Guarded: `treesit-available-p' is a C builtin present on every build, but
+;; treesit.el itself only exists on builds compiled with tree-sitter support.)
+(when (treesit-available-p)
+  (require 'treesit))
 (unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
   (package-initialize)
   (package-quickstart-refresh))
@@ -352,6 +363,11 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
     "o"  '(:ignore t :which-key "open")
     "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
+    "c"  '(:ignore t :which-key "code")
+    "ca" '(eglot-code-actions :which-key "code actions")
+    "cr" '(eglot-rename :which-key "rename symbol")
+    "cf" '(eglot-format-buffer :which-key "format buffer")
+    "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
     "u"  '(vundo :which-key "undo tree")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
@@ -579,6 +595,56 @@ Wraps the affixation-function returned further down the advice chain
 ;; ibuffer-projectile: group ibuffer by Projectile project.
 (use-package ibuffer-projectile
   :hook (ibuffer-mode . ibuffer-projectile-set-filter-groups))
+
+;;; --- In-buffer completion (corfu/cape) -------------------------------------
+
+;; Corfu: the at-point completion popup -- the in-buffer counterpart to the
+;; vertico minibuffer stack above (vertico handles `M-x'/find-file prompts;
+;; corfu handles completion *inside* a buffer, e.g. the candidates eglot
+;; produces while typing code). Together they give the whole completion surface.
+;;
+;; Deferred: `global-corfu-mode' is autoloaded, so adding it to
+;; `emacs-startup-hook' arms it without loading corfu during init -- the package
+;; loads when the hook fires, right after the first frame paints and after
+;; `emacs-init-time' is recorded, i.e. off the startup critical path (same
+;; pattern as diff-hl above). Nothing can trigger completion before then anyway.
+(use-package corfu
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook #'global-corfu-mode)
+  :custom
+  ;; Pop up automatically as you type (don't wait for an explicit TAB).
+  (corfu-auto t)
+  (corfu-auto-prefix 2)            ; ...after 2 chars
+  (corfu-auto-delay 0.1)
+  (corfu-cycle t)                  ; wrap around at the ends of the list
+  ;; Don't preselect a candidate -- keep the typed prefix selected so RET inserts
+  ;; what you typed unless you've explicitly moved into the list.
+  (corfu-preselect 'prompt))
+
+;; corfu-terminal: corfu's default popup is a child frame, which doesn't exist
+;; in `emacs -nw'. This package re-renders the popup as a buffer overlay so it
+;; works in the terminal. `:after corfu' loads it when corfu loads (on the
+;; startup hook above), and the `display-graphic-p' guard makes it a no-op if
+;; this config is ever opened in a GUI frame (where the native child frame is
+;; better).
+(use-package corfu-terminal
+  :after corfu
+  :config
+  (unless (display-graphic-p)
+    (corfu-terminal-mode 1)))
+
+;; Cape: extra `completion-at-point' backends. eglot installs its own LSP capf
+;; buffer-locally in managed buffers (so code completion there comes from the
+;; language server); these add file-path and dabbrev (in-buffer word) completion
+;; as fallbacks everywhere else -- e.g. completing a `./src/...' path or a word
+;; already in the buffer. The functions are autoloaded, so adding them to the
+;; hook in `:init' doesn't force-load cape; the package loads on first use.
+(use-package cape
+  :after corfu
+  :init
+  (add-hook 'completion-at-point-functions #'cape-file)
+  (add-hook 'completion-at-point-functions #'cape-dabbrev))
 
 ;;; --- Git -------------------------------------------------------------------
 
@@ -901,6 +967,103 @@ Wraps the affixation-function returned further down the advice chain
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'"       . markdown-mode)
          ("\\.markdown\\'" . markdown-mode)))
+
+;; --- Tree-sitter grammars --------------------------------------------------
+;;
+;; All the `*-ts-mode' major modes below need their tree-sitter grammar compiled
+;; and on `treesit-extra-load-path'. `treesit-language-source-alist' tells
+;; `treesit-install-language-grammar' where to fetch and how to build each one;
+;; populating it is cheap (just an alist), so it's done eagerly. The actual
+;; install (a git clone + C compile) only runs lazily from each mode's `:config'
+;; below, and only when the grammar is missing -- never on the startup path.
+;;
+;; Astro injects other languages into a `.astro' file (TS in the frontmatter,
+;; CSS in <style>, TSX-ish markup), so `astro-ts-mode' relies on the css and tsx
+;; grammars in addition to its own. tsx/typescript live in subdirectories of one
+;; repo, hence the explicit SOURCE-DIR field.
+(setq treesit-language-source-alist
+      '((astro      "https://github.com/virchau13/tree-sitter-astro")
+        (css        "https://github.com/tree-sitter/tree-sitter-css")
+        (typescript "https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src")
+        (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")))
+
+(defun neoemacs--ensure-treesit-grammars (&rest langs)
+  "Install each grammar in LANGS via tree-sitter if it isn't already built.
+A no-op once the grammars exist, so it's safe to call from a mode `:config'
+\(it runs the slow git-clone + compile only on first use of each language)."
+  (dolist (lang langs)
+    (unless (treesit-language-available-p lang)
+      (treesit-install-language-grammar lang))))
+
+;; typescript-ts-mode / tsx-ts-mode ship with Emacs (29+), so `:ensure nil'.
+;; Astro projects are full of `.ts'/`.tsx' siblings; route them here and let
+;; eglot (below) attach for LSP. `:mode' keeps the mode -- and the grammar
+;; install in `:config' -- deferred until such a file is opened.
+(use-package typescript-ts-mode
+  :ensure nil
+  :mode (("\\.ts\\'"  . typescript-ts-mode)
+         ("\\.tsx\\'" . tsx-ts-mode))
+  :config
+  (neoemacs--ensure-treesit-grammars 'typescript 'tsx))
+
+;; astro-ts-mode: tree-sitter major mode for `.astro' single-file components.
+;; `:mode' defers the whole package (and its grammar install) until the first
+;; `.astro' file is visited -- zero startup cost. eglot attaches via the shared
+;; hook in the eglot block below.
+(use-package astro-ts-mode
+  :mode "\\.astro\\'"
+  :config
+  (neoemacs--ensure-treesit-grammars 'astro 'css 'tsx))
+
+;; --- LSP via eglot ---------------------------------------------------------
+;;
+;; eglot is built in (`:ensure nil'). It's fully deferred: `eglot-ensure' is
+;; autoloaded, so listing it on the language hooks arms LSP without loading
+;; eglot at startup -- the package loads the first time one of those modes turns
+;; on (i.e. when you open a real source file), never during init. The `:config'
+;; (server table + perf tweaks) then runs once, at that first attach.
+(use-package eglot
+  :ensure nil
+  :defer t
+  :hook ((astro-ts-mode      . eglot-ensure)
+         (typescript-ts-mode . eglot-ensure)
+         (tsx-ts-mode        . eglot-ensure))
+  :config
+  ;; The Astro language server (`@astrojs/language-server', binary `astro-ls';
+  ;; install with `npm i -g @astrojs/language-server'). It needs to be pointed at
+  ;; the project's own TypeScript via `tsdk' -- a relative path resolves against
+  ;; the project root eglot starts the server in, so the project's
+  ;; `node_modules/typescript' is used. TS/TSX files use eglot's built-in
+  ;; `typescript-language-server' entry, so only Astro needs registering here.
+  (add-to-list 'eglot-server-programs
+               '(astro-ts-mode . ("astro-ls" "--stdio"
+                                   :initializationOptions
+                                   (:typescript (:tsdk "node_modules/typescript/lib")))))
+  ;; Don't log every LSP JSON-RPC message to a buffer -- it's a measurable drag
+  ;; on a chatty server and only useful when debugging eglot itself. The setting
+  ;; was renamed across eglot versions, so set whichever this Emacs has.
+  (when (boundp 'eglot-events-buffer-config)
+    (setq eglot-events-buffer-config '(:size 0 :format full)))
+  (when (boundp 'eglot-events-buffer-size)
+    (setq eglot-events-buffer-size 0)))
+
+;; --- Formatting: apheleia --------------------------------------------------
+;;
+;; apheleia reformats on save *asynchronously* (it diffs the formatter's output
+;; back in, so point/scroll are preserved and the UI never blocks) -- preferable
+;; to `eglot-format-buffer' on save for a terminal workflow. Deferred the same
+;; way as corfu: the autoloaded `apheleia-global-mode' is armed on
+;; `emacs-startup-hook', so the package loads off the critical path.
+;;
+;; Astro is formatted by Prettier with `prettier-plugin-astro' (the standard
+;; Astro formatter); point apheleia's `astro-ts-mode' entry at its prettier
+;; formatter. TS/TSX already map to prettier in apheleia's defaults.
+(use-package apheleia
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook #'apheleia-global-mode)
+  :config
+  (add-to-list 'apheleia-mode-alist '(astro-ts-mode . prettier)))
 
 ;;; --- Environment: direnv ---------------------------------------------------
 
