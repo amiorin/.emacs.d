@@ -52,8 +52,10 @@ M-x nerd-icons-install-fonts
   columns, directory-first sorting when GNU `gls` is available, diredfl
   coloring, omitted generated files, two-pane copy/rename targets, a visible
   block cursor, and `TAB` to expand/collapse subtrees inline.
-- **Terminal** — `ghostel`, a libghostty-backed terminal. `s-t` opens a
-  vertical split and launches a fresh terminal in it; `evil-ghostel` keeps the
+- **Terminal** — `ghostel`, a libghostty-backed terminal. `s-t` (or `SPC t`)
+  opens a vertical split and launches a fresh terminal in it, rooted at the
+  current buffer's project root (`SPC u t` starts it in the current directory
+  instead); `evil-ghostel` keeps the
   cursor in sync so normal-state `hjkl` navigation works inside it. In ghostel
   insert state, a single `Esc` is sent to the terminal, while `Esc Esc` returns
   to Evil normal state; `C-c` and `C-x` are forwarded to the running terminal
@@ -124,7 +126,11 @@ elsewhere.
 | `SPC c f` | format buffer (eglot)           |
 | `SPC c d` | buffer diagnostics (flymake)    |
 | `SPC o o` | open current file in Obsidian   |
-| `SPC u`   | universal argument (`C-u`)      |
+| `SPC s`   | save buffer                     |
+| `SPC w`   | delete current window           |
+| `SPC n`   | vertical split + follow focus   |
+| `SPC t`   | vsplit + ghostel terminal (project root) |
+| `SPC u t` | vsplit + ghostel terminal (current dir) |
 | `,`       | alias for the `C-c` prefix (normal/visual/motion) |
 | `j` / `k` | down / up by visual line (`gj`/`gk` logical) |
 | `-`       | jump to dired (current dir)     |
@@ -134,7 +140,7 @@ elsewhere.
 | `S-s-[`   | rotate windows                  |
 | `S-s-]`   | maximize window (delete others) |
 | `s-]`     | embark act                      |
-| `s-t`     | vsplit + open fresh ghostel terminal in it |
+| `s-t`     | vsplit + open fresh ghostel terminal (project root) |
 | `v` / `V` | expand / contract region (visual state) |
 | `SPC h`   | help prefix                     |
 | `SPC h t` | show startup time               |

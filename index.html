@@ -494,18 +494,29 @@
   </div>
 
   <div class="row">
-<pre class="code">(defun neoemacs/vsplit-ghostel ()
-  "Open a vertical split, move focus into it, and launch ghostel there."
+<pre class="code">(defun neoemacs/vsplit-ghostel (&optional here)
+  "Open a vertical split, move focus into it, and launch ghostel there.
+With a prefix arg (or non-nil HERE), start in the current
+`default-directory' rather than the project root."
+  (interactive "P")
+  (unless here (require 'projectile))
+  (let ((root (and (not here) (projectile-project-root))))
+    (neoemacs/vsplit-window-follow)
+    (evil-buffer-new)
+    (let* ((placeholder (window-buffer))
+           (default-directory (or root default-directory))
+           (ghostel-buffer (ghostel '(4))))
+      (when (and (buffer-live-p placeholder)
+                 (not (eq placeholder ghostel-buffer)))
+        (kill-buffer placeholder)))))
+
+(defun neoemacs/vsplit-ghostel-here ()
+  "Like `neoemacs/vsplit-ghostel' but ignore the project root."
   (interactive)
-  (neoemacs/vsplit-window-follow)
-  (evil-buffer-new)
-  (let ((placeholder (window-buffer))
-        (ghostel-buffer (ghostel '(4))))
-    (when (and (buffer-live-p placeholder)
-               (not (eq placeholder ghostel-buffer)))
-      (kill-buffer placeholder))))</pre>
+  (neoemacs/vsplit-ghostel t))</pre>
     <div class="prose">
-      <p>Opens a terminal in a fresh split (bound to <code>s-t</code>):</p>
+      <p>Opens a terminal in a fresh split (bound to <code>s-t</code> and
+      <code>SPC t</code>):</p>
       <ul>
         <li><code>vsplit-window-follow</code> makes the split and moves into it.</li>
         <li><code>evil-buffer-new</code> shows an empty <code>*new*</code> buffer there.</li>
@@ -513,6 +524,15 @@
         prefix arg <code>'(4)</code> forces a <strong>new</strong> terminal rather than
         reusing an existing one.</li>
       </ul>
+      <p>By default the terminal is rooted at the originating buffer's
+      <strong>project root</strong>, captured into <code>root</code> <em>before</em>
+      the split (the placeholder buffer can carry a different
+      <code>default-directory</code>), then bound around the <code>ghostel</code>
+      call via <code>let*</code>. Outside a project it falls back to the current
+      directory. A prefix arg — or <code>neoemacs/vsplit-ghostel-here</code>
+      (<code>SPC u t</code>) — skips the root and starts in the current
+      <code>default-directory</code>. <code>projectile</code> is deferred, so it's
+      <code>require</code>d on demand.</p>
       <div class="gotcha"><span class="tag">The cleanup dance</span>
       <code>evil-buffer-new</code> puts its placeholder in the window via
       <code>set-window-buffer</code> without making it current — so it's grabbed back with
@@ -669,15 +689,21 @@
     "cr" '(eglot-rename :which-key "rename symbol")
     "cf" '(eglot-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
-    "u"  '(universal-argument :which-key "universal arg (C-u)")
+    "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
+    "s"  '(save-buffer :which-key "save buffer")
+    "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
+    "w"  '(evil-window-delete :which-key "delete window")
+    "u"  '(:ignore t :which-key "ghostel")
+    "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
     "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))</pre>
     <div class="prose">
       <p>The leader menu. Each entry maps a key sequence to a command plus a
       <code>:which-key</code> label shown in the popup. Top-level shortcuts:
       <code>SPC SPC</code> → find file in project, <code>SPC ,</code> → switch buffer,
-      <code>SPC /</code> → search the project with ripgrep, <code>SPC u</code> →
-      <code>universal-argument</code> (<code>C-u</code>).</p>
+      <code>SPC /</code> → search the project with ripgrep, <code>SPC s</code> → save
+      buffer, <code>SPC w</code> → delete window, <code>SPC n</code> → vsplit &amp;
+      follow, <code>SPC t</code> → ghostel terminal at the project root.</p>
       <p>Mnemonic groups, where <code>:ignore t</code> defines a prefix that only carries a
       which-key label (no command of its own):</p>
       <ul>
@@ -690,6 +716,7 @@
         <li><strong>g</strong> git — status, blame, file log, and diff-hl hunk navigation/stage/revert.</li>
         <li><strong>o</strong> open — <code>oo</code> opens the current file in Obsidian.</li>
         <li><strong>c</strong> code — eglot code actions / rename / format and flymake diagnostics.</li>
+        <li><strong>u</strong> ghostel — <code>ut</code> opens a ghostel terminal in the current directory (the <code>t</code> variant uses the project root).</li>
         <li><strong>h</strong> → the whole <code>help-command</code> map.</li>
       </ul>
       <div class="gotcha"><span class="tag">Why <code>SPC p p</code></span> Projectile's
@@ -1277,9 +1304,11 @@
     <div class="prose">
       <p><strong>ghostel</strong> is a terminal emulator powered by libghostty; its native
       module is a prebuilt binary that auto-downloads on first use.
-      <code>:commands (ghostel)</code> sets up the autoload, and <code>s-t</code> runs the
-      vsplit-and-launch helper from earlier. Terminal buffers turn line numbers off
-      locally because the gutter is not useful there.</p>
+      <code>:commands (ghostel)</code> sets up the autoload, and <code>s-t</code> (and
+      <code>SPC t</code>) run the vsplit-and-launch helper from earlier, rooting the
+      terminal at the buffer's project root (<code>SPC u t</code> uses the current
+      directory instead). Terminal buffers turn line numbers off locally because the
+      gutter is not useful there.</p>
       <p><strong>evil-ghostel</strong> keeps the terminal cursor in sync with Emacs point
       across Evil state changes, so normal-state <code>hjkl</code> navigation works inside
       the terminal buffer. It hooks onto <code>ghostel-mode</code>. Its <code>:config</code>

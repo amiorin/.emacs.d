@@ -48,10 +48,13 @@ Three layers, used deliberately:
 1. **Leader key** via `general` — `neoemacs/leader` is a definer with prefix
    `SPC` (and `M-SPC` as a global fallback for non-normal states). Mnemonic
    groups: `f` files, `b` buffers, `p` project, `g` git, `o` open/external
-   apps, `c` code (eglot/flymake actions), plus top-level shortcuts
-   (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
+   apps, `c` code (eglot/flymake actions), `u` ghostel, plus top-level
+   shortcuts (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
    `SPC /` / `SPC p s` → `consult-ripgrep`, `SPC b u` → `vundo`,
-   `SPC u` → `universal-argument`, `SPC h` → help). Add user-facing commands
+   `SPC s` → `save-buffer`, `SPC w` → `evil-window-delete`, `SPC n` →
+   `neoemacs/vsplit-window-follow`, `SPC t` → `neoemacs/vsplit-ghostel`
+   (terminal at the project root), `SPC u t` → `neoemacs/vsplit-ghostel-here`
+   (terminal in the current dir), `SPC h` → help). Add user-facing commands
    here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
    `dired-jump` in normal state, `s-hjkl` window movement, `s-n` vsplit +
@@ -68,7 +71,7 @@ Three layers, used deliberately:
 3. **`use-package :bind`** for plain global chords tied to a package
    (`C-s` consult-line, `C-x g` magit, `C-x C-b` ibuffer, `C-c f` dirvish,
    `s-]` embark-act, `M-.` embark-dwim, `s-t` →
-   `neoemacs/vsplit-ghostel`, etc.).
+   `neoemacs/vsplit-ghostel` (ghostel at the project root), etc.).
 
 Evil is the editing model: `evil` + `evil-collection` (with
 `evil-want-keybinding nil` set *before* load, as evil-collection requires).
@@ -187,10 +190,16 @@ source file is opened.
   system clipboard via the OSC 52 escape sequence, so copying works over SSH
   and through tmux.
 - Terminal: `ghostel` is a libghostty-backed terminal (the native module is a
-  prebuilt binary that auto-downloads on first use). `s-t` runs
+  prebuilt binary that auto-downloads on first use). `s-t` (and `SPC t`) run
   `neoemacs/vsplit-ghostel`, which vsplits, follows focus into the new window,
   creates a fresh buffer, and calls `(ghostel '(4))` — the non-numeric prefix
-  arg forces a *new* terminal rather than reusing an existing one.
+  arg forces a *new* terminal rather than reusing an existing one. The new
+  terminal is rooted at the **project root** of the originating buffer (the root
+  is captured *before* the split, since the placeholder buffer can carry a
+  different `default-directory`; `projectile` is `require`d on demand because
+  it's deferred), falling back to the current `default-directory` outside a
+  project. A prefix arg — or `neoemacs/vsplit-ghostel-here` (`SPC u t`) —
+  ignores the project root and always starts in the current `default-directory`.
   `evil-ghostel` (`evil-ghostel-mode`, hooked on `ghostel-mode`) keeps the
   terminal cursor in sync with point across evil state changes so normal-state
   `hjkl` works in the terminal buffer. **Anchor seam:** each redraw,
