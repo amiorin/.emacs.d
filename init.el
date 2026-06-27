@@ -143,6 +143,18 @@
       (recentf-save-list)))
   (run-with-idle-timer 5 t #'neoemacs--recentf-save-quietly))
 
+;; autorevert: reload buffers whose backing file changed on disk, as long as the
+;; buffer has no unsaved edits. `global-auto-revert-non-file-buffers' extends
+;; this to dired/dirvish (and other non-file buffers) so directory listings
+;; refresh too. Reverts are silent (`auto-revert-verbose nil').
+(use-package autorevert
+  :ensure nil
+  :custom
+  (global-auto-revert-non-file-buffers t)
+  (auto-revert-verbose nil)
+  :init
+  (global-auto-revert-mode 1))
+
 ;;; --- Appearance: theme, icons, modeline ------------------------------------
 
 ;; doom-one theme.
@@ -364,6 +376,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fr" '(consult-recent-file :which-key "recent file")
+    "fd" '(consult-dir :which-key "switch dir (consult-dir)")
     "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
     "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
     "b"  '(:ignore t :which-key "buffers")
@@ -543,6 +556,26 @@ Wraps the affixation-function returned further down the advice chain
          ("M-y"   . consult-yank-pop)
          ("M-g g" . consult-goto-line)
          ("M-g i" . consult-imenu)))
+
+;; consult-dir: switch the *directory context* from inside the minibuffer.
+;; `C-x C-d' globally jumps to a directory (recent dirs, projectile roots,
+;; bookmarks -- it reads recentf/projectile, both already configured); the same
+;; chord *inside* an active find-file/consult prompt re-roots that prompt at the
+;; chosen directory without restarting it, and `C-x C-j' fuzzy-jumps to any file
+;; beneath it. Also on the leader at `SPC f d'.
+;;
+;; Startup: `:bind' autoloads the commands and installs the bindings without
+;; loading the package -- it loads on first use. Deliberately NO `:after
+;; (consult vertico)': that would force consult-dir to load the moment both are
+;; up (vertico is on at startup), spending its load cost eagerly for no gain.
+;; The minibuffer binding only needs `vertico-map' to be defined, which it is
+;; once `vertico-mode' has run (the vertico form above), so pure autoload
+;; deferral is the cheaper path and the `:map' binding still resolves.
+(use-package consult-dir
+  :bind (("C-x C-d" . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file)))
 
 ;; Embark: "right-click for Emacs" — a context menu of actions on the target at
 ;; point or the current minibuffer candidate. `s-.' acts (matching this config's
