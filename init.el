@@ -431,7 +431,17 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   (general-define-key
    :states 'normal
    :keymaps '(emacs-lisp-mode-map lisp-interaction-mode-map)
-   "K" 'neoemacs/describe-symbol-at-point))
+   "K" 'neoemacs/describe-symbol-at-point)
+  ;; Make `j'/`k' move by *visual* line so navigation follows wrapped text
+  ;; instead of jumping over a whole logical line. `gj'/`gk' are swapped to the
+  ;; logical-line motions so the old behaviour is still one keystroke away.
+  ;; (`h'/`l' are character motions that already walk through a wrap.)
+  (general-define-key
+   :states '(normal visual motion)
+   "j"  'evil-next-visual-line
+   "k"  'evil-previous-visual-line
+   "gj" 'evil-next-line
+   "gk" 'evil-previous-line))
 
 ;; expand-region: grow/shrink the selection by semantic units. In visual
 ;; state `v' expands the region and `V' contracts it.
@@ -1028,10 +1038,21 @@ Wraps the affixation-function returned further down the advice chain
 
 ;; markdown-mode: major mode for editing Markdown. `gfm-mode' is used for
 ;; README.md and other GitHub-Flavored Markdown files.
+;;
+;; Wiki links (`[[note]]') are enabled for Obsidian-style linking. The defaults
+;; are tuned for vaults: `markdown-wiki-link-search-subdirectories' resolves a
+;; bare `[[note]]' to a file anywhere under the vault (Obsidian flattens names),
+;; and `markdown-link-space-sub-char' " " keeps the link text matching real
+;; filenames with spaces instead of substituting underscores. Follow the link
+;; under point with `C-c C-o' (`markdown-follow-thing-at-point').
 (use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'"       . markdown-mode)
-         ("\\.markdown\\'" . markdown-mode)))
+         ("\\.markdown\\'" . markdown-mode))
+  :custom
+  (markdown-enable-wiki-links t)
+  (markdown-wiki-link-search-subdirectories t)
+  (markdown-link-space-sub-char " "))
 
 ;; --- Tree-sitter grammars --------------------------------------------------
 ;;
