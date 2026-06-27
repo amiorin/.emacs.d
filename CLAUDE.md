@@ -30,7 +30,8 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
 
 ## Package management
 
-- Built-in `package.el` + `use-package`, with archives GNU ELPA and MELPA.
+- Built-in `package.el` + `use-package`, with archives GNU ELPA, NonGNU
+  ELPA, and MELPA.
 - `package-enable-at-startup` is `nil` (set in `early-init.el`), so `init.el`
   activates packages explicitly. It loads the quickstart bundle by its
   suffix-less name (`(load (locate-user-emacs-file "package-quickstart") 'noerror
@@ -126,7 +127,7 @@ source file is opened.
 - **eglot** (built in, `:ensure nil`, fully deferred): `eglot-ensure` on the
   TS/TSX/Astro/Clojure mode hooks. The `:config` registers the servers eglot
   doesn't know by default — `astro-ls --stdio` (pointed at the project's own
-  `node_modules/typescript` via `tsdk`) and `clojure-lsp` for the tree-sitter
+  `node_modules/typescript/lib` via `tsdk`) and `clojure-lsp` for the tree-sitter
   Clojure modes (clojure-lsp bundles clj-kondo, so linting arrives over flymake
   with no separate linter). The JSON-RPC events buffer is disabled for
   performance. Leader actions live under `SPC c`: `ca` code actions, `cr`
@@ -154,9 +155,12 @@ source file is opened.
   the native-comp path — the `load-no-native` docvar documents this contract.
   This is why the `package-quickstart` load uses the bare name (see *Package
   management*).
-- `custom-set-variables` / `custom-set-faces` blocks at the end of `init.el`
-  are written by Emacs's Custom system. Edit configuration by hand above them,
-  not inside those blocks.
+- Custom's machine-written settings are kept out of `init.el`: `custom-file`
+  is pointed at a separate (gitignored) `custom.el`, which `init.el` loads with
+  `noerror`. This keeps `init.el` hand-edited only — with `custom-file` unset
+  Custom defaults to `user-init-file` and rewrites `custom-set-variables` /
+  `custom-set-faces` blocks into `init.el` (which is how stale entries crept in
+  before). Don't reintroduce those blocks here; let Custom own `custom.el`.
 - Evil extras: `evil-surround`, `evil-commentary`, and `evil-goggles` are
   enabled globally. `vundo` is a visualizer over built-in undo, not a
   replacement undo engine.
