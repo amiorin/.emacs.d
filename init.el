@@ -259,21 +259,39 @@
   (evil-window-vsplit)
   (evil-window-right 1))
 
-(defun neoemacs/vsplit-ghostel ()
-  "Open a vertical split, move focus into it, and launch ghostel there."
+(defun neoemacs/vsplit-ghostel (&optional here)
+  "Open a vertical split, move focus into it, and launch ghostel there.
+If the current buffer belongs to a project, the terminal starts in the
+project root; otherwise it inherits the current `default-directory'.
+With a prefix arg (or non-nil HERE), always start in the current
+`default-directory', ignoring the project root."
+  (interactive "P")
+  ;; Capture the project root from the *original* buffer before splitting,
+  ;; since the split/placeholder buffer can carry a different directory.
+  ;; projectile is deferred, so load it on demand if it hasn't loaded yet.
+  (unless here (require 'projectile))
+  (let ((root (and (not here) (projectile-project-root))))
+    (neoemacs/vsplit-window-follow)
+    (evil-buffer-new)
+    ;; `evil-buffer-new' shows the empty "*new*" buffer in the window via
+    ;; `set-window-buffer' without making it current, so grab it from the window.
+    (let* ((placeholder (window-buffer))
+           ;; Root the new terminal at the project root when there is one.
+           ;; `let*' so `default-directory' is in effect before ghostel reads it.
+           (default-directory (or root default-directory))
+           ;; Non-numeric prefix arg => always create a fresh ghostel buffer in
+           ;; the new split, rather than switching to an existing terminal.
+           (ghostel-buffer (ghostel '(4))))
+      ;; ghostel swaps in its own buffer; drop the empty placeholder.
+      (when (and (buffer-live-p placeholder)
+                 (not (eq placeholder ghostel-buffer)))
+        (kill-buffer placeholder)))))
+
+(defun neoemacs/vsplit-ghostel-here ()
+  "Like `neoemacs/vsplit-ghostel' but ignore the project root.
+The terminal always starts in the current `default-directory'."
   (interactive)
-  (neoemacs/vsplit-window-follow)
-  (evil-buffer-new)
-  ;; `evil-buffer-new' shows the empty "*new*" buffer in the window via
-  ;; `set-window-buffer' without making it current, so grab it from the window.
-  (let ((placeholder (window-buffer))
-        ;; Non-numeric prefix arg => always create a fresh ghostel buffer in the
-        ;; new split, rather than switching to an existing terminal.
-        (ghostel-buffer (ghostel '(4))))
-    ;; ghostel swaps in its own buffer; drop the empty placeholder.
-    (when (and (buffer-live-p placeholder)
-               (not (eq placeholder ghostel-buffer)))
-      (kill-buffer placeholder))))
+  (neoemacs/vsplit-ghostel t))
 
 (defun neoemacs/describe-symbol-at-point ()
   "Describe the symbol under point without prompting in the minibuffer.
@@ -406,7 +424,12 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "cr" '(eglot-rename :which-key "rename symbol")
     "cf" '(eglot-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
-    "u"  '(universal-argument :which-key "universal arg (C-u)")
+    "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
+    "s"  '(save-buffer :which-key "save buffer")
+    "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
+    "w"  '(evil-window-delete :which-key "delete window")
+    "u"  '(:ignore t :which-key "ghostel")
+    "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
     "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
