@@ -48,14 +48,23 @@ Three layers, used deliberately:
 1. **Leader key** via `general` — `neoemacs/leader` is a definer with prefix
    `SPC` (and `M-SPC` as a global fallback for non-normal states). Mnemonic
    groups: `f` files, `b` buffers, `p` project, `g` git, `o` open/external
-   apps, plus top-level shortcuts (`SPC SPC` → `projectile-find-file`,
-   `SPC ,` → `consult-buffer`, `SPC u` → `vundo`, `SPC h` → help). Add
-   user-facing commands here with a `:which-key` label.
+   apps, `c` code (eglot/flymake actions), plus top-level shortcuts
+   (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
+   `SPC /` / `SPC p s` → `consult-ripgrep`, `SPC b u` → `vundo`,
+   `SPC u` → `universal-argument`, `SPC h` → help). Add user-facing commands
+   here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
    `dired-jump` in normal state, `s-hjkl` window movement, `s-n` vsplit +
    follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
-   dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`).
+   dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`). Two editing-model
+   tweaks live here too: `,` (normal/visual/motion) is a `general-simulate-key`
+   alias that replays the real `C-c` prefix through the live keymaps, so `, x`
+   runs whatever `C-c x` is bound to in the current buffer (it shadows evil's
+   `repeat-find-backwards` in those states; a literal comma still types in
+   insert); and `j`/`k` are remapped to `evil-next/previous-visual-line` so
+   navigation follows wrapped display lines, with `gj`/`gk` kept as the
+   logical-line motions.
 3. **`use-package :bind`** for plain global chords tied to a package
    (`C-s` consult-line, `C-x g` magit, `C-x C-b` ibuffer, `C-c f` dirvish,
    `s-]` embark-act, `M-.` embark-dwim, `s-t` →
@@ -83,9 +92,52 @@ directory-name tinting) + `consult` (commands). These work together — changing
 one (e.g. `completion-styles`) affects the others.
 
 `embark` / `embark-consult` provide context actions and exports, and `wgrep`
-is installed for editable grep results. `helpful` replaces the main help
-commands under `help-map`. `ibuffer` is the bulk buffer-management view,
-grouped by project with `ibuffer-projectile`.
+is installed for editable grep results. `consult-ripgrep` is the project search
+(`SPC /` and `SPC p s`) — the front of the find→`embark-export`→`wgrep`
+edit loop. `consult-dir` switches the *directory context* from inside the
+minibuffer (`C-x C-d` globally, `C-x C-d` to re-root an active prompt,
+`C-x C-j` to fuzzy-jump to a file under the chosen dir, `SPC f d` on the
+leader). `helpful` replaces the main help commands under `help-map`. `ibuffer`
+is the bulk buffer-management view, grouped by project with `ibuffer-projectile`.
+
+In-buffer completion (distinct from the minibuffer stack above) is `corfu`: the
+at-point popup, armed via `global-corfu-mode` on `emacs-startup-hook` (off the
+critical path). `corfu-terminal` re-renders its child-frame popup as a buffer
+overlay so it works under `emacs -nw` (guarded by `display-graphic-p`, so it's
+a no-op in a GUI frame). `cape` adds `cape-file` and `cape-dabbrev` capfs as
+fallbacks; in eglot-managed buffers the LSP capf supplies code completion.
+
+## Languages & dev environment
+
+The language layer is tree-sitter major modes + `eglot` (LSP) + `corfu`
+completion + `apheleia` formatting, all deferred so they cost nothing until a
+source file is opened.
+
+- **Tree-sitter grammars.** `treesit-language-source-alist` is populated
+  eagerly (it's just an alist) for `astro`, `css`, `clojure`, `typescript`, and
+  `tsx`. `neoemacs--ensure-treesit-grammars` runs the slow git-clone + C compile
+  lazily from each mode's `:config`/`:init`, and only when a grammar is missing.
+  Major modes: `typescript-ts-mode`/`tsx-ts-mode` (built in, `:ensure nil`),
+  `astro-ts-mode` (needs the css + tsx grammars too, since Astro injects other
+  languages), and the `clojure-ts-mode` family (`.clj`/`.cljs`/`.cljc`/`.edn`).
+- **eglot** (built in, `:ensure nil`, fully deferred): `eglot-ensure` on the
+  TS/TSX/Astro/Clojure mode hooks. The `:config` registers the servers eglot
+  doesn't know by default — `astro-ls --stdio` (pointed at the project's own
+  `node_modules/typescript` via `tsdk`) and `clojure-lsp` for the tree-sitter
+  Clojure modes (clojure-lsp bundles clj-kondo, so linting arrives over flymake
+  with no separate linter). The JSON-RPC events buffer is disabled for
+  performance. Leader actions live under `SPC c`: `ca` code actions, `cr`
+  rename, `cf` format buffer, `cd` show diagnostics. Requires `astro-ls`,
+  `typescript-language-server`, and `clojure-lsp` on PATH as appropriate.
+- **apheleia** reformats on save *asynchronously* (diffs the formatter output
+  back in, preserving point/scroll), armed via `apheleia-global-mode` on
+  `emacs-startup-hook`. Astro is mapped to `prettier`; TS/TSX use apheleia's
+  defaults.
+- **Clojure tooling.** `cider` is the nREPL runtime half (REPL, inline eval,
+  test runner), complementary to clojure-lsp's static analysis — they run
+  together. `:after clojure-ts-mode` keeps it deferred; `C-c C-j` jacks in.
+  `evil-cleverparens` adds paredit-style structural editing through evil motions
+  on the Clojure modes (pulls in paredit + smartparens).
 
 ## Notable conventions
 
@@ -195,6 +247,25 @@ grouped by project with `ibuffer-projectile`.
   `.envrc` via direnv. It's enabled on `after-init` *deliberately* — the
   global mode must layer on top of other global modes, so don't move it
   earlier. Requires the `direnv` executable on PATH.
+- Server / `$EDITOR`: an Emacs `server` is started on `emacs-startup-hook` (off
+  the critical path) with a **per-PID socket name** (`neoemacs-<pid>`) so
+  concurrent Emacs instances don't collide on the default `server` name.
+  `$EDITOR` is then set to `emacsclient -s <name>`, so anything shelling out to
+  `$EDITOR` from the ghostel terminal (git commit messages, etc.) reuses *this*
+  Emacs instead of spawning a nested one. Finish/abort keys are bound
+  *buffer-locally* in each emacsclient buffer via `server-switch-hook`
+  (`neoemacs--server-buffer-keys`): `C-c C-c`/`ZZ` → `server-edit`,
+  `C-c C-k`/`ZQ` → `server-edit-abort`. They're scoped to the client buffer so
+  evil's global `ZZ`/`ZQ` stay intact everywhere else.
+- `autorevert` (`global-auto-revert-mode`) reloads buffers whose backing file
+  changed on disk when there are no unsaved edits;
+  `global-auto-revert-non-file-buffers` extends this to dired listings. Reverts
+  are silent (`auto-revert-verbose nil`).
+- `markdown-mode`: `README.md` opens in `gfm-mode`, other `.md`/`.markdown` in
+  `markdown-mode`. Wiki links (`[[note]]`) are enabled and tuned for Obsidian
+  vaults — `markdown-wiki-link-search-subdirectories` resolves a bare name to a
+  file anywhere under the tree, and `markdown-link-space-sub-char " "` keeps
+  link text matching real filenames with spaces. Follow a link with `C-c C-o`.
 - Wheel scrolling moves the view, not point. This config runs in a
   **terminal** (`emacs -nw`), so the scrolling setup is terminal-specific (no
   GUI/`pixel-scroll-precision-mode` config):

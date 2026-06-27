@@ -95,10 +95,13 @@
     <a href="#evil">Evil</a>
     <a href="#keys">Keys</a>
     <a href="#completion">Completion</a>
+    <a href="#corfu">Corfu</a>
     <a href="#git">Git</a>
     <a href="#dired">Dired</a>
     <a href="#term">Terminal</a>
+    <a href="#lang">Languages</a>
     <a href="#env">direnv</a>
+    <a href="#server">Server</a>
     <a href="#zellij">Zellij</a>
   </div>
 </div>
@@ -268,7 +271,12 @@
       (setq recentf-list
             (seq-take (delete-dups (append mem recentf-list))
                       recentf-max-saved-items))))
-  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save))</pre>
+  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save)
+  (defun neoemacs--recentf-save-quietly ()
+    (let ((save-silently t)
+          (inhibit-message t))
+      (recentf-save-list)))
+  (run-with-idle-timer 5 t #'neoemacs--recentf-save-quietly))</pre>
     <div class="prose">
       <p><code>recentf</code> tracks recently opened files (consumed by
       <code>consult-recent-file</code> at <code>SPC f r</code>). <code>:ensure nil</code>
@@ -286,6 +294,28 @@
       <div class="why"><span class="tag">Why <code>:before</code></span> The advice runs
       right <em>before</em> every <code>recentf-save-list</code>, so the merged list is what
       gets written — the last writer wins without discarding the other instance's entries.</div>
+      <div class="gotcha"><span class="tag">SIGHUP data loss</span> Closing the host terminal
+      kills Emacs with SIGHUP, and the C-level shutdown does <em>not</em> run
+      <code>kill-emacs-hook</code> — so recentf's normal save-on-exit never fires. An idle
+      timer saves quietly 5s after you stop interacting, so a freshly visited file is
+      persisted almost immediately; the merge advice keeps it from clobbering a concurrent
+      instance.</div>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package autorevert
+  :ensure nil
+  :custom
+  (global-auto-revert-non-file-buffers t)
+  (auto-revert-verbose nil)
+  :init
+  (global-auto-revert-mode 1))</pre>
+    <div class="prose">
+      <p><code>autorevert</code> reloads a buffer whose backing file changed on disk, as long
+      as the buffer has no unsaved edits. <code>global-auto-revert-non-file-buffers</code>
+      extends this to dired/dirvish (and other non-file buffers), so directory listings
+      refresh too. Reverts are silent (<code>auto-revert-verbose nil</code>).</p>
     </div>
   </div>
 
@@ -615,12 +645,15 @@
     "bb" '(consult-buffer :which-key "switch buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
     "bi" '(ibuffer :which-key "ibuffer")
+    "fd" '(consult-dir :which-key "switch dir (consult-dir)")
     "bn" '(next-buffer :which-key "next buffer")
     "bp" '(previous-buffer :which-key "previous buffer")
+    "bu" '(vundo :which-key "undo tree")
     "p"  '(:ignore t :which-key "project")
     "pp" '(consult-projectile :which-key "switch project")
     "pf" '(projectile-find-file :which-key "find file in project")
     "pb" '(projectile-switch-to-buffer :which-key "project buffer")
+    "ps" '(consult-ripgrep :which-key "search in project")
     "g"  '(:ignore t :which-key "git")
     "gg" '(magit-status :which-key "status")
     "gb" '(magit-blame :which-key "blame")
@@ -631,22 +664,32 @@
     "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
     "o"  '(:ignore t :which-key "open")
     "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
-    "u"  '(vundo :which-key "undo tree")
+    "c"  '(:ignore t :which-key "code")
+    "ca" '(eglot-code-actions :which-key "code actions")
+    "cr" '(eglot-rename :which-key "rename symbol")
+    "cf" '(eglot-format-buffer :which-key "format buffer")
+    "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
+    "u"  '(universal-argument :which-key "universal arg (C-u)")
+    "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))</pre>
     <div class="prose">
       <p>The leader menu. Each entry maps a key sequence to a command plus a
-      <code>:which-key</code> label shown in the popup. Two top-level shortcuts:
-      <code>SPC SPC</code> → find file in project, <code>SPC ,</code> → switch buffer.</p>
+      <code>:which-key</code> label shown in the popup. Top-level shortcuts:
+      <code>SPC SPC</code> → find file in project, <code>SPC ,</code> → switch buffer,
+      <code>SPC /</code> → search the project with ripgrep, <code>SPC u</code> →
+      <code>universal-argument</code> (<code>C-u</code>).</p>
       <p>Mnemonic groups, where <code>:ignore t</code> defines a prefix that only carries a
       which-key label (no command of its own):</p>
       <ul>
         <li><strong>f</strong> files — <code>ff</code> find, <code>fp</code> config file,
-        <code>fr</code> recent, <code>fi</code> Quick Look, <code>fo</code> Finder.</li>
-        <li><strong>b</strong> buffers — switch / kill / ibuffer / next / prev.</li>
-        <li><strong>p</strong> project — <code>pp</code> switch project, <code>pf</code> find file, <code>pb</code> project buffer.</li>
+        <code>fr</code> recent, <code>fd</code> switch directory (consult-dir),
+        <code>fi</code> Quick Look, <code>fo</code> Finder.</li>
+        <li><strong>b</strong> buffers — switch / kill / ibuffer / next / prev, plus
+        <code>bu</code> → <code>vundo</code> (the visual undo tree).</li>
+        <li><strong>p</strong> project — <code>pp</code> switch project, <code>pf</code> find file, <code>pb</code> project buffer, <code>ps</code> ripgrep search.</li>
         <li><strong>g</strong> git — status, blame, file log, and diff-hl hunk navigation/stage/revert.</li>
         <li><strong>o</strong> open — <code>oo</code> opens the current file in Obsidian.</li>
-        <li><strong>u</strong> → <code>vundo</code>, a visual undo tree.</li>
+        <li><strong>c</strong> code — eglot code actions / rename / format and flymake diagnostics.</li>
         <li><strong>h</strong> → the whole <code>help-command</code> map.</li>
       </ul>
       <div class="gotcha"><span class="tag">Why <code>SPC p p</code></span> Projectile's
@@ -698,6 +741,33 @@
   </div>
 
   <div class="row">
+<pre class="code">  (general-define-key
+   :states '(normal visual motion)
+   :keymaps 'override
+   "," (general-simulate-key "C-c"))
+  (general-define-key
+   :states '(normal visual motion)
+   "j"  'evil-next-visual-line
+   "k"  'evil-previous-visual-line
+   "gj" 'evil-next-line
+   "gk" 'evil-previous-line)</pre>
+    <div class="prose">
+      <p>Two editing-model tweaks, also via <code>general</code>:</p>
+      <ul>
+        <li><code>,</code> is a <code>general-simulate-key</code> alias that replays the real
+        <code>C-c</code> prefix through the live keymaps, so <code>, x</code> runs whatever
+        <code>C-c x</code> is bound to in the current buffer (including major-mode maps:
+        <code>, C-c</code> → <code>C-c C-c</code>). Restricted to normal/visual/motion so a
+        literal comma still types in insert — it shadows evil's
+        <code>repeat-find-backwards</code> in those states.</li>
+        <li><code>j</code>/<code>k</code> move by <em>visual</em> line, so navigation follows
+        wrapped text instead of jumping a whole logical line; <code>gj</code>/<code>gk</code>
+        keep the logical-line motions one keystroke away.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
 <pre class="code">(use-package expand-region
   :after (evil general)
   :commands (er/expand-region er/contract-region)
@@ -725,7 +795,7 @@
     <div class="prose">
       <p><code>vundo</code> visualizes the built-in undo history as a tree. It does not
       replace Emacs undo and does not create persistent undo-history files. It is reached
-      via <code>SPC u</code>, and the Unicode glyphs make the tree clearer in the terminal.</p>
+      via <code>SPC b u</code>, and the Unicode glyphs make the tree clearer in the terminal.</p>
     </div>
   </div>
 
@@ -844,6 +914,27 @@
   </div>
 
   <div class="row">
+<pre class="code">(use-package consult-dir
+  :bind (("C-x C-d" . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file)))</pre>
+    <div class="prose">
+      <p><strong>consult-dir</strong> switches the <em>directory context</em> from the
+      minibuffer. <code>C-x C-d</code> globally jumps to a directory (recent dirs,
+      projectile roots, bookmarks); the same chord <em>inside</em> an active
+      find-file/consult prompt re-roots it at the chosen directory without restarting, and
+      <code>C-x C-j</code> fuzzy-jumps to any file beneath it. Also on the leader at
+      <code>SPC f d</code>.</p>
+      <div class="why"><span class="tag">Pure autoload deferral</span> No <code>:after
+      (consult vertico)</code> — that would force-load it the moment both are up. The
+      <code>:bind</code> autoloads the commands and installs the bindings; the package
+      itself loads on first use, and the <code>vertico-map</code> binding still resolves
+      once <code>vertico-mode</code> has run.</div>
+    </div>
+  </div>
+
+  <div class="row">
 <pre class="code">(use-package embark
   :bind (("s-]" . embark-act)
          ("M-." . embark-dwim)
@@ -918,6 +1009,50 @@
       <p><code>ibuffer-projectile</code> groups buffers by Projectile project. Embark can
       also export a narrowed <code>consult-buffer</code> candidate set directly into
       ibuffer for bulk actions.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="corfu"><h2>In-buffer completion — corfu &amp; cape</h2><p>The at-point completion popup, the counterpart to the vertico minibuffer stack.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package corfu
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook #'global-corfu-mode)
+  :custom
+  (corfu-auto t)
+  (corfu-auto-prefix 2)
+  (corfu-auto-delay 0.1)
+  (corfu-cycle t)
+  (corfu-preselect 'prompt))
+
+(use-package corfu-terminal
+  :after corfu
+  :config
+  (unless (display-graphic-p)
+    (corfu-terminal-mode 1)))
+
+(use-package cape
+  :after corfu
+  :init
+  (add-hook 'completion-at-point-functions #'cape-file)
+  (add-hook 'completion-at-point-functions #'cape-dabbrev))</pre>
+    <div class="prose">
+      <p><strong>corfu</strong> is the at-point completion popup — vertico handles
+      <code>M-x</code>/find-file prompts, corfu handles completion <em>inside</em> a buffer
+      (e.g. the candidates eglot produces while typing code). It pops up automatically after
+      two characters, and <code>corfu-preselect 'prompt</code> keeps the typed prefix
+      selected so <code>RET</code> inserts what you typed unless you've moved into the list.</p>
+      <p><strong>corfu-terminal</strong> re-renders corfu's child-frame popup as a buffer
+      overlay so it works under <code>emacs -nw</code>; the <code>display-graphic-p</code>
+      guard makes it a no-op in a GUI frame. <strong>cape</strong> adds file-path and
+      in-buffer-word (dabbrev) completion-at-point backends as fallbacks; in eglot-managed
+      buffers the LSP capf supplies code completion.</p>
+      <div class="why"><span class="tag">Off the critical path</span>
+      <code>global-corfu-mode</code> is armed on <code>emacs-startup-hook</code>, so the
+      package loads only after the first frame paints — nothing can trigger completion
+      before then anyway.</div>
     </div>
   </div>
 
@@ -1276,7 +1411,7 @@
   </div>
 
   <!-- ===================================================================== -->
-  <div class="sec-head"><h2>Project navigation &amp; languages</h2><p>Projectile and markdown.</p></div>
+  <div class="sec-head" id="lang"><h2>Project navigation &amp; languages</h2><p>Projectile, markdown, tree-sitter modes, eglot (LSP), formatting, and Clojure tooling.</p></div>
 
   <div class="row">
 <pre class="code">(use-package projectile
@@ -1306,12 +1441,141 @@
 <pre class="code">(use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'"       . markdown-mode)
-         ("\\.markdown\\'" . markdown-mode)))</pre>
+         ("\\.markdown\\'" . markdown-mode))
+  :custom
+  (markdown-enable-wiki-links t)
+  (markdown-wiki-link-search-subdirectories t)
+  (markdown-link-space-sub-char " "))</pre>
     <div class="prose">
       <p><strong>markdown-mode</strong> with file-pattern associations. <code>README.md</code>
       gets <code>gfm-mode</code> (GitHub-Flavored Markdown); other <code>.md</code> /
       <code>.markdown</code> files get plain <code>markdown-mode</code>. The <code>\\'</code>
       anchors match the end of the filename.</p>
+      <p>Wiki links (<code>[[note]]</code>) are enabled and tuned for Obsidian vaults:
+      <code>markdown-wiki-link-search-subdirectories</code> resolves a bare name to a file
+      anywhere under the tree (Obsidian flattens names), and
+      <code>markdown-link-space-sub-char " "</code> keeps link text matching real filenames
+      with spaces. Follow the link under point with <code>C-c C-o</code>.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(setq treesit-language-source-alist
+      '((astro      "https://github.com/virchau13/tree-sitter-astro")
+        (css        "https://github.com/tree-sitter/tree-sitter-css")
+        (clojure    "https://github.com/sogaiu/tree-sitter-clojure")
+        (typescript "https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src")
+        (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")))
+
+(defun neoemacs--ensure-treesit-grammars (&amp;rest langs)
+  (dolist (lang langs)
+    (unless (treesit-language-available-p lang)
+      (treesit-install-language-grammar lang))))
+
+(use-package typescript-ts-mode
+  :ensure nil
+  :mode (("\\.ts\\'"  . typescript-ts-mode)
+         ("\\.tsx\\'" . tsx-ts-mode))
+  :config
+  (neoemacs--ensure-treesit-grammars 'typescript 'tsx))
+
+(use-package astro-ts-mode
+  :mode "\\.astro\\'"
+  :config
+  (neoemacs--ensure-treesit-grammars 'astro 'css 'tsx))
+
+(use-package clojure-ts-mode
+  :mode (("\\.clj\\'"  . clojure-ts-mode)
+         ("\\.cljs\\'" . clojure-ts-clojurescript-mode)
+         ("\\.cljc\\'" . clojure-ts-clojurec-mode)
+         ("\\.edn\\'"  . clojure-ts-mode))
+  :init
+  (neoemacs--ensure-treesit-grammars 'clojure))</pre>
+    <div class="prose">
+      <p><strong>Tree-sitter major modes.</strong> <code>treesit-language-source-alist</code>
+      is populated eagerly (just an alist) so each grammar's fetch/build recipe is known;
+      <code>neoemacs--ensure-treesit-grammars</code> runs the slow git-clone + C compile
+      lazily from a mode's <code>:config</code>/<code>:init</code>, and only when a grammar is
+      missing — never on the startup path.</p>
+      <ul>
+        <li><code>typescript-ts-mode</code> / <code>tsx-ts-mode</code> ship with Emacs
+        (<code>:ensure nil</code>), for <code>.ts</code> / <code>.tsx</code>.</li>
+        <li><code>astro-ts-mode</code> for <code>.astro</code> — needs the css + tsx grammars
+        too, since Astro injects other languages into a single file.</li>
+        <li><code>clojure-ts-mode</code> family for <code>.clj</code> / <code>.cljs</code> /
+        <code>.cljc</code> / <code>.edn</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package eglot
+  :ensure nil
+  :defer t
+  :hook ((astro-ts-mode                 . eglot-ensure)
+         (typescript-ts-mode            . eglot-ensure)
+         (tsx-ts-mode                   . eglot-ensure)
+         (clojure-ts-mode               . eglot-ensure)
+         (clojure-ts-clojurescript-mode . eglot-ensure)
+         (clojure-ts-clojurec-mode      . eglot-ensure))
+  :config
+  (add-to-list 'eglot-server-programs
+               '(astro-ts-mode . ("astro-ls" "--stdio"
+                                   :initializationOptions
+                                   (:typescript (:tsdk "node_modules/typescript/lib")))))
+  (add-to-list 'eglot-server-programs
+               '((clojure-ts-mode clojure-ts-clojurescript-mode clojure-ts-clojurec-mode)
+                 . ("clojure-lsp"))))</pre>
+    <div class="prose">
+      <p><strong>eglot</strong> is built in (<code>:ensure nil</code>) and fully deferred:
+      <code>eglot-ensure</code> on the language hooks arms LSP without loading eglot at
+      startup — it loads the first time one of those modes turns on. Leader actions live
+      under <code>SPC c</code> (<code>ca</code> code actions, <code>cr</code> rename,
+      <code>cf</code> format, <code>cd</code> diagnostics).</p>
+      <p>The <code>:config</code> registers the servers eglot doesn't know by default:
+      <code>astro-ls --stdio</code> (pointed at the project's own
+      <code>node_modules/typescript</code> via <code>tsdk</code>) and <code>clojure-lsp</code>
+      for the tree-sitter Clojure modes. clojure-lsp bundles clj-kondo, so linting arrives
+      over flymake with no separate linter. TS/TSX use eglot's built-in
+      <code>typescript-language-server</code> entry. Requires the matching server binaries on
+      PATH.</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(use-package apheleia
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook #'apheleia-global-mode)
+  :config
+  (add-to-list 'apheleia-mode-alist '(astro-ts-mode . prettier)))
+
+(use-package evil-cleverparens
+  :hook ((clojure-ts-mode               . evil-cleverparens-mode)
+         (clojure-ts-clojurescript-mode . evil-cleverparens-mode)
+         (clojure-ts-clojurec-mode      . evil-cleverparens-mode))
+  :init
+  (setq evil-cleverparens-use-additional-bindings t))
+
+(use-package cider
+  :after clojure-ts-mode
+  :custom
+  (cider-repl-display-help-banner nil)
+  (cider-repl-pop-to-buffer-on-connect 'display-only)
+  (cider-save-file-on-load t)
+  (cider-font-lock-dynamically '(macro core function var)))</pre>
+    <div class="prose">
+      <p><strong>apheleia</strong> reformats on save <em>asynchronously</em> — it diffs the
+      formatter output back in, so point/scroll are preserved and the UI never blocks
+      (preferable to <code>eglot-format-buffer</code> on save in a terminal). Armed via
+      <code>apheleia-global-mode</code> on <code>emacs-startup-hook</code>. Astro maps to
+      <code>prettier</code>; TS/TSX use apheleia's defaults.</p>
+      <p><strong>Clojure tooling.</strong> <code>evil-cleverparens</code> adds
+      paredit-style structural editing (slurp/barf, wrap) through evil motions on the
+      Clojure modes. <code>cider</code> is the nREPL runtime half — REPL, inline eval, test
+      runner — complementary to clojure-lsp's static analysis (they run together);
+      <code>:after clojure-ts-mode</code> keeps it deferred, and <code>C-c C-j</code> jacks
+      in a REPL (needs <code>clojure</code>/<code>clj</code> or <code>lein</code> on PATH).</p>
     </div>
   </div>
 
@@ -1347,6 +1611,48 @@
       quit. The <code>:around</code> advice tears kkp down for the duration (restoring the
       raw byte), runs the export, and an <code>unwind-protect</code> re-enables kkp
       afterward no matter what. When kkp isn't active (e.g. GUI), it just calls through.</div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="sec-head" id="server"><h2>Server / <code>$EDITOR</code></h2><p>Hand work to this running Emacs via emacsclient instead of spawning a nested one.</p></div>
+
+  <div class="row">
+<pre class="code">(use-package server
+  :ensure nil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (require 'server)
+              (setq server-name (format "neoemacs-%d" (emacs-pid)))
+              (unless (server-running-p server-name)
+                (server-start))
+              (setenv "EDITOR" (format "emacsclient -s %s" server-name))))
+  :config
+  (defun neoemacs--server-buffer-keys ()
+    "Bind client finish/abort keys locally in an emacsclient buffer."
+    (local-set-key (kbd "C-c C-c") #'server-edit)
+    (local-set-key (kbd "C-c C-k") #'server-edit-abort)
+    (when (fboundp 'evil-local-set-key)
+      (evil-local-set-key 'normal (kbd "ZZ") #'server-edit)
+      (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort)))
+  (add-hook 'server-switch-hook #'neoemacs--server-buffer-keys))</pre>
+    <div class="prose">
+      <p>An Emacs <strong>server</strong> lets <code>emacsclient</code> hand work to
+      <em>this</em> running Emacs (git commit messages, anything shelling out to
+      <code>$EDITOR</code> from the ghostel terminal) instead of spawning a nested Emacs. The
+      server name is made unique per process by appending the PID
+      (<code>neoemacs-&lt;pid&gt;</code>), so concurrent instances each get their own socket
+      rather than colliding on the default <code>server</code> name. <code>$EDITOR</code> is
+      then pointed at that socket. It's all deferred to <code>emacs-startup-hook</code>, off
+      the critical path.</p>
+      <div class="why"><span class="tag">Buffer-local finish/abort</span> Keys are bound only
+      in each emacsclient buffer via <code>server-switch-hook</code> — <code>C-c C-c</code> /
+      <code>ZZ</code> finish, <code>C-c C-k</code> / <code>ZQ</code> abort — so evil's global
+      <code>ZZ</code>/<code>ZQ</code> stay intact everywhere else. The <code>C-c</code> chords
+      fire from insert and normal alike; <code>ZZ</code>/<code>ZQ</code> are normal-only to
+      match Vim.</div>
     </div>
   </div>
 

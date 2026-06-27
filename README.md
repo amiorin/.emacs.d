@@ -30,11 +30,20 @@ M-x nerd-icons-install-fonts
   `SPC` leader and [which-key](https://github.com/justbur/emacs-which-key)
   popups.
 - **Completion & actions** — vertico, vertico-directory, orderless,
-  marginalia, nerd-icons-completion, consult, embark, embark-consult, and
-  wgrep.
-- **Project & Git** — projectile, consult-projectile, and
-  [magit](https://magit.vc/) (`magit-status` opens in the current window), plus
-  diff-hl margin indicators and hunk actions.
+  marginalia, nerd-icons-completion, consult, consult-dir (jump/re-root by
+  directory from the minibuffer), embark, embark-consult, and wgrep. In-buffer
+  completion is [corfu](https://github.com/minad/corfu) (with corfu-terminal for
+  `-nw`) plus cape for file/dabbrev fallbacks.
+- **Languages** — tree-sitter major modes for TypeScript/TSX,
+  [Astro](https://github.com/Sorixelle/astro-ts-mode), and Clojure, with LSP via
+  the built-in [eglot](https://github.com/joaotavora/eglot) (astro-ls,
+  typescript-language-server, clojure-lsp), on-save formatting via
+  [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL
+  tooling via [cider](https://github.com/clojure-emacs/cider) + evil-cleverparens
+  structural editing.
+- **Project & Git** — projectile, consult-projectile, consult-ripgrep project
+  search, and [magit](https://magit.vc/) (`magit-status` opens in the current
+  window), plus diff-hl margin indicators and hunk actions.
 - **Environment** — [envrc](https://github.com/purcell/envrc) gives each
   buffer the environment from its directory's `.envrc` (needs the `direnv`
   binary).
@@ -56,7 +65,14 @@ M-x nerd-icons-install-fonts
   current directory, and Obsidian opens the current file when it lives inside a
   vault.
 - **Markdown** — [markdown-mode](https://github.com/jrblevin/markdown-mode);
-  `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown).
+  `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown). Obsidian-style
+  `[[wiki links]]` are enabled and resolve names across subdirectories.
+- **Editor server** — an Emacs server starts with a per-PID socket, and
+  `$EDITOR` points `emacsclient` at it, so git commit messages and other
+  `$EDITOR` shell-outs from the embedded terminal open in the running Emacs
+  (`C-c C-c`/`ZZ` to finish, `C-c C-k`/`ZQ` to abort).
+- **Auto-revert** — buffers (and dired listings) reload automatically and
+  silently when their backing files change on disk.
 - **Look** — doom-one theme, doom-modeline, nerd-icons; line numbers in the
   gutter with the cursor's current line highlighted.
 - **Scrolling** — the mouse/trackpad wheel scrolls the buffer view, leaving
@@ -82,25 +98,35 @@ elsewhere.
 |-----------|---------------------------------|
 | `SPC SPC` | find file in project            |
 | `SPC ,`   | switch buffer                   |
+| `SPC /`   | search in project (ripgrep)     |
 | `SPC f f` | find file                       |
 | `SPC f p` | find file in this config        |
 | `SPC f r` | recent file                     |
+| `SPC f d` | switch directory (consult-dir)  |
 | `SPC f i` | Quick Look dired file at point  |
 | `SPC f o` | open current directory in Finder |
 | `SPC b b` | switch buffer                   |
 | `SPC b d` | kill buffer                     |
 | `SPC b i` | ibuffer                         |
 | `SPC b n` / `SPC b p` | next / previous buffer |
+| `SPC b u` | vundo undo tree                 |
 | `SPC p p` | switch project                  |
 | `SPC p f` | find file in project            |
 | `SPC p b` | switch to project buffer        |
+| `SPC p s` | search in project (ripgrep)     |
 | `SPC g g` | magit status                    |
 | `SPC g b` | magit blame                     |
 | `SPC g l` | log for current file            |
 | `SPC g j` / `SPC g k` | next / previous hunk   |
 | `SPC g s` / `SPC g x` | stage / revert hunk    |
+| `SPC c a` | code actions (eglot)            |
+| `SPC c r` | rename symbol (eglot)           |
+| `SPC c f` | format buffer (eglot)           |
+| `SPC c d` | buffer diagnostics (flymake)    |
 | `SPC o o` | open current file in Obsidian   |
-| `SPC u`   | vundo undo tree                 |
+| `SPC u`   | universal argument (`C-u`)      |
+| `,`       | alias for the `C-c` prefix (normal/visual/motion) |
+| `j` / `k` | down / up by visual line (`gj`/`gk` logical) |
 | `-`       | jump to dired (current dir)     |
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
