@@ -385,10 +385,12 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "bi" '(ibuffer :which-key "ibuffer")
     "bn" '(next-buffer :which-key "next buffer")
     "bp" '(previous-buffer :which-key "previous buffer")
+    "bu" '(vundo :which-key "undo tree")
     "p"  '(:ignore t :which-key "project")
     "pp" '(consult-projectile :which-key "switch project")
     "pf" '(projectile-find-file :which-key "find file in project")
     "pb" '(projectile-switch-to-buffer :which-key "project buffer")
+    "ps" '(consult-ripgrep :which-key "search in project")
     "g"  '(:ignore t :which-key "git")
     "gg" '(magit-status :which-key "status")
     "gb" '(magit-blame :which-key "blame")
@@ -404,7 +406,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "cr" '(eglot-rename :which-key "rename symbol")
     "cf" '(eglot-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
-    "u"  '(vundo :which-key "undo tree")
+    "u"  '(universal-argument :which-key "universal arg (C-u)")
+    "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
   ;; seconds"; with it gone, expose `emacs-init-time' under the help map so it's
@@ -462,7 +465,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
 ;; vundo: visualize the undo history as a tree in a transient buffer. Unlike
 ;; `undo-tree' it does not replace Emacs's undo system -- it sits on top of the
 ;; built-in undo that evil already drives, so it stays a pure visualizer with
-;; no persistent history files. Reached via `SPC u' (see the leader block).
+;; no persistent history files. Reached via `SPC b u' (see the leader block).
 ;; Use the Unicode box-drawing glyphs for a cleaner tree in the terminal.
 (use-package vundo
   :commands (vundo)
