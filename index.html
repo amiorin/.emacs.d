@@ -124,16 +124,18 @@
 
 (require 'package)
 (setq package-archives
-      '(("gnu"   . "https://elpa.gnu.org/packages/")
-        ("melpa" . "https://melpa.org/packages/")))
+      '(("gnu"    . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("melpa"  . "https://melpa.org/packages/")))
 (setq package-quickstart t)
 (unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
   (package-initialize)
   (package-quickstart-refresh))</pre>
     <div class="prose">
       <p><code>require 'package</code> loads the built-in package manager.</p>
-      <p><code>package-archives</code> declares the two repositories packages are fetched
-      from: <strong>GNU ELPA</strong> (the official, copyright-assigned archive) and
+      <p><code>package-archives</code> declares the three repositories packages are fetched
+      from: <strong>GNU ELPA</strong> (the official, copyright-assigned archive),
+      <strong>NonGNU ELPA</strong> (free packages without copyright assignment), and
       <strong>MELPA</strong> (the large community archive). Each entry is a
       <code>(name . url)</code> cons cell.</p>
       <p><code>package-quickstart</code> makes package.el maintain a single quickstart file
@@ -191,16 +193,20 @@
   </div>
 
   <div class="row">
-<pre class="code">(if (boundp 'use-short-answers)
-    (setq use-short-answers t)
-  (defalias 'yes-or-no-p #'y-or-n-p))</pre>
+<pre class="code">(setq use-short-answers t)
+
+(setq custom-file (locate-user-emacs-file "custom.el"))
+(load custom-file 'noerror 'nomessage)</pre>
     <div class="prose">
-      <p>Lets you answer the long <code>yes-or-no-p</code> prompts ("Quit? (yes or no)") with a
-      single <kbd>y</kbd>/<kbd>n</kbd> instead of typing the whole word plus <kbd>RET</kbd>.</p>
-      <p>Modern Emacs (28+) exposes the <code>use-short-answers</code> variable, so when it's
-      <code>boundp</code> just set it. On older Emacs the variable doesn't exist, so the
-      <code>else</code> branch falls back to aliasing <code>yes-or-no-p</code> straight to the
-      already-short <code>y-or-n-p</code>.</p>
+      <p><code>use-short-answers t</code> lets you answer the long <code>yes-or-no-p</code>
+      prompts ("Quit? (yes or no)") with a single <kbd>y</kbd>/<kbd>n</kbd> instead of typing
+      the whole word plus <kbd>RET</kbd>.</p>
+      <p>The <code>custom-file</code> lines keep Emacs's Custom system out of
+      <code>init.el</code>. Left unset, <code>custom-file</code> defaults to
+      <code>user-init-file</code> and Custom rewrites its machine-generated blocks <em>into</em>
+      <code>init.el</code> (which is how stale entries crept in before). Pointing it at a
+      separate, gitignored <code>custom.el</code> — then loading it with <code>NOERROR</code>
+      so a missing file is harmless — keeps <code>init.el</code> hand-edited only.</p>
     </div>
   </div>
 
@@ -223,7 +229,6 @@
       mouse-wheel-progressive-speed nil
       mouse-wheel-scroll-amount '(2 ((shift) . 1) ((control) . text-scale))
       scroll-conservatively 101
-      scroll-step 1
       scroll-margin 0
       make-cursor-line-fully-visible nil)</pre>
     <div class="prose">
@@ -232,7 +237,7 @@
         <li><code>mouse-wheel-follow-mouse</code> — scroll the window under the pointer.</li>
         <li><code>mouse-wheel-progressive-speed nil</code> — constant speed; don't accelerate on fast spins.</li>
         <li><code>mouse-wheel-scroll-amount</code> — 2 lines per notch; <kbd>Shift</kbd>+wheel = 1 line; <kbd>Ctrl</kbd>+wheel = text zoom.</li>
-        <li><code>scroll-conservatively 101</code> + <code>scroll-step 1</code> — scroll one line at a time for keyboard motion, never recenter with a jump.</li>
+        <li><code>scroll-conservatively 101</code> — scroll one line at a time for keyboard motion, never recenter with a jump. (<code>scroll-step</code> is intentionally omitted — it's ignored whenever <code>scroll-conservatively</code> is &gt; 100.)</li>
         <li><code>scroll-margin 0</code> — let the cursor reach the very top/bottom edge before the view is dragged.</li>
         <li><code>make-cursor-line-fully-visible nil</code> — don't force a recenter after a wheel scroll.</li>
       </ul>
@@ -659,13 +664,13 @@ With a prefix arg (or non-nil HERE), start in the current
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fr" '(consult-recent-file :which-key "recent file")
+    "fd" '(consult-dir :which-key "switch dir (consult-dir)")
     "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
     "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
     "b"  '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
     "bi" '(ibuffer :which-key "ibuffer")
-    "fd" '(consult-dir :which-key "switch dir (consult-dir)")
     "bn" '(next-buffer :which-key "next buffer")
     "bp" '(previous-buffer :which-key "previous buffer")
     "bu" '(vundo :which-key "undo tree")
@@ -830,13 +835,25 @@ With a prefix arg (or non-nil HERE), start in the current
 <pre class="code">(use-package which-key
   :ensure nil
   :config
-  (setq which-key-idle-delay 0.5)
+  (setq which-key-sort-order #'which-key-key-order-alpha
+        which-key-sort-uppercase-first nil
+        which-key-add-column-padding 1
+        which-key-max-display-columns nil
+        which-key-min-display-lines 6
+        which-key-side-window-slot -10)
+  (which-key-setup-side-window-bottom)
+  (add-hook 'which-key-init-buffer-hook
+            (lambda () (setq-local line-spacing 3)))
   (which-key-mode 1))</pre>
     <div class="prose">
       <p><code>which-key</code> shows a popup of the available follow-up keys after you
       start a prefix (this is what renders the leader menu labels). <code>:ensure nil</code>
-      because it's built in to modern Emacs. <code>which-key-idle-delay 0.5</code> waits
-      half a second before showing the popup.</p>
+      because it's built in to modern Emacs.</p>
+      <p>The settings mirror Doom's which-key tuning for readability: alphabetical key
+      ordering (lowercase first), one column of padding, no cap on the number of columns, at
+      least six display lines, and the popup pinned to the bottom side window
+      (<code>which-key-setup-side-window-bottom</code>) with extra
+      <code>line-spacing</code> in its buffer.</p>
     </div>
   </div>
 
@@ -1164,9 +1181,12 @@ With a prefix arg (or non-nil HERE), start in the current
               (global-diff-hl-mode 1)
               (diff-hl-margin-mode 1)))
   :custom
-  (diff-hl-margin-symbols-alist '((insert . "+")
-                                  (delete . "-")
-                                  (change . "!")))
+  (diff-hl-margin-symbols-alist '((insert    . "+")
+                                  (delete    . "-")
+                                  (change    . "!")
+                                  (unknown   . "?")
+                                  (ignored   . "i")
+                                  (reference . " ")))
   :config
   (add-hook 'magit-pre-refresh-hook  #'diff-hl-magit-pre-refresh)
   (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh)
@@ -1783,17 +1803,14 @@ The last name is remembered per-frame ..."
 
   <div class="row">
 <pre class="code">(provide 'init)
-;;; init.el ends here
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- )
-(custom-set-faces)</pre>
+;;; init.el ends here</pre>
     <div class="prose">
-      <p><code>provide 'init</code> registers the feature so <code>require</code> works.</p>
-      <p>The <code>custom-set-variables</code> / <code>custom-set-faces</code> blocks are
-      written by Emacs's <strong>Custom</strong> system — edit config by hand <em>above</em>
-      them, never inside. They are currently empty placeholders, but Emacs keeps them at
-      the end of the file.</p>
+      <p><code>provide 'init</code> registers the feature so <code>require</code> works, and
+      the trailing comment is the conventional Emacs Lisp file footer.</p>
+      <p>There are no <code>custom-set-variables</code> / <code>custom-set-faces</code> blocks
+      here: <code>custom-file</code> is pointed at a separate <code>custom.el</code> (see the
+      core settings above), so Emacs's Custom system writes its machine-generated blocks there
+      instead of appending them to <code>init.el</code>.</p>
     </div>
   </div>
 

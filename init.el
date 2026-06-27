@@ -614,7 +614,7 @@ Wraps the affixation-function returned further down the advice chain
          ("C-x C-j" . consult-dir-jump-file)))
 
 ;; Embark: "right-click for Emacs" — a context menu of actions on the target at
-;; point or the current minibuffer candidate. `s-.' acts (matching this config's
+;; point or the current minibuffer candidate. `s-]' acts (matching this config's
 ;; other s- chords); `M-.' runs the most likely default action (this overrides
 ;; the default `xref-find-definitions' on M-.). Rebinding `b' in `help-map'
 ;; makes embark-bindings — a searchable, actionable list of active bindings —
