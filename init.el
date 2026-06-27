@@ -1240,6 +1240,51 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
       (apply orig-fn args)))
   (advice-add 'envrc--export :around #'neoemacs--envrc-export-restore-quit))
 
+;;; --- Server / EDITOR -------------------------------------------------------
+
+;; Run an Emacs server so `emacsclient' can hand work to *this* running Emacs
+;; (git commit messages, anything that shells out to $EDITOR from the ghostel
+;; terminal, etc.) instead of spawning a nested Emacs.
+;;
+;; The server name is made unique per Emacs process by appending the PID, so
+;; several concurrent Emacs instances each get their own socket rather than
+;; colliding on the default "server" name. EDITOR is then pointed at that
+;; socket (`emacsclient -s <name>'; emacsclient resolves the bare name against
+;; the same `server-socket-dir' the server uses).
+;;
+;; Deferred to `emacs-startup-hook' so socket creation and the env tweak stay
+;; off the critical startup path -- nothing here runs during init.
+(use-package server
+  :ensure nil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (require 'server)
+              (setq server-name (format "neoemacs-%d" (emacs-pid)))
+              (unless (server-running-p server-name)
+                (server-start))
+              (setenv "EDITOR" (format "emacsclient -s %s" server-name))))
+  :config
+  ;; Finish/abort keys, bound *buffer-locally* in each emacsclient buffer (via
+  ;; `server-switch-hook') so they never leak into ordinary buffers. In
+  ;; particular evil's global ZZ (`evil-save-modified-and-close') and ZQ
+  ;; (`evil-quit') stay intact everywhere except the client buffer, where they
+  ;; map to the client-aware finish/abort instead.
+  ;;   finish: C-c C-c (any evil state) / ZZ (normal)
+  ;;   abort:  C-c C-k (any evil state) / ZQ (normal)
+  ;; The C-c chords go in the buffer's local map so they fire from insert and
+  ;; normal alike (evil leaves the C-c prefix to fall through); ZZ/ZQ are
+  ;; normal-state-only to match Vim, bound via `evil-local-set-key'.
+  (defun neoemacs--server-buffer-keys ()
+    "Bind client finish/abort keys locally in an emacsclient buffer."
+    (local-set-key (kbd "C-c C-c") #'server-edit)
+    (local-set-key (kbd "C-c C-k") #'server-edit-abort)
+    (when (fboundp 'evil-local-set-key)
+      (evil-local-set-key 'normal (kbd "ZZ") #'server-edit)
+      (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort)))
+  (add-hook 'server-switch-hook #'neoemacs--server-buffer-keys))
+
 ;;; --- Zellij tab name -------------------------------------------------------
 
 ;; Keep the focused zellij tab named after the current buffer's location, as
