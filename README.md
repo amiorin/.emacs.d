@@ -13,8 +13,8 @@ git clone <repo-url> ~/.config/neoemacs
 emacs --init-directory ~/.config/neoemacs   # Emacs 29+
 ```
 
-On first launch the package system fetches everything from ELPA/MELPA
-automatically. After that, install the icon fonts once:
+On first launch the package system fetches everything from GNU ELPA, NonGNU
+ELPA, and MELPA automatically. After that, install the icon fonts once:
 
 ```
 M-x nerd-icons-install-fonts
