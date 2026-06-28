@@ -528,9 +528,9 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   :ensure nil
   :after vertico
   :bind (:map vertico-map
-         ("RET"   . vertico-directory-enter)
-         ("DEL"   . vertico-directory-delete-char)
-         ("M-DEL" . vertico-directory-delete-word))
+              ("RET"   . vertico-directory-enter)
+              ("DEL"   . vertico-directory-delete-char)
+              ("M-DEL" . vertico-directory-delete-word))
   :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
 
 ;; Orderless: space-separated, order-independent completion matching.
@@ -655,11 +655,11 @@ Wraps the affixation-function returned further down the advice chain
 ;; buffers (see `neoemacs/describe-symbol-at-point') routes here too.
 (use-package helpful
   :bind (:map help-map
-         ("f" . helpful-callable)
-         ("v" . helpful-variable)
-         ("k" . helpful-key)
-         ("x" . helpful-command)
-         ("o" . helpful-symbol))
+              ("f" . helpful-callable)
+              ("v" . helpful-variable)
+              ("k" . helpful-key)
+              ("x" . helpful-command)
+              ("o" . helpful-symbol))
   :config
   ;; Drop the "References" section. It hands off to `elisp-refs', which reads
   ;; the *entire* file where the symbol is defined into a buffer and walks
@@ -992,9 +992,9 @@ Wraps the affixation-function returned further down the advice chain
       (ghostel-send-key (string base) "ctrl")))
 
   (evil-define-key* 'insert evil-ghostel-mode-map
-                    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
-                    (kbd "C-c") #'neoemacs/ghostel-send-current-control
-                    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
+    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
+    (kbd "C-c") #'neoemacs/ghostel-send-current-control
+    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
 
   ;; Let normal-state motion roam over animated output. Each redraw,
   ;; `ghostel--redraw-now' re-anchors any window following the live viewport
@@ -1166,8 +1166,8 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; `typescript-language-server' entry, so only Astro needs registering here.
   (add-to-list 'eglot-server-programs
                '(astro-ts-mode . ("astro-ls" "--stdio"
-                                   :initializationOptions
-                                   (:typescript (:tsdk "node_modules/typescript/lib")))))
+                                  :initializationOptions
+                                  (:typescript (:tsdk "node_modules/typescript/lib")))))
   ;; clojure-lsp drives the clojure-ts-mode family. eglot's built-in server
   ;; table only knows the classic clojure-mode names, so register the tree-sitter
   ;; modes explicitly. clojure-lsp bundles clj-kondo, so linting arrives over
