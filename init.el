@@ -400,10 +400,10 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   :after evil
   :config
   (general-create-definer neoemacs/leader
-			  :states '(normal visual motion)
-			  :keymaps 'override
-			  :prefix "SPC"
-			  :global-prefix "M-SPC")
+    :states '(normal visual motion)
+    :keymaps 'override
+    :prefix "SPC"
+    :global-prefix "M-SPC")
   ;; `,' as a true alias for the `C-c' prefix. `general-simulate-key' replays
   ;; the real `C-c' sequence through the live keymaps, so `, x' invokes whatever
   ;; `C-c x' is bound to in the current buffer -- including major-mode maps
@@ -415,50 +415,50 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
    :keymaps 'override
    "," (general-simulate-key "C-c"))
   (neoemacs/leader
-   "SPC" '(projectile-find-file :which-key "find file in project")
-   ","  '(consult-buffer :which-key "switch buffer")
-   "f"  '(:ignore t :which-key "files")
-   "ff" '(find-file :which-key "find file")
-   "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
-   "fr" '(neoemacs/consult-recent-file :which-key "recent file")
-   "fd" '(neoemacs/consult-dir :which-key "switch dir (consult-dir)")
-   "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
-   "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
-   "b"  '(:ignore t :which-key "buffers")
-   "bb" '(consult-buffer :which-key "switch buffer")
-   "bd" '(kill-current-buffer :which-key "kill buffer")
-   "bi" '(ibuffer :which-key "ibuffer")
-   "bn" '(next-buffer :which-key "next buffer")
-   "bp" '(previous-buffer :which-key "previous buffer")
-   "bu" '(vundo :which-key "undo tree")
-   "p"  '(:ignore t :which-key "project")
-   "pp" '(consult-projectile :which-key "switch project")
-   "pf" '(projectile-find-file :which-key "find file in project")
-   "pb" '(projectile-switch-to-buffer :which-key "project buffer")
-   "ps" '(consult-ripgrep :which-key "search in project")
-   "g"  '(:ignore t :which-key "git")
-   "gg" '(magit-status :which-key "status")
-   "gb" '(magit-blame :which-key "blame")
-   "gl" '(magit-log-buffer-file :which-key "log (this file)")
-   "gj" '(diff-hl-next-hunk :which-key "next hunk")
-   "gk" '(diff-hl-previous-hunk :which-key "prev hunk")
-   "gs" '(diff-hl-stage-current-hunk :which-key "stage hunk")
-   "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
-   "o"  '(:ignore t :which-key "open")
-   "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
-   "c"  '(:ignore t :which-key "code")
-   "ca" '(eglot-code-actions :which-key "code actions")
-   "cr" '(eglot-rename :which-key "rename symbol")
-   "cf" '(eglot-format-buffer :which-key "format buffer")
-   "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
-   "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
-   "s"  '(save-buffer :which-key "save buffer")
-   "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
-   "w"  '(evil-window-delete :which-key "delete window")
-   "u"  '(:ignore t :which-key "ghostel")
-   "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
-   "/"  '(consult-ripgrep :which-key "search in project")
-   "h"  '(help-command :which-key "help"))
+    "SPC" '(projectile-find-file :which-key "find file in project")
+    ","  '(consult-buffer :which-key "switch buffer")
+    "f"  '(:ignore t :which-key "files")
+    "ff" '(find-file :which-key "find file")
+    "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
+    "fr" '(neoemacs/consult-recent-file :which-key "recent file")
+    "fd" '(neoemacs/consult-dir :which-key "switch dir (consult-dir)")
+    "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
+    "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
+    "b"  '(:ignore t :which-key "buffers")
+    "bb" '(consult-buffer :which-key "switch buffer")
+    "bd" '(kill-current-buffer :which-key "kill buffer")
+    "bi" '(ibuffer :which-key "ibuffer")
+    "bn" '(next-buffer :which-key "next buffer")
+    "bp" '(previous-buffer :which-key "previous buffer")
+    "bu" '(vundo :which-key "undo tree")
+    "p"  '(:ignore t :which-key "project")
+    "pp" '(consult-projectile :which-key "switch project")
+    "pf" '(projectile-find-file :which-key "find file in project")
+    "pb" '(projectile-switch-to-buffer :which-key "project buffer")
+    "ps" '(consult-ripgrep :which-key "search in project")
+    "g"  '(:ignore t :which-key "git")
+    "gg" '(magit-status :which-key "status")
+    "gb" '(magit-blame :which-key "blame")
+    "gl" '(magit-log-buffer-file :which-key "log (this file)")
+    "gj" '(diff-hl-next-hunk :which-key "next hunk")
+    "gk" '(diff-hl-previous-hunk :which-key "prev hunk")
+    "gs" '(diff-hl-stage-current-hunk :which-key "stage hunk")
+    "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
+    "o"  '(:ignore t :which-key "open")
+    "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
+    "c"  '(:ignore t :which-key "code")
+    "ca" '(eglot-code-actions :which-key "code actions")
+    "cr" '(eglot-rename :which-key "rename symbol")
+    "cf" '(eglot-format-buffer :which-key "format buffer")
+    "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
+    "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
+    "s"  '(save-buffer :which-key "save buffer")
+    "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
+    "w"  '(evil-window-delete :which-key "delete window")
+    "u"  '(:ignore t :which-key "ghostel")
+    "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
+    "/"  '(consult-ripgrep :which-key "search in project")
+    "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
   ;; seconds"; with it gone, expose `emacs-init-time' under the help map so it's
   ;; reachable as both `SPC h t' (via the leader's help prefix) and `C-h t'.
@@ -1032,9 +1032,9 @@ Wraps the affixation-function returned further down the advice chain
       (ghostel-send-key (string base) "ctrl")))
 
   (evil-define-key* 'insert evil-ghostel-mode-map
-		    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
-		    (kbd "C-c") #'neoemacs/ghostel-send-current-control
-		    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
+    (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
+    (kbd "C-c") #'neoemacs/ghostel-send-current-control
+    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
 
   ;; Let normal-state motion roam over animated output. Each redraw,
   ;; `ghostel--redraw-now' re-anchors any window following the live viewport
