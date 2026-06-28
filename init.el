@@ -1256,14 +1256,37 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 ;; are set up above with the other tree-sitter languages. These two add the
 ;; editing and REPL layers.
 
+;; smartparens: structural paren handling (auto-pairs, balanced editing). Run
+;; the *strict* mode on the Lisp-family modes -- the tree-sitter Clojure modes
+;; and Emacs Lisp -- where unbalanced parens are always a mistake: strict mode
+;; refuses commands that would unbalance the sexp (so e.g. deleting a lone paren
+;; deletes the whole pair instead). `require'ing `smartparens-config' loads the
+;; sensible default pair/skip definitions. Deferred via `:hook', so it costs
+;; nothing until such a buffer is opened. `evil-cleverparens' (below) layers its
+;; evil-motion slurp/barf/wrap commands on top of this.
+(use-package smartparens
+  :hook ((emacs-lisp-mode               . smartparens-strict-mode)
+         (lisp-interaction-mode         . smartparens-strict-mode)
+         (clojure-ts-mode               . smartparens-strict-mode)
+         (clojure-ts-clojurescript-mode . smartparens-strict-mode)
+         (clojure-ts-clojurec-mode      . smartparens-strict-mode))
+  :config
+  (require 'smartparens-config))
+
 ;; evil-cleverparens: paredit-style structural editing (slurp/barf, wrap, etc.)
 ;; expressed through evil motions, so paren editing doesn't fight evil's keys.
-;; Pulls in paredit + smartparens as dependencies. Enabled on the Clojure
-;; tree-sitter modes (add emacs-lisp-mode / lisp-mode to the hook for those too).
+;; Builds on the `smartparens' configured above (also pulls in paredit). Enabled
+;; on the Lisp-family modes -- the Clojure tree-sitter modes plus Emacs Lisp --
+;; matching where `smartparens-strict-mode' runs.
 (use-package evil-cleverparens
-  :hook ((clojure-ts-mode               . evil-cleverparens-mode)
+  :hook ((emacs-lisp-mode               . evil-cleverparens-mode)
+         (lisp-interaction-mode         . evil-cleverparens-mode)
+         (clojure-ts-mode               . evil-cleverparens-mode)
          (clojure-ts-clojurescript-mode . evil-cleverparens-mode)
          (clojure-ts-clojurec-mode      . evil-cleverparens-mode))
+  :bind (:map evil-cleverparens-mode-map
+              ("M-5" . evil-cp-wrap-next-square)
+              ("M-]" . evil-cp-wrap-previous-square))
   :init
   (setq evil-cleverparens-use-additional-bindings t))
 
