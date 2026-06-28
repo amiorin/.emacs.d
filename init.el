@@ -1351,13 +1351,26 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; The C-c chords go in the buffer's local map so they fire from insert and
   ;; normal alike (evil leaves the C-c prefix to fall through); ZZ/ZQ are
   ;; normal-state-only to match Vim, bound via `evil-local-set-key'.
+  ;;
+  ;; Skip `with-editor' buffers (e.g. magit commits): with-editor opens them
+  ;; through this same server, so `server-switch-hook' fires for them too, but
+  ;; with-editor + evil-collection-with-editor already bind the *correct*
+  ;; finishers (`with-editor-finish'/`with-editor-cancel'). Re-binding ZZ/ZQ
+  ;; here would shadow them -- `evil-local-set-key' writes into
+  ;; `evil-normal-state-local-map', which outranks `with-editor-mode-map' via
+  ;; `emulation-mode-map-alists' -- with `server-edit'/`server-edit-abort',
+  ;; which don't run with-editor's finish protocol (`server-edit-abort' isn't
+  ;; even remapped, so ZQ would abort the wrong way). `with-editor-mode' is
+  ;; already enabled by the time `server-switch-hook' runs (it's set in
+  ;; `server-visit-hook', before the switch), so this guard is reliable.
   (defun neoemacs--server-buffer-keys ()
-    "Bind client finish/abort keys locally in an emacsclient buffer."
-    (local-set-key (kbd "C-c C-c") #'server-edit)
-    (local-set-key (kbd "C-c C-k") #'server-edit-abort)
-    (when (fboundp 'evil-local-set-key)
-      (evil-local-set-key 'normal (kbd "ZZ") #'server-edit)
-      (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort)))
+    "Bind client finish/abort keys locally in a plain emacsclient buffer."
+    (unless (bound-and-true-p with-editor-mode)
+      (local-set-key (kbd "C-c C-c") #'server-edit)
+      (local-set-key (kbd "C-c C-k") #'server-edit-abort)
+      (when (fboundp 'evil-local-set-key)
+        (evil-local-set-key 'normal (kbd "ZZ") #'server-edit)
+        (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort))))
   (add-hook 'server-switch-hook #'neoemacs--server-buffer-keys))
 
 ;;; --- Zellij tab name -------------------------------------------------------
