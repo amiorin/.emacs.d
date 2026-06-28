@@ -209,6 +209,8 @@
   (setq evil-want-integration t
         evil-want-keybinding nil
         evil-want-C-u-scroll t
+        ;; Allow point to move one past the end of line (past the last char).
+        evil-move-beyond-eol t
         ;; Don't echo "-- INSERT --"/"-- VISUAL --" etc. in the echo area.
         evil-echo-state nil)
   :config
@@ -984,6 +986,20 @@ Wraps the affixation-function returned further down the advice chain
 (use-package kkp
   :config
   (global-kkp-mode 1))
+
+;; Translate shifted Meta chords into the symbol/upper-case forms many
+;; commands actually bind. Under kkp the terminal delivers e.g. `M-S-]' as a
+;; distinct event rather than folding Shift into the base key, so without
+;; these `M-}', `M-(', `M-J', etc. would be unreachable from the keyboard.
+(define-key key-translation-map (kbd "M-S-]") (kbd "M-}"))
+(define-key key-translation-map (kbd "M-S-[") (kbd "M-{"))
+(define-key key-translation-map (kbd "M-S-9") (kbd "M-("))
+(define-key key-translation-map (kbd "M-S-0") (kbd "M-)"))
+(define-key key-translation-map (kbd "M-S-j") (kbd "M-J"))
+(define-key key-translation-map (kbd "M-S-s") (kbd "M-S"))
+(define-key key-translation-map (kbd "M-S-r") (kbd "M-R"))
+(define-key key-translation-map (kbd "M-S-l") (kbd "M-L"))
+(define-key key-translation-map (kbd "M-S-h") (kbd "M-H"))
 
 ;; clipetty: send kills to the host system clipboard via the OSC 52 escape
 ;; sequence, so copying in terminal Emacs works through SSH and tmux.
