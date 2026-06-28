@@ -110,6 +110,35 @@
 (global-display-line-numbers-mode 1)
 (global-hl-line-mode 1)
 
+;; Temporarily disable the current-line highlight while a selection is active
+;; (Evil visual state or a vanilla region), since it obscures the bounds of the
+;; selection depending on the theme.  We run `global-hl-line-mode' here, whose
+;; highlight is driven by `global-hl-line-highlight' on `post-command-hook' and
+;; gated on the *variable* `global-hl-line-mode' (see hl-line.el) — the
+;; buffer-local `hl-line-mode' minor mode is a separate mechanism and is never
+;; on, so toggling it does nothing.  The supported per-buffer lever is to make
+;; `global-hl-line-mode' buffer-local and bind it to nil; `global-hl-line-mode'
+;; itself does exactly this when sticky highlighting is off.  Keyed off Emacs's
+;; generic mark hooks rather than anything Evil-specific, so it covers both.
+(defvar-local neoemacs--hl-line-suspended nil
+  "Non-nil when a selection has suspended `global-hl-line-mode' in this buffer.")
+
+(add-hook 'activate-mark-hook
+          (defun neoemacs--hl-line-suspend-h ()
+            (when (and global-hl-line-mode (not neoemacs--hl-line-suspended))
+              (setq neoemacs--hl-line-suspended t)
+              ;; Inhibit future highlights in this buffer, then clear the
+              ;; overlay the current command already drew.
+              (setq-local global-hl-line-mode nil)
+              (global-hl-line-unhighlight))))
+
+(add-hook 'deactivate-mark-hook
+          (defun neoemacs--hl-line-restore-h ()
+            (when neoemacs--hl-line-suspended
+              (setq neoemacs--hl-line-suspended nil)
+              (kill-local-variable 'global-hl-line-mode)
+              (global-hl-line-highlight))))
+
 ;; recentf: track recently opened files (used by `consult-recent-file').
 (use-package recentf
   :ensure nil
