@@ -944,12 +944,20 @@ Wraps the affixation-function returned further down the advice chain
   :bind ("C-c f" . dirvish)
   :config
   ;; Vim-style navigation: h goes up a directory, l enters the file/dir.
+  ;; `y' is a "yank" prefix for copying the entry's name/path to the kill
+  ;; ring, with `yy' kept as the classic `dired-do-copy'.
   (general-define-key
    :states 'normal
    :keymaps 'dired-mode-map
    "h" 'dired-up-directory
    "l" 'dired-find-file
-   "TAB" 'dirvish-subtree-toggle))
+   "TAB" 'dirvish-subtree-toggle
+   "y" '(:ignore t :which-key "yank")
+   "yl" 'dirvish-copy-file-true-path
+   "yn" 'dirvish-copy-file-name
+   "yp" 'dirvish-copy-file-path
+   "yr" 'dirvish-copy-remote-path
+   "yy" 'dired-do-copy))
 
 ;; Colorize the `ls -l' columns (permission flags, link count, owner, group,
 ;; size, mtime) with distinct faces. Dirvish buffers are derived dired
