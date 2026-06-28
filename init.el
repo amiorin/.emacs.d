@@ -120,28 +120,55 @@
   :config
   ;; Multiple Emacs instances each keep their own in-memory `recentf-list'
   ;; and overwrite the shared save file on exit, losing the other's entries.
-  ;; Re-read the on-disk list and merge it in before every save so the last
-  ;; writer wins without discarding what the other instance recorded.
-  (defun neoemacs--recentf-merge-on-save (&rest _)
+  ;; Re-read the on-disk list and merge it into the in-memory one so the last
+  ;; writer wins without discarding what the other instance recorded. Used both
+  ;; before each save (so writes don't clobber a concurrent instance) and before
+  ;; reading the list back (so `SPC f r' sees what other instances recorded).
+  (defun neoemacs--recentf-merge-from-disk (&rest _)
     (let ((mem recentf-list))
       (recentf-load-list)               ; reloads `recentf-list' from disk
       (setq recentf-list
             (seq-take (delete-dups (append mem recentf-list))
                       recentf-max-saved-items))))
-  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-on-save)
+  (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-from-disk)
 
-  ;; Closing the host terminal (e.g. Ghostty) kills Emacs with SIGHUP, and
-  ;; Emacs's C-level shutdown on a fatal signal does NOT run `kill-emacs-hook'
-  ;; — so `recentf-mode's normal save-on-exit never fires and the list is lost.
-  ;; Save on an idle timer (quietly) instead: 5s after you stop interacting,
-  ;; so a freshly visited file is persisted almost immediately with no churn
-  ;; while idle. The merge advice above keeps each save from clobbering a
-  ;; concurrent instance.
-  (defun neoemacs--recentf-save-quietly ()
-    (let ((save-silently t)
-          (inhibit-message t))
-      (recentf-save-list)))
-  (run-with-idle-timer 5 t #'neoemacs--recentf-save-quietly))
+  ;; `window-selection-change-functions' fires on every window switch, so guard
+  ;; the save: `recentf-list' only changes when a file is visited, not when you
+  ;; merely move between windows. Skip the whole load-merge-write when the list
+  ;; is byte-for-byte what we last persisted, so an idle window switch does zero
+  ;; disk IO. Snapshot the post-save list (the merge advice mutates it) so the
+  ;; next comparison is against what actually landed on disk.
+  (defvar neoemacs--recentf-last-saved nil)
+  (defun neoemacs--recentf-save-quietly (&rest _)
+    (unless (equal recentf-list neoemacs--recentf-last-saved)
+      (let ((save-silently t)
+            (inhibit-message t))
+        (recentf-save-list))
+      (setq neoemacs--recentf-last-saved (copy-sequence recentf-list))))
+
+  ;; Persist when this Emacs stops being the focused window. Two triggers,
+  ;; because terminal Emacs (`-nw' inside zellij/Ghostty) only gets real frame
+  ;; focus events when the terminal forwards focus reporting — which isn't
+  ;; guaranteed. `after-focus-change-function' covers losing the OS window;
+  ;; `window-selection-change-functions' covers moving to another window inside
+  ;; Emacs, so the list is saved on focus loss even when focus events never
+  ;; arrive. The merge advice on `recentf-save-list' keeps each write from
+  ;; clobbering a concurrent instance.
+  (defun neoemacs--recentf-save-on-focus-loss ()
+    (unless (frame-focus-state)
+      (neoemacs--recentf-save-quietly)))
+  (add-function :after after-focus-change-function
+                #'neoemacs--recentf-save-on-focus-loss)
+  (add-hook 'window-selection-change-functions
+            #'neoemacs--recentf-save-quietly))
+
+;; `SPC f r' picks a recent file: merge the on-disk list in first so entries
+;; recorded by other Emacs instances show up (the save side merges symmetrically).
+(defun neoemacs/consult-recent-file ()
+  "Merge the on-disk `recentf' list in, then pick a recent file."
+  (interactive)
+  (neoemacs--recentf-merge-from-disk)
+  (consult-recent-file))
 
 ;; autorevert: reload buffers whose backing file changed on disk, as long as the
 ;; buffer has no unsaved edits. `global-auto-revert-non-file-buffers' extends
@@ -393,8 +420,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
    "f"  '(:ignore t :which-key "files")
    "ff" '(find-file :which-key "find file")
    "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
-   "fr" '(consult-recent-file :which-key "recent file")
-   "fd" '(consult-dir :which-key "switch dir (consult-dir)")
+   "fr" '(neoemacs/consult-recent-file :which-key "recent file")
+   "fd" '(neoemacs/consult-dir :which-key "switch dir (consult-dir)")
    "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
    "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
    "b"  '(:ignore t :which-key "buffers")
@@ -612,6 +639,19 @@ Wraps the affixation-function returned further down the advice chain
          :map vertico-map
          ("C-x C-d" . consult-dir)
          ("C-x C-j" . consult-dir-jump-file)))
+
+;; `SPC f d' switches directory context. consult-dir's recent-dirs source is
+;; derived from `recentf-list', so it has the same multi-instance staleness as
+;; `consult-recent-file': merge the on-disk list in first (cf. `SPC f r') so
+;; directories other Emacs instances recorded show up. Only the leader entry
+;; point is freshened; the `C-x C-d'/`C-x C-j' bindings stay on plain
+;; `consult-dir', mirroring how `SPC f r' is the only freshened recentf path.
+(defun neoemacs/consult-dir ()
+  "Merge the on-disk `recentf' list in, then run `consult-dir'."
+  (interactive)
+  (require 'recentf)
+  (neoemacs--recentf-merge-from-disk)
+  (consult-dir))
 
 ;; Embark: "right-click for Emacs" — a context menu of actions on the target at
 ;; point or the current minibuffer candidate. `s-]' acts (matching this config's
