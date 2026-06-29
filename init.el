@@ -538,6 +538,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "od" '(neoemacs/open-dir-in-finder :which-key "open dir in Finder")
     "c"  '(:ignore t :which-key "code")
     "ca" '(eglot-code-actions :which-key "code actions")
+    "cc" '(consult-claude-sessions :which-key "claude sessions")
     "cr" '(eglot-rename :which-key "rename symbol")
     "cf" '(eglot-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
@@ -547,7 +548,6 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "w"  '(evil-window-delete :which-key "delete window")
     "u"  '(:ignore t :which-key "ghostel")
     "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
-    "uc" '(consult-claude-sessions :which-key "claude sessions")
     "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
