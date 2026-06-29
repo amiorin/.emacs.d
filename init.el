@@ -547,6 +547,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "w"  '(evil-window-delete :which-key "delete window")
     "u"  '(:ignore t :which-key "ghostel")
     "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
+    "uc" '(consult-claude-sessions :which-key "claude sessions")
     "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
@@ -1101,6 +1102,12 @@ Wraps the affixation-function returned further down the advice chain
 (use-package ghostel
   :commands (ghostel)
   :bind ("s-t" . neoemacs/vsplit-ghostel)
+  ;; Tag every spawned terminal so Claude Code sessions running inside it can
+  ;; report status back (see "Claude Code session tracking" below). The hook
+  ;; runs in the host buffer with `process-environment' dynamically bound, so
+  ;; the exported $NEOEMACS_GHOSTEL_ID reaches the shell and its children.
+  :init
+  (add-hook 'ghostel-pre-spawn-hook #'neoemacs--ghostel-tag-env)
   ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a
   ;; terminal buffer has no use for it, so turn it off in ghostel buffers.
   :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1))))
@@ -1187,6 +1194,45 @@ Wraps the affixation-function returned further down the advice chain
           (when (and (bound-and-true-p evil-ghostel-mode)
                      (memq evil-state '(insert emacs)))
             (evil-normal-state)))))))
+
+;;; --- Claude Code session tracking ------------------------------------------
+
+;; The live "session switcher" itself lives in the `consult-claude' package
+;; (see the `use-package consult-claude' form below); it owns the registry,
+;; the status RPC (`consult-claude-status', called from Claude Code hooks in
+;; ~/.claude/settings.json via the per-PID `emacsclient' socket in $EDITOR),
+;; the marginalia annotator, and the `consult-claude-sessions' picker.
+;;
+;; consult-claude is terminal-agnostic, so the ghostel-specific glue stays
+;; here: each ghostel buffer is tagged at spawn with a unique id exported as
+;; $NEOEMACS_GHOSTEL_ID (which the Claude hooks echo back), and registered with
+;; consult-claude so a later status report has an entry to flip.
+
+(defvar neoemacs--ghostel-id-counter 0
+  "Monotonic counter backing the per-buffer ghostel id.")
+
+(defvar-local neoemacs--ghostel-id nil
+  "This ghostel buffer's unique id, mirrored into $NEOEMACS_GHOSTEL_ID.")
+
+(defun neoemacs--ghostel-tag-env ()
+  "`ghostel-pre-spawn-hook': tag this terminal and export its id to the child.
+Runs in the buffer hosting the new process with `process-environment'
+dynamically bound, so the `setenv' lands in the spawned shell's env."
+  (let ((id (format "ghostel-%d-%d" (emacs-pid)
+                    (cl-incf neoemacs--ghostel-id-counter))))
+    (setq neoemacs--ghostel-id id)
+    (setenv "NEOEMACS_GHOSTEL_ID" id)
+    ;; Register as `spawned' so a later SessionStart has an entry to flip.
+    (consult-claude-register id (current-buffer) default-directory)))
+
+;; The session switcher proper. consult-claude is a separate, terminal-agnostic
+;; package; the ghostel glue above feeds it (`consult-claude-register' at spawn,
+;; the Claude hooks calling `consult-claude-status'). `:commands' defers the
+;; load until the first registration / RPC / picker call.
+(use-package consult-claude
+  :ensure nil
+  :load-path "~/code/consult-claude"
+  :commands (consult-claude-sessions consult-claude-register consult-claude-status))
 
 ;;; --- Project navigation ----------------------------------------------------
 

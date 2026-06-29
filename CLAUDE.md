@@ -315,6 +315,26 @@ source file is opened.
   (`neoemacs--server-buffer-keys`): `C-c C-c`/`ZZ` → `server-edit`,
   `C-c C-k`/`ZQ` → `server-edit-abort`. They're scoped to the client buffer so
   evil's global `ZZ`/`ZQ` stay intact everywhere else.
+- Claude Code session tracking lives in the standalone **`consult-claude`**
+  package (a separate repo loaded from `~/code/consult-claude` via
+  `use-package consult-claude :ensure nil :load-path … :commands …`, so it's
+  deferred until first use). The package is terminal-agnostic: it owns the
+  in-memory session registry, the `consult-claude-status` status RPC, the
+  marginalia annotator, and the `consult-claude-sessions` picker (`SPC u c`) —
+  a consult switcher listing sessions with live status
+  (`working`/`waiting`/`done`/`idle`), age, and directory; selecting one jumps
+  to its terminal. The ghostel-specific glue stays in `init.el` and feeds the
+  package: `neoemacs--ghostel-tag-env` (on `ghostel-pre-spawn-hook`) stamps
+  each terminal with a unique id exported as `$NEOEMACS_GHOSTEL_ID`, then calls
+  `consult-claude-register` to pre-register it (status `spawned`, hidden).
+  Claude Code hooks in `~/.claude/settings.json` reuse the per-PID `$EDITOR`
+  socket above to shell `$EDITOR -e '(consult-claude-status …)'` back into
+  *this* Emacs and flip the entry's status (`SessionStart`→idle,
+  `UserPromptSubmit`/`PreToolUse`→working, `Notification`→waiting, `Stop`→done,
+  `SessionEnd`→`spawned`/hidden). State is per-instance, no persistence;
+  ghostel terminals with no Claude session stay hidden, and dead-buffer entries
+  are pruned on each invocation. The hooks are `$NEOEMACS_GHOSTEL_ID`-guarded,
+  so they're no-ops in any non-ghostel terminal.
 - `autorevert` (`global-auto-revert-mode`) reloads buffers whose backing file
   changed on disk when there are no unsaved edits;
   `global-auto-revert-non-file-buffers` extends this to dired listings. Reverts
