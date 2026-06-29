@@ -243,6 +243,10 @@
         ;; `n'/`N' repetition, search highlighting, and `evil-ex' substitution
         ;; offsets. Must be set before evil loads.
         evil-search-module 'evil-search
+        ;; `*'/`#' search for the whole symbol under point, not just the word,
+        ;; so a name like `evil-ex-search' (hyphens and all) is matched as one
+        ;; unit instead of stopping at the first `-'.
+        evil-symbol-word-search t
         ;; Allow point to move one past the end of line (past the last char).
         evil-move-beyond-eol t
         ;; Don't echo "-- INSERT --"/"-- VISUAL --" etc. in the echo area.
