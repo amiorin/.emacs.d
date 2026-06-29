@@ -788,7 +788,7 @@ With a prefix arg (or non-nil HERE), start in the current
     "bp" '(previous-buffer :which-key "previous buffer")
     "bu" '(vundo :which-key "undo tree")
     "p"  '(:ignore t :which-key "project")
-    "pp" '(consult-projectile :which-key "switch project")
+    "pp" '(projectile-switch-project :which-key "switch project")
     "pf" '(projectile-find-file :which-key "find file in project")
     "pb" '(projectile-switch-to-buffer :which-key "project buffer")
     "ps" '(consult-ripgrep :which-key "search in project")
@@ -843,7 +843,7 @@ With a prefix arg (or non-nil HERE), start in the current
       </ul>
       <div class="gotcha"><span class="tag">Why <code>SPC p p</code></span> Projectile's
       command map is reached at <code>C-c p</code>, which isn't a real prefix until projectile
-      loads — so <code>consult-projectile</code> is exposed through the leader instead.</div>
+      loads — so <code>projectile-switch-project</code> is exposed through the leader instead.</div>
     </div>
   </div>
 
@@ -1612,18 +1612,13 @@ With a prefix arg (or non-nil HERE), start in the current
   :defer t
   :bind-keymap ("C-c p" . projectile-command-map)
   :config
-  (projectile-mode 1))
-
-(use-package consult-projectile
-  :after (consult projectile))</pre>
+  (projectile-mode 1))</pre>
     <div class="prose">
       <p><strong>projectile</strong> provides project-aware navigation.
       <code>:defer t</code> keeps it off the startup path, and
       <code>:bind-keymap</code> installs an autoloaded <code>C-c p</code> prefix that loads
       <code>projectile-command-map</code> on demand. <code>projectile-mode</code> turns on
       once the package is actually loaded.</p>
-      <p><strong>consult-projectile</strong> wires projectile into the consult/vertico UI;
-      it's reached at <code>SPC p p</code> through the leader.</p>
       <div class="gotcha"><span class="tag">The prefix trap</span> Don't bind a sub-key like
       <code>C-c p SPC</code> globally from another package — at bind time <code>C-c p</code>
       isn't yet a real prefix and Emacs errors with "starts with non-prefix key." Bind into

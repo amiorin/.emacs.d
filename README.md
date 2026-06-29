@@ -47,7 +47,7 @@ M-x nerd-icons-install-fonts
   tooling via [cider](https://github.com/clojure-emacs/cider). The Lisp-family
   modes (Clojure and Emacs Lisp) get structural editing — smartparens strict
   mode, evil-cleverparens paredit motions, and rainbow-delimiters.
-- **Project & Git** — projectile, consult-projectile, consult-ripgrep project
+- **Project & Git** — projectile, consult-ripgrep project
   search, and [magit](https://magit.vc/) (`magit-status` opens in the current
   window), plus diff-hl margin indicators and hunk actions.
 - **Environment** — [envrc](https://github.com/purcell/envrc) gives each

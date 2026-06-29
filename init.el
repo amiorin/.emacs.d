@@ -520,7 +520,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "bp" '(previous-buffer :which-key "previous buffer")
     "bu" '(vundo :which-key "undo tree")
     "p"  '(:ignore t :which-key "project")
-    "pp" '(consult-projectile :which-key "switch project")
+    "pp" '(projectile-switch-project :which-key "switch project")
     "pf" '(projectile-find-file :which-key "find file in project")
     "pb" '(projectile-switch-to-buffer :which-key "project buffer")
     "ps" '(consult-ripgrep :which-key "search in project")
@@ -1254,11 +1254,6 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
   :bind-keymap ("C-c p" . projectile-command-map)
   :config
   (projectile-mode 1))
-
-;; consult-projectile: consult-powered project navigation.
-;; Reached via the leader at `SPC p p' (see the general config above).
-(use-package consult-projectile
-  :after (consult projectile))
 
 ;;; --- Languages -------------------------------------------------------------
 

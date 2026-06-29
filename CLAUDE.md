@@ -87,7 +87,7 @@ defers `C-c p` until projectile loads. Do **not** bind a sub-key like
 `C-c p SPC` globally via another package's `:bind` — at bind time `C-c p` is
 not yet a real prefix and Emacs errors with "starts with non-prefix key".
 Bind into `projectile-command-map`, or expose the command through the leader
-instead (this is why `consult-projectile` is reached at `SPC p p`).
+instead (this is why `projectile-switch-project` is reached at `SPC p p`).
 
 ## Completion stack
 
