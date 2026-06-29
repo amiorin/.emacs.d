@@ -87,7 +87,7 @@
 </head>
 <body>
 <div class="top">
-  <h1><a href="https://github.com/amiorin/.emacs.d">init.el</a></h1>
+  <h1><a href="https://github.com/amiorin/neoemacs">init.el</a></h1>
   <span class="sub">neoemacs · annotated walkthrough</span>
   <div class="nav">
     <a href="#pkg">Packages</a>
@@ -1194,12 +1194,21 @@ With a prefix arg (or non-nil HERE), start in the current
   :defer t
   :init
   (add-hook 'emacs-startup-hook #'global-corfu-mode)
+  :bind (:map corfu-map
+              ("SPC" . corfu-insert-separator)
+              ("RET" . corfu-insert)
+              ("TAB" . corfu-next)
+              ([tab] . corfu-next)
+              ("S-TAB" . corfu-previous)
+              ([backtab] . corfu-previous))
   :custom
   (corfu-auto t)
   (corfu-auto-prefix 2)
   (corfu-auto-delay 0.1)
   (corfu-cycle t)
-  (corfu-preselect 'prompt))
+  (corfu-preview-current nil)
+  (corfu-quit-at-boundary nil)
+  (corfu-preselect 'valid))
 
 (use-package corfu-terminal
   :after corfu
@@ -1216,8 +1225,14 @@ With a prefix arg (or non-nil HERE), start in the current
       <p><strong>corfu</strong> is the at-point completion popup — vertico handles
       <code>M-x</code>/find-file prompts, corfu handles completion <em>inside</em> a buffer
       (e.g. the candidates eglot produces while typing code). It pops up automatically after
-      two characters, and <code>corfu-preselect 'prompt</code> keeps the typed prefix
-      selected so <code>RET</code> inserts what you typed unless you've moved into the list.</p>
+      two characters, and <code>corfu-preselect 'valid</code> preselects the typed prefix only
+      when it is itself a valid match — otherwise the first candidate is selected, so
+      <code>RET</code> completes to a real candidate. While the popup is open, <kbd>SPC</kbd>
+      inserts an orderless separator (to keep narrowing), <kbd>RET</kbd> completes, and
+      <kbd>TAB</kbd>/<kbd>S-TAB</kbd> cycle candidates; <code>corfu-preview-current nil</code>
+      stops the candidate showing as inserted-but-uncommitted text, and
+      <code>corfu-quit-at-boundary nil</code> keeps the popup open across completion
+      boundaries like <code>/</code> in paths.</p>
       <p><strong>corfu-terminal</strong> re-renders corfu's child-frame popup as a buffer
       overlay so it works under <code>emacs -nw</code>; the <code>display-graphic-p</code>
       guard makes it a no-op in a GUI frame. <strong>cape</strong> adds file-path and
@@ -1858,12 +1873,13 @@ With a prefix arg (or non-nil HERE), start in the current
               (setenv "EDITOR" (format "emacsclient -s %s" server-name))))
   :config
   (defun neoemacs--server-buffer-keys ()
-    "Bind client finish/abort keys locally in an emacsclient buffer."
-    (local-set-key (kbd "C-c C-c") #'server-edit)
-    (local-set-key (kbd "C-c C-k") #'server-edit-abort)
-    (when (fboundp 'evil-local-set-key)
-      (evil-local-set-key 'normal (kbd "ZZ") #'server-edit)
-      (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort)))
+    "Bind client finish/abort keys locally in a plain emacsclient buffer."
+    (unless (bound-and-true-p with-editor-mode)
+      (local-set-key (kbd "C-c C-c") #'server-edit)
+      (local-set-key (kbd "C-c C-k") #'server-edit-abort)
+      (when (fboundp 'evil-local-set-key)
+        (evil-local-set-key 'normal (kbd "ZZ") #'server-edit)
+        (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort))))
   (add-hook 'server-switch-hook #'neoemacs--server-buffer-keys))</pre>
     <div class="prose">
       <p>An Emacs <strong>server</strong> lets <code>emacsclient</code> hand work to
@@ -1879,7 +1895,8 @@ With a prefix arg (or non-nil HERE), start in the current
       <code>ZZ</code> finish, <code>C-c C-k</code> / <code>ZQ</code> abort — so evil's global
       <code>ZZ</code>/<code>ZQ</code> stay intact everywhere else. The <code>C-c</code> chords
       fire from insert and normal alike; <code>ZZ</code>/<code>ZQ</code> are normal-only to
-      match Vim.</div>
+      match Vim. The <code>with-editor-mode</code> guard skips magit commit buffers (opened
+      through this same server), which already bind their own finishers.</div>
     </div>
   </div>
 

@@ -854,15 +854,31 @@ Wraps the affixation-function returned further down the advice chain
   :defer t
   :init
   (add-hook 'emacs-startup-hook #'global-corfu-mode)
+  ;; While the popup is active: SPC inserts an orderless separator (so you can
+  ;; keep narrowing with a second component instead of dismissing the popup),
+  ;; RET completes to the selected candidate, and TAB / S-TAB cycle candidates.
+  :bind (:map corfu-map
+              ("SPC" . corfu-insert-separator)
+              ("RET" . corfu-insert)
+              ("TAB" . corfu-next)
+              ([tab] . corfu-next)
+              ("S-TAB" . corfu-previous)
+              ([backtab] . corfu-previous))
   :custom
   ;; Pop up automatically as you type (don't wait for an explicit TAB).
   (corfu-auto t)
   (corfu-auto-prefix 2)            ; ...after 2 chars
   (corfu-auto-delay 0.1)
   (corfu-cycle t)                  ; wrap around at the ends of the list
-  ;; Don't preselect a candidate -- keep the typed prefix selected so RET inserts
-  ;; what you typed unless you've explicitly moved into the list.
-  (corfu-preselect 'prompt))
+  ;; Don't preview the current candidate as inserted-but-uncommitted text --
+  ;; it only shows in the popup until RET commits it.
+  (corfu-preview-current nil)
+  ;; Keep the popup open across completion boundaries (e.g. `/' in paths) so an
+  ;; orderless separator from SPC keeps narrowing instead of dismissing.
+  (corfu-quit-at-boundary nil)
+  ;; Preselect the typed prefix only when it's itself a valid match; otherwise
+  ;; preselect the first candidate, so RET completes to a real candidate.
+  (corfu-preselect 'valid))
 
 ;; corfu-terminal: corfu's default popup is a child frame, which doesn't exist
 ;; in `emacs -nw'. This package re-renders the popup as a buffer overlay so it
