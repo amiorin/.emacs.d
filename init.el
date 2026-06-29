@@ -238,12 +238,27 @@
   (setq evil-want-integration t
         evil-want-keybinding nil
         evil-want-C-u-scroll t
+        ;; Use Evil's own search (`evil-ex-search') for `/' and `?' instead of
+        ;; the default isearch backend. Gives Vim-style incremental search with
+        ;; `n'/`N' repetition, search highlighting, and `evil-ex' substitution
+        ;; offsets. Must be set before evil loads.
+        evil-search-module 'evil-search
         ;; Allow point to move one past the end of line (past the last char).
         evil-move-beyond-eol t
         ;; Don't echo "-- INSERT --"/"-- VISUAL --" etc. in the echo area.
         evil-echo-state nil)
   :config
-  (evil-mode 1))
+  (evil-mode 1)
+  ;; In normal state, make `<escape>' clear the `evil-ex-search' highlight
+  ;; (Vim's `:nohlsearch') before falling back to the default
+  ;; `evil-force-normal-state'.
+  (defun neoemacs/escape-clear-search ()
+    "Clear search highlighting, then run `evil-force-normal-state'."
+    (interactive)
+    (evil-ex-nohighlight)
+    (evil-force-normal-state))
+  (define-key evil-normal-state-map (kbd "<escape>")
+              #'neoemacs/escape-clear-search))
 
 ;; Evil-collection: Evil bindings for the rest of Emacs.
 (use-package evil-collection
@@ -308,6 +323,16 @@
         evil-goggles-pulse nil)
   (evil-goggles-use-diff-faces)
   (evil-goggles-mode))
+
+;; evil-anzu: show the match count of the active `evil-ex-search' (`/' and
+;; `?') in the mode line as `current/total' (e.g. `1/3'). Pulls in `anzu',
+;; whose `global-anzu-mode' installs the mode-line indicator; evil-anzu wires
+;; anzu's counter into evil's search so the count updates as you type and on
+;; `n'/`N'. The indicator clears when the search highlight is cleared.
+(use-package evil-anzu
+  :after evil
+  :config
+  (global-anzu-mode +1))
 
 ;;; --- Window management helpers ---------------------------------------------
 
