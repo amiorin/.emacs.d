@@ -406,36 +406,65 @@ Opens a `find-file' prompt rooted at the private config dir (currently
   (let ((default-directory user-emacs-directory))
     (call-interactively #'find-file)))
 
-(defun neoemacs/dired-quick-look ()
-  "Preview the file under point in dired/dirvish via macOS Quick Look.
-Terminal Emacs (`emacs -nw') can't render images itself, and ghostel
-only draws Kitty-graphics images under GUI Emacs, so previewing is
-delegated to the OS: `qlmanage -p' pops a native Quick Look panel over
-the frame (Esc/Space to dismiss).  Runs async so Emacs isn't blocked."
-  (interactive)
-  (let ((file (dired-get-filename nil t)))
-    (unless file
-      (user-error "No file on this line"))
-    ;; BUFFER nil discards qlmanage's chatty stdout/stderr.
-    (start-process "ql" nil "qlmanage" "-p" file)))
+(defun neoemacs--start-gui-process (name &rest program-args)
+  "Like `start-process' (BUFFER nil) but survives zellij's session boundary.
+Inside zellij, Emacs is a child of zellij's detached background server,
+whose Mach bootstrap namespace is disconnected from the GUI login
+session -- so subprocesses that need Launch Services (`open' for a file,
+app, or `obsidian://' URL) silently fail (the classic tmux pbcopy/open
+bug).  When run under zellij (`$ZELLIJ' set) we prepend
+`reattach-to-user-namespace' if it's on PATH, re-entering the user
+namespace and restoring GUI access; otherwise PROGRAM-ARGS run directly.
+BUFFER is nil so the helpers' chatty stdout/stderr is discarded."
+  (let ((reattach (and (getenv "ZELLIJ")
+                       (executable-find "reattach-to-user-namespace"))))
+    (apply #'start-process name nil
+           (if reattach (cons reattach program-args) program-args))))
 
-(defun neoemacs/open-in-finder ()
+(defun neoemacs/open-file-in-default-app ()
+  "Open the current file in its default macOS app, as if double-clicked in Finder.
+In a dired/dirvish buffer this is the file under point; elsewhere it is
+the visited file.  Hands the file to macOS `open' with no `-a', so
+LaunchServices routes it to whatever app is registered for that file
+type -- exactly what a Finder double-click does.
+
+`open' is used rather than Quick Look (`qlmanage -p'): qlmanage draws its
+panel from the calling process, and under zellij Emacs is a child of
+zellij's detached background server -- outside the GUI (Aqua) session --
+so the panel has no WindowServer to draw to and qlmanage just blocks
+forever.  `open' sidesteps this by handing the request to LaunchServices,
+which launches the app *inside* the GUI session; the same handoff is why
+`neoemacs/open-dir-in-finder' / `neoemacs/open-file-in-obsidian' work under
+zellij.  Runs async via `neoemacs--start-gui-process' (which handles the
+zellij session boundary) so Emacs isn't blocked."
+  (interactive)
+  (let ((file (cond ((derived-mode-p 'dired-mode)
+                     (or (dired-get-filename nil t)
+                         (user-error "No file on this line")))
+                    ((buffer-file-name))
+                    (t (user-error "No file on this line or in this buffer")))))
+    (neoemacs--start-gui-process "open-default" "open"
+                                 (expand-file-name file))))
+
+(defun neoemacs/open-dir-in-finder ()
   "Reveal the current directory in macOS Finder.
 In a dired/dirvish buffer this is the directory listed at point (so it
 follows you into subdirs); elsewhere it's the visited file's directory,
 falling back to `default-directory'.  Delegates to `open' so the
-existing Finder window is reused."
+existing Finder window is reused (via `neoemacs--start-gui-process' so
+it works under zellij)."
   (interactive)
   (let ((dir (cond ((derived-mode-p 'dired-mode) (dired-current-directory))
                    (t default-directory))))
-    (start-process "open-finder" nil "open" (expand-file-name dir))))
+    (neoemacs--start-gui-process "open-finder" "open" (expand-file-name dir))))
 
-(defun neoemacs/open-in-obsidian ()
+(defun neoemacs/open-file-in-obsidian ()
   "Open the current file in Obsidian.
 In a dired/dirvish buffer this is the file under point; elsewhere it is
 the visited file.  The vault is auto-detected by walking up to the
 directory containing `.obsidian', whose folder name becomes the vault
-name.  Hands an `obsidian://open' URL to macOS `open' (async)."
+name.  Hands an `obsidian://open' URL to macOS `open' (async, via
+`neoemacs--start-gui-process' so it works under zellij)."
   (interactive)
   (let ((file (cond ((derived-mode-p 'dired-mode)
                      (or (dired-get-filename nil t)
@@ -451,7 +480,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
                          (url-hexify-string
                           (file-name-nondirectory (directory-file-name root)))
                          (url-hexify-string (file-relative-name file root)))))
-        (start-process "open-obsidian" nil "open" url)))))
+        (neoemacs--start-gui-process "open-obsidian" "open" url)))))
 
 ;;; --- Keybindings -----------------------------------------------------------
 
@@ -483,8 +512,6 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fr" '(neoemacs/consult-recent-file :which-key "recent file")
     "fd" '(neoemacs/consult-dir :which-key "switch dir (consult-dir)")
-    "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
-    "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
     "b"  '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
@@ -506,7 +533,9 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
     "gs" '(diff-hl-stage-current-hunk :which-key "stage hunk")
     "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
     "o"  '(:ignore t :which-key "open")
-    "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
+    "oo" '(neoemacs/open-file-in-obsidian :which-key "open file in Obsidian")
+    "of" '(neoemacs/open-file-in-default-app :which-key "open file in default app")
+    "od" '(neoemacs/open-dir-in-finder :which-key "open dir in Finder")
     "c"  '(:ignore t :which-key "code")
     "ca" '(eglot-code-actions :which-key "code actions")
     "cr" '(eglot-rename :which-key "rename symbol")
