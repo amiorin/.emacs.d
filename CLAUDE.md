@@ -292,9 +292,15 @@ source file is opened.
   focus lands there (so you can immediately scroll/navigate it and `q` to
   dismiss). `SPC h` is bound to `help-command` for the rest of the help map,
   and `SPC h t` / `C-h t` show `emacs-init-time`.
-- macOS external helpers: `SPC f i` previews the dired file at point with Quick
-  Look, `SPC f o` reveals the current directory in Finder, and `SPC o o` opens
-  the current file in Obsidian by detecting the nearest `.obsidian` vault root.
+- macOS external helpers (all under the `o` leader group): `SPC o f` opens the
+  current file in its default app via macOS `open` (LaunchServices routes it as
+  if double-clicked — this replaced an earlier Quick Look command, since
+  `qlmanage` blocks under zellij), `SPC o d` reveals the current directory in
+  Finder, and `SPC o o` opens the current file in Obsidian by detecting the
+  nearest `.obsidian` vault root. All three run async through
+  `neoemacs--start-gui-process`, which prepends `reattach-to-user-namespace`
+  under zellij ($ZELLIJ set) so the GUI launch crosses zellij's detached
+  background-server session boundary.
 - Environment: `envrc` (`envrc-global-mode`) applies each buffer's directory
   `.envrc` via direnv. It's enabled on `after-init` *deliberately* — the
   global mode must layer on top of other global modes, so don't move it

@@ -69,9 +69,10 @@ M-x nerd-icons-install-fonts
 - **Help** — in Elisp buffers, `K` (normal state) opens Helpful for the symbol
   under point with no prompt and moves focus into the help window so you can
   scroll it and `q` to dismiss. `SPC h` is the help prefix.
-- **External app helpers** — Quick Look previews dired files, Finder opens the
-  current directory, and Obsidian opens the current file when it lives inside a
-  vault.
+- **External app helpers** — open the current file in its default macOS app
+  (as if double-clicked), reveal the current directory in Finder, and open the
+  current file in Obsidian when it lives inside a vault. All run via macOS
+  `open` and work under zellij.
 - **Markdown** — [markdown-mode](https://github.com/jrblevin/markdown-mode);
   `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown). Obsidian-style
   `[[wiki links]]` are enabled and resolve names across subdirectories.
@@ -113,8 +114,6 @@ elsewhere.
 | `SPC f p` | find file in this config        |
 | `SPC f r` | recent file                     |
 | `SPC f d` | switch directory (consult-dir)  |
-| `SPC f i` | Quick Look dired file at point  |
-| `SPC f o` | open current directory in Finder |
 | `SPC b b` | switch buffer                   |
 | `SPC b d` | kill buffer                     |
 | `SPC b i` | ibuffer                         |
@@ -134,6 +133,8 @@ elsewhere.
 | `SPC c f` | format buffer (eglot)           |
 | `SPC c d` | buffer diagnostics (flymake)    |
 | `SPC o o` | open current file in Obsidian   |
+| `SPC o f` | open current file in default app |
+| `SPC o d` | open current directory in Finder |
 | `SPC s`   | save buffer                     |
 | `SPC w`   | delete current window           |
 | `SPC n`   | vertical split + follow focus   |

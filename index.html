@@ -683,42 +683,62 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <div class="row">
-<pre class="code">(defun neoemacs/dired-quick-look ()
-  "Preview the file under point in dired/dirvish via macOS Quick Look."
-  (interactive)
-  (let ((file (dired-get-filename nil t)))
-    (unless file
-      (user-error "No file on this line"))
-    (start-process "ql" nil "qlmanage" "-p" file)))</pre>
+<pre class="code">(defun neoemacs--start-gui-process (name &amp;rest program-args)
+  "Like `start-process' but survives zellij's session boundary."
+  (let ((reattach (and (getenv "ZELLIJ")
+                       (executable-find "reattach-to-user-namespace"))))
+    (apply #'start-process name nil
+           (if reattach (cons reattach program-args) program-args))))</pre>
     <div class="prose">
-      <p><code>SPC f i</code> previews the dired/dirvish file at point with macOS Quick
-      Look. It delegates to <code>qlmanage -p</code> asynchronously so terminal Emacs
-      does not block or need to render media itself.</p>
+      <p>The shared launcher for the macOS app helpers below. Under zellij Emacs is a
+      child of zellij's detached background server, whose Mach bootstrap namespace is
+      cut off from the GUI login session — so a plain <code>open</code> silently fails
+      (the classic tmux <code>pbcopy</code>/<code>open</code> bug). When <code>$ZELLIJ</code>
+      is set it prepends <code>reattach-to-user-namespace</code> to re-enter the user
+      namespace and restore GUI access; otherwise the args run directly.</p>
     </div>
   </div>
 
   <div class="row">
-<pre class="code">(defun neoemacs/open-in-finder ()
+<pre class="code">(defun neoemacs/open-file-in-default-app ()
+  "Open the current file in its default macOS app, as if double-clicked."
+  (interactive)
+  (let ((file ...))
+    (neoemacs--start-gui-process "open-default" "open"
+                                 (expand-file-name file))))</pre>
+    <div class="prose">
+      <p><code>SPC o f</code> opens the current file in whatever app macOS has registered
+      for that file type. In dired/dirvish it's the file under point; elsewhere the
+      visited file. It hands the file to <code>open</code> with no <code>-a</code>, so
+      LaunchServices routes it exactly like a Finder double-click. (This replaced an
+      earlier Quick Look command: <code>qlmanage</code> draws its panel from the calling
+      process and just blocks under zellij, whereas <code>open</code> hands the request
+      to LaunchServices, which launches the app inside the GUI session.)</p>
+    </div>
+  </div>
+
+  <div class="row">
+<pre class="code">(defun neoemacs/open-dir-in-finder ()
   "Reveal the current directory in macOS Finder."
   (interactive)
   (let ((dir (cond ((derived-mode-p 'dired-mode) (dired-current-directory))
                    (t default-directory))))
-    (start-process "open-finder" nil "open" (expand-file-name dir))))</pre>
+    (neoemacs--start-gui-process "open-finder" "open" (expand-file-name dir))))</pre>
     <div class="prose">
-      <p><code>SPC f o</code> opens the relevant directory in Finder. In dired/dirvish
+      <p><code>SPC o d</code> opens the relevant directory in Finder. In dired/dirvish
       it follows the listed directory; elsewhere it uses <code>default-directory</code>.</p>
     </div>
   </div>
 
   <div class="row">
-<pre class="code">(defun neoemacs/open-in-obsidian ()
+<pre class="code">(defun neoemacs/open-file-in-obsidian ()
   "Open the current file in Obsidian."
   (interactive)
   (let ((file ...))
     (let ((root (locate-dominating-file file ".obsidian")))
       (unless root
         (user-error "Not inside an Obsidian vault ..."))
-      (start-process "open-obsidian" nil "open" obsidian-url))))</pre>
+      (neoemacs--start-gui-process "open-obsidian" "open" obsidian-url))))</pre>
     <div class="prose">
       <p><code>SPC o o</code> opens the current file in Obsidian. It detects the nearest
       parent directory containing <code>.obsidian</code>, uses that directory name as the
@@ -760,8 +780,6 @@ With a prefix arg (or non-nil HERE), start in the current
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fr" '(neoemacs/consult-recent-file :which-key "recent file")
     "fd" '(neoemacs/consult-dir :which-key "switch dir (consult-dir)")
-    "fi" '(neoemacs/dired-quick-look :which-key "quick look (dired)")
-    "fo" '(neoemacs/open-in-finder :which-key "open dir in Finder")
     "b"  '(:ignore t :which-key "buffers")
     "bb" '(consult-buffer :which-key "switch buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
@@ -783,7 +801,9 @@ With a prefix arg (or non-nil HERE), start in the current
     "gs" '(diff-hl-stage-current-hunk :which-key "stage hunk")
     "gx" '(diff-hl-revert-hunk :which-key "revert hunk")
     "o"  '(:ignore t :which-key "open")
-    "oo" '(neoemacs/open-in-obsidian :which-key "open file in Obsidian")
+    "oo" '(neoemacs/open-file-in-obsidian :which-key "open file in Obsidian")
+    "of" '(neoemacs/open-file-in-default-app :which-key "open file in default app")
+    "od" '(neoemacs/open-dir-in-finder :which-key "open dir in Finder")
     "c"  '(:ignore t :which-key "code")
     "ca" '(eglot-code-actions :which-key "code actions")
     "cr" '(eglot-rename :which-key "rename symbol")
@@ -809,13 +829,14 @@ With a prefix arg (or non-nil HERE), start in the current
       which-key label (no command of its own):</p>
       <ul>
         <li><strong>f</strong> files — <code>ff</code> find, <code>fp</code> config file,
-        <code>fr</code> recent, <code>fd</code> switch directory (consult-dir),
-        <code>fi</code> Quick Look, <code>fo</code> Finder.</li>
+        <code>fr</code> recent, <code>fd</code> switch directory (consult-dir).</li>
         <li><strong>b</strong> buffers — switch / kill / ibuffer / next / prev, plus
         <code>bu</code> → <code>vundo</code> (the visual undo tree).</li>
         <li><strong>p</strong> project — <code>pp</code> switch project, <code>pf</code> find file, <code>pb</code> project buffer, <code>ps</code> ripgrep search.</li>
         <li><strong>g</strong> git — status, blame, file log, and diff-hl hunk navigation/stage/revert.</li>
-        <li><strong>o</strong> open — <code>oo</code> opens the current file in Obsidian.</li>
+        <li><strong>o</strong> open — <code>oo</code> opens the current file in Obsidian,
+        <code>of</code> opens it in its default macOS app, <code>od</code> reveals the
+        current directory in Finder.</li>
         <li><strong>c</strong> code — eglot code actions / rename / format and flymake diagnostics.</li>
         <li><strong>u</strong> ghostel — <code>ut</code> opens a ghostel terminal in the current directory (the <code>t</code> variant uses the project root).</li>
         <li><strong>h</strong> → the whole <code>help-command</code> map.</li>
