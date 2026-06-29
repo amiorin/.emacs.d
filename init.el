@@ -158,7 +158,14 @@
       (recentf-load-list)               ; reloads `recentf-list' from disk
       (setq recentf-list
             (seq-take (delete-dups (append mem recentf-list))
-                      recentf-max-saved-items))))
+                      recentf-max-saved-items))
+      ;; Drop entries whose files no longer exist (and anything now matching the
+      ;; exclude rules). Running it here -- after every merge -- means a file one
+      ;; instance deletes can't be resurrected by another instance's re-merge.
+      ;; `inhibit-message' keeps the picker/consult-dir paths quiet (the save
+      ;; path is already silenced by `neoemacs--recentf-save-quietly').
+      (let ((inhibit-message t))
+        (recentf-cleanup))))
   (advice-add 'recentf-save-list :before #'neoemacs--recentf-merge-from-disk)
 
   ;; `window-selection-change-functions' fires on every window switch, so guard

@@ -59,7 +59,8 @@ Three layers, used deliberately:
    (terminal in the current dir), `SPC h` → help). Add user-facing commands
    here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
-   `dired-jump` in normal state, `s-hjkl` window movement, `s-n` vsplit +
+   `dired-jump` and `ff` → `neoemacs/consult-recent-file` in normal state,
+   `s-hjkl` window movement, `s-n` vsplit +
    follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
    dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`). Two editing-model
@@ -320,7 +321,7 @@ source file is opened.
   `use-package consult-claude :ensure nil :load-path … :commands …`, so it's
   deferred until first use). The package is terminal-agnostic: it owns the
   in-memory session registry, the `consult-claude-status` status RPC, the
-  marginalia annotator, and the `consult-claude-sessions` picker (`SPC u c`) —
+  marginalia annotator, and the `consult-claude-sessions` picker (`SPC c c`) —
   a consult switcher listing sessions with live status
   (`working`/`waiting`/`done`/`idle`), age, and directory; selecting one jumps
   to its terminal. The ghostel-specific glue stays in `init.el` and feeds the

@@ -66,6 +66,9 @@ M-x nerd-icons-install-fonts
   insert state, a single `Esc` is sent to the terminal, while `Esc Esc` returns
   to Evil normal state; `C-c` and `C-x` are forwarded to the running terminal
   program.
+- **Claude Code sessions** — when Claude Code runs inside a ghostel terminal,
+  `consult-claude` tracks each session's live status; `SPC c c` opens a switcher
+  to jump between them.
 - **Help** — in Elisp buffers, `K` (normal state) opens Helpful for the symbol
   under point with no prompt and moves focus into the help window so you can
   scroll it and `q` to dismiss. `SPC h` is the help prefix.
@@ -131,6 +134,7 @@ elsewhere.
 | `SPC c a` | code actions (eglot)            |
 | `SPC c r` | rename symbol (eglot)           |
 | `SPC c f` | format buffer (eglot)           |
+| `SPC c c` | Claude Code sessions (consult-claude) |
 | `SPC c d` | buffer diagnostics (flymake)    |
 | `SPC o o` | open current file in Obsidian   |
 | `SPC o f` | open current file in default app |
@@ -143,6 +147,7 @@ elsewhere.
 | `,`       | alias for the `C-c` prefix (normal/visual/motion) |
 | `j` / `k` | down / up by visual line (`gj`/`gk` logical) |
 | `-`       | jump to dired (current dir)     |
+| `ff`      | recent file (normal state)      |
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
 | `s-w`     | delete current window           |
