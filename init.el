@@ -448,6 +448,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async)."
   (neoemacs/leader
     "SPC" '(projectile-find-file :which-key "find file in project")
     ","  '(consult-buffer :which-key "switch buffer")
+    ":"  '(eval-expression :which-key "eval expression")
     "f"  '(:ignore t :which-key "files")
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
@@ -649,7 +650,9 @@ Wraps the affixation-function returned further down the advice chain
          ("C-x b" . consult-buffer)
          ("M-y"   . consult-yank-pop)
          ("M-g g" . consult-goto-line)
-         ("M-g i" . consult-imenu)))
+         ("M-g i" . consult-imenu))
+  :bind (:map consult-narrow-map
+              ("?" . consult-narrow-help)))
 
 ;; consult-dir: switch the *directory context* from inside the minibuffer.
 ;; `C-x C-d' globally jumps to a directory (recent dirs, projectile roots,
