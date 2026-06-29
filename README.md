@@ -26,6 +26,11 @@ M-x nerd-icons-install-fonts
   evil-collection for Vim emulation across Emacs, plus evil-surround,
   evil-commentary, evil-goggles,
   [expand-region](https://github.com/magnars/expand-region.el), and vundo.
+  `/` and `?` use Vim-style incremental search (evil-ex-search) with full-symbol
+  matching, an `n`/`N`-aware match count in the mode line (evil-anzu), and
+  `<escape>` to clear the search highlight. The current-line highlight is
+  suspended while a selection is active so it doesn't obscure the selected
+  region.
 - **Keybindings** — [general](https://github.com/noctuid/general.el) with a
   `SPC` leader and [which-key](https://github.com/justbur/emacs-which-key)
   popups.
@@ -39,8 +44,9 @@ M-x nerd-icons-install-fonts
   the built-in [eglot](https://github.com/joaotavora/eglot) (astro-ls,
   typescript-language-server, clojure-lsp), on-save formatting via
   [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL
-  tooling via [cider](https://github.com/clojure-emacs/cider) + evil-cleverparens
-  structural editing.
+  tooling via [cider](https://github.com/clojure-emacs/cider). The Lisp-family
+  modes (Clojure and Emacs Lisp) get structural editing — smartparens strict
+  mode, evil-cleverparens paredit motions, and rainbow-delimiters.
 - **Project & Git** — projectile, consult-projectile, consult-ripgrep project
   search, and [magit](https://magit.vc/) (`magit-status` opens in the current
   window), plus diff-hl margin indicators and hunk actions.
@@ -82,7 +88,8 @@ M-x nerd-icons-install-fonts
   terminal sends real mouse events instead of turning the wheel into arrow
   keys.
 - Terminal Emacs gets full key support via the Kitty Keyboard Protocol (kkp),
-  and copies to the host clipboard over SSH/tmux via OSC 52
+  with `key-translation-map` entries restoring shifted Meta chords (`M-S-]` →
+  `M-}`, etc.), and copies to the host clipboard over SSH/tmux via OSC 52
   ([clipetty](https://github.com/spudlyo/clipetty)).
 - **Cursor** — the terminal cursor shape follows the evil state (block in
   normal, bar in insert, underline in replace), steady/non-blinking, via
@@ -100,6 +107,7 @@ elsewhere.
 |-----------|---------------------------------|
 | `SPC SPC` | find file in project            |
 | `SPC ,`   | switch buffer                   |
+| `SPC :`   | eval expression                 |
 | `SPC /`   | search in project (ripgrep)     |
 | `SPC f f` | find file                       |
 | `SPC f p` | find file in this config        |
@@ -147,7 +155,9 @@ elsewhere.
 | `K`       | Helpful for symbol at point (Elisp buffers) |
 
 In dired, `h` goes up a directory, `l` enters the file/directory, and `TAB`
-toggles a directory's subtree.
+toggles a directory's subtree. `y` is a "yank" prefix that copies the entry's
+path to the kill ring (`yl` true path, `yn` name, `yp` path, `yr` remote path),
+with `yy` kept as the classic copy.
 
 ## Files
 

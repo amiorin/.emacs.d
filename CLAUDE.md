@@ -51,6 +51,7 @@ Three layers, used deliberately:
    groups: `f` files, `b` buffers, `p` project, `g` git, `o` open/external
    apps, `c` code (eglot/flymake actions), `u` ghostel, plus top-level
    shortcuts (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
+   `SPC :` → `eval-expression`,
    `SPC /` / `SPC p s` → `consult-ripgrep`, `SPC b u` → `vundo`,
    `SPC s` → `save-buffer`, `SPC w` → `evil-window-delete`, `SPC n` →
    `neoemacs/vsplit-window-follow`, `SPC t` → `neoemacs/vsplit-ghostel`
@@ -93,7 +94,9 @@ instead (this is why `consult-projectile` is reached at `SPC p p`).
 `vertico` + `vertico-directory` (UI/path editing) + `orderless` (matching) +
 `marginalia` (annotations) + `nerd-icons-completion` (file/buffer icons and
 directory-name tinting) + `consult` (commands). These work together — changing
-one (e.g. `completion-styles`) affects the others.
+one (e.g. `completion-styles`) affects the others. `consult`'s plain chords are
+`C-s` (`consult-line`), `C-x b`, `M-y`, `M-g g`, `M-g i`, plus `?` in
+`consult-narrow-map` → `consult-narrow-help`.
 
 `embark` / `embark-consult` provide context actions and exports, and `wgrep`
 is installed for editable grep results. `consult-ripgrep` is the project search
@@ -140,8 +143,14 @@ source file is opened.
 - **Clojure tooling.** `cider` is the nREPL runtime half (REPL, inline eval,
   test runner), complementary to clojure-lsp's static analysis — they run
   together. `:after clojure-ts-mode` keeps it deferred; `C-c C-j` jacks in.
-  `evil-cleverparens` adds paredit-style structural editing through evil motions
-  on the Clojure modes (pulls in paredit + smartparens).
+- **Lisp structural editing.** Three layers ride on the Lisp-family modes — the
+  tree-sitter Clojure modes (`clojure-ts-mode` + cljs/cljc) *and* `emacs-lisp-mode`
+  / `lisp-interaction-mode`: `smartparens` (`smartparens-strict-mode`, refuses
+  edits that would unbalance a sexp; `smartparens-config` loads the default
+  pairs), `evil-cleverparens` (paredit-style slurp/barf/wrap through evil
+  motions, `evil-cleverparens-use-additional-bindings t`, with `M-5` /
+  `M-]` bound to wrap-square), and `rainbow-delimiters` (depth-colored parens).
+  evil-cleverparens pulls in paredit + smartparens.
 
 ## Notable conventions
 
@@ -164,12 +173,33 @@ source file is opened.
 - Evil extras: `evil-surround`, `evil-commentary`, and `evil-goggles` are
   enabled globally. `vundo` is a visualizer over built-in undo, not a
   replacement undo engine.
+- Evil search: `evil-search-module` is `'evil-search`, so `/` and `?` use
+  Vim-style `evil-ex-search` (incremental, `n`/`N` repeat, substitution
+  offsets) instead of isearch. `evil-symbol-word-search t` makes `*`/`#` (and
+  `/`) match the whole symbol under point — hyphens included — so
+  `evil-ex-search` is one unit, not stopped at the first `-`.
+  `evil-move-beyond-eol t` lets point sit one past the last column.
+  `evil-anzu` (`global-anzu-mode`) shows the live match count as `current/total`
+  in the mode line. In normal state `<escape>` runs
+  `neoemacs/escape-clear-search`, which clears the search highlight
+  (`evil-ex-nohighlight`, Vim's `:nohlsearch`) before falling back to
+  `evil-force-normal-state`.
+- The current-line highlight (`global-hl-line-mode`) is *suspended while a
+  selection is active* — an Evil visual state or a vanilla region — because the
+  highlight obscures the selection bounds under some themes. Keyed off the
+  generic `activate-mark-hook` / `deactivate-mark-hook` (not anything
+  Evil-specific) by making `global-hl-line-mode` buffer-local and binding it to
+  nil for the duration, then restoring it on deselect.
 - This config is built to run in a terminal (`emacs -nw`) **inside zellij**.
   Several features below send raw terminal escape sequences (cursor shape, tab
   name); zellij forwards them to the host terminal natively and, unlike tmux,
   needs no passthrough wrapping (and sets no `$TMUX`).
 - Terminal key support: `kkp` (Kitty Keyboard Protocol) is enabled so chords
-  the terminal would otherwise swallow reach Emacs. **Gotcha:** kkp re-encodes
+  the terminal would otherwise swallow reach Emacs. Because kkp delivers shifted
+  Meta chords as distinct events instead of folding Shift into the base key, a
+  block of `key-translation-map` entries re-maps them to the symbol/upper-case
+  forms commands actually bind (`M-S-]` → `M-}`, `M-S-9` → `M-(`, `M-S-j` →
+  `M-J`, etc.), so those chords stay reachable from the keyboard. **Gotcha:** kkp re-encodes
   `C-g` as an escape sequence (`ESC [ 103;5 u`) instead of the raw byte 7, so
   Emacs's low-level quit detection during a blocking `call-process` can't see
   it. `envrc--export` runs direnv synchronously and advertises "C-g to abort",
@@ -238,10 +268,19 @@ source file is opened.
   hiding it behind the hl-line. `dirvish-hide-details nil` keeps the long
   `ls -l` columns visible. `dired-listing-switches` is `-Al` (`-A` =
   "almost all": shows dotfiles but omits `.`/`..`), with
-  `--group-directories-first` added when Homebrew `gls` is available. `TAB`
-  toggles subtrees. `diredfl` colorizes long-listing columns, `dired-x`
+  `--group-directories-first` added when Homebrew `gls` is available. In normal
+  state `h`/`l` go up/into a directory and `TAB` toggles subtrees; `y` is a
+  "yank" prefix that copies the entry's name/path to the kill ring (`yl`
+  true-path, `yn` name, `yp` path, `yr` remote-path, with `yy` kept as the
+  classic `dired-do-copy`). `diredfl` colorizes long-listing columns, `dired-x`
   `dired-omit-mode` hides uninteresting generated files, and
   `dired-dwim-target` supports two-pane copy/rename targets.
+- Git diff sessions: `magit-status` rebinds `e` to
+  `magit-ediff-show-working-tree` (working tree vs HEAD in ediff). `ediff`
+  itself is configured side-by-side (`split-window-horizontally`) with a plain
+  in-frame control panel, and its quit confirmation is auto-answered so `q`
+  exits immediately. `transient` (magit's popup engine) maps `<escape>` to
+  `transient-quit-one` so Esc backs out of any popup one level.
 - `magit-display-buffer-function` is
   `magit-display-buffer-same-window-except-diff-v1`, so `magit-status` opens in
   the current window (diffs still pop elsewhere).
