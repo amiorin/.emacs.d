@@ -1602,53 +1602,18 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <div class="row">
-<pre class="code">  (define-advice ghostel--anchor-window
-      (:around (orig &amp;optional window force) evil-ghostel-roam)
-    (if (and (bound-and-true-p evil-ghostel-mode)
-             (not force)
-             (memq evil-state '(normal visual operator motion))
-             ghostel--cursor-char-pos
-             (/= (point) ghostel--cursor-char-pos))
-        nil
-      (funcall orig window force)))</pre>
     <div class="prose">
-      <p><strong>Roam advice.</strong> Each redraw, <code>ghostel--redraw-now</code> re-anchors any
-      window following the live viewport via <code>ghostel--anchor-window</code>, whose final
-      <code>set-window-point</code> snaps point back to the terminal cursor. On a <em>static</em>
-      terminal redraws are rare so it's invisible; on an <em>animated</em> one (~30fps) it fights
-      every <code>hjkl</code> in normal state.</p>
-      <p>This <code>:around</code> advice <strong>skips the anchor</strong> exactly when point is
-      parked off the live cursor (<code>(/= (point) ghostel--cursor-char-pos)</code>) in a
-      motion-capable Evil state. Auto-follow resumes the moment you return to insert state or land
-      back on the cursor row.</p>
-      <div class="why"><span class="tag">FORCE is honored</span> Forced anchors (paste/yank) pass
-      <code>force</code> non-nil, so they always call through to the original — only the
-      automatic, every-frame re-anchor is suppressed.</div>
-    </div>
-  </div>
-
-  <div class="row">
-<pre class="code">  (define-advice mwheel-scroll
-      (:before (event &amp;rest _) evil-ghostel-wheel-normal)
-    (let ((buf (window-buffer (posn-window (event-start event)))))
-      (when (buffer-live-p buf)
-        (with-current-buffer buf
-          (when (and (bound-and-true-p evil-ghostel-mode)
-                     (memq evil-state '(insert emacs)))
-            (evil-normal-state)))))))</pre>
-    <div class="prose">
-      <p><strong>Wheel scroll.</strong> In insert state the redraw anchor is still live, so a
-      mouse-wheel scroll into scrollback gets immediately yanked back to the live cursor. Normal
-      state is exactly where the roam advice above suppresses that anchor — so this flips the
-      buffer to normal state on any wheel event.</p>
-      <ul>
-        <li>ghostel redispatches the wheel to <code>mwheel-scroll</code> when it scrolls the Emacs
-        buffer (mouse tracking off), so that's the advised function.</li>
-        <li>It only switches <em>from</em> <code>insert</code>/<code>emacs</code> — normal/visual
-        already roam, and flipping out of visual would drop a selection.</li>
-      </ul>
-      <div class="gotcha"><span class="tag">Getting back</span> Press <kbd>i</kbd>/<kbd>a</kbd> to
-      return to insert and resume live auto-follow.</div>
+      <p><strong>Roaming &amp; wheel scroll (now upstream).</strong> Letting normal-state motion
+      roam over animated output, and keeping a mouse-wheel scroll into scrollback from snapping
+      point back to the live cursor, both used to be local advices here
+      (<code>evil-ghostel-roam</code> around <code>ghostel--anchor-window</code>, and
+      <code>evil-ghostel-wheel-normal</code> before <code>mwheel-scroll</code>). The upgraded
+      <code>evil-ghostel</code> subsumes them: it registers
+      <code>evil-ghostel--anchor-inhibit</code> on ghostel's
+      <code>ghostel-inhibit-anchor-functions</code> hook so the per-redraw anchor stands down in a
+      motion-capable Evil state, and ghostel itself intercepts the wheel and gates point-sync on
+      <code>ghostel--window-anchored-p</code>. So both advices were removed from
+      <code>init.el</code>.</p>
     </div>
   </div>
 

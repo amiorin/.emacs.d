@@ -1148,7 +1148,17 @@ With no file at point, fall back to `magit-ediff-dwim'."
   (add-hook 'ghostel-pre-spawn-hook #'neoemacs--ghostel-tag-env)
   ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a
   ;; terminal buffer has no use for it, so turn it off in ghostel buffers.
-  :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1))))
+  :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1)))
+  :config
+  ;; Claude terminals sit in char-mode almost permanently (see "Claude Code
+  ;; session tracking"), so its `:Char' tag is constant noise in the mode line.
+  ;; Drop just that tag by returning nil from the tag builder for `char';
+  ;; `ghostel--mode-line-refresh' filters nil parts, so the other input-mode
+  ;; tags (`:Line'/`:Copy'/`:Emacs') still show.
+  (advice-add 'ghostel--mode-line-tag-make :around
+              (lambda (orig mode label)
+                (unless (eq mode 'char)
+                  (funcall orig mode label)))))
 
 ;; evil-ghostel: keeps the terminal cursor in sync with Emacs point across
 ;; evil state transitions, so normal-state hjkl navigation works.
@@ -1198,45 +1208,7 @@ With no file at point, fall back to `magit-ediff-dwim'."
   ;; `ghostel-char-mode-map' is installed through `emulation-mode-map-alists',
   ;; so it sees insert-state ESC before `evil-ghostel-mode-map' does.
   (define-key ghostel-char-mode-map (kbd "<escape>")
-              #'neoemacs/ghostel-escape-dwim)
-
-  ;; Let normal-state motion roam over animated output. Each redraw,
-  ;; `ghostel--redraw-now' re-anchors any window following the live viewport
-  ;; via `ghostel--anchor-window', whose final `set-window-point' snaps point
-  ;; back to the terminal cursor (`ghostel--cursor-char-pos'). On a static
-  ;; terminal redraws are rare so it's invisible; on an animated one (~30fps)
-  ;; it fights every hjkl. evil-ghostel preserves point in its `ghostel--redraw'
-  ;; advice but never touches the anchor, so off-prompt normal-state motion is
-  ;; the unhandled seam. Skip the anchor while parked off the live cursor in a
-  ;; motion-capable evil state; auto-follow resumes on return to insert or to
-  ;; the cursor row. FORCE anchors (paste/yank) are always honored.
-  (define-advice ghostel--anchor-window
-      (:around (orig &optional window force) evil-ghostel-roam)
-    (if (and (bound-and-true-p evil-ghostel-mode)
-             (not force)
-             (memq evil-state '(normal visual operator motion))
-             ghostel--cursor-char-pos
-             (/= (point) ghostel--cursor-char-pos))
-        nil
-      (funcall orig window force)))
-
-  ;; Wheel scroll => leave insert. In insert state the redraw anchor
-  ;; (`ghostel--anchor-window') re-snaps the viewport to the live cursor, so a
-  ;; mouse-wheel scroll into scrollback is immediately yanked back. Normal state
-  ;; is exactly where `evil-ghostel-roam' (above) suppresses that anchor, so flip
-  ;; to normal on any wheel event over a ghostel buffer. ghostel redispatches
-  ;; wheel events to `mwheel-scroll' when it scrolls the Emacs buffer (mouse
-  ;; tracking off); advise that. Only switch *from* insert/emacs (normal/visual
-  ;; already roam, and we mustn't drop a visual selection). Re-enter insert
-  ;; (`i'/`a') yourself to resume live auto-follow.
-  (define-advice mwheel-scroll
-      (:before (event &rest _) evil-ghostel-wheel-normal)
-    (let ((buf (window-buffer (posn-window (event-start event)))))
-      (when (buffer-live-p buf)
-        (with-current-buffer buf
-          (when (and (bound-and-true-p evil-ghostel-mode)
-                     (memq evil-state '(insert emacs)))
-            (evil-normal-state)))))))
+              #'neoemacs/ghostel-escape-dwim))
 
 ;;; --- Claude Code session tracking ------------------------------------------
 

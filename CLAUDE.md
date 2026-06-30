@@ -237,22 +237,14 @@ source file is opened.
   ignores the project root and always starts in the current `default-directory`.
   `evil-ghostel` (`evil-ghostel-mode`, hooked on `ghostel-mode`) keeps the
   terminal cursor in sync with point across evil state changes so normal-state
-  `hjkl` works in the terminal buffer. **Anchor seam:** each redraw,
-  `ghostel--redraw-now` re-anchors any window following the live viewport via
-  `ghostel--anchor-window`, whose `set-window-point` snaps point back to the
-  terminal cursor. On an *animated* terminal (~30fps) that fights normal-state
-  motion — evil-ghostel preserves point in its `ghostel--redraw` advice but not
-  the anchor. The `evil-ghostel-roam` advice (in `init.el`) skips the anchor
-  while point is parked off the live cursor in a motion-capable evil state
-  (`normal`/`visual`/`operator`/`motion`); auto-follow resumes on return to
-  insert or to the cursor row, and FORCE anchors (paste/yank) are untouched.
-  **Wheel scroll:** in insert state the anchor is still live, so a mouse-wheel
-  scroll into scrollback is snapped right back. The `evil-ghostel-wheel-normal`
-  advice (in `init.el`) flips the buffer to normal state on any wheel event —
-  ghostel redispatches the wheel to `mwheel-scroll` when it scrolls the Emacs
-  buffer, so that's the advised function. It only switches *from* `insert`/`emacs`
-  (normal/visual already roam, and a visual selection mustn't be dropped); press
-  `i`/`a` to return to insert and resume live auto-follow.
+  `hjkl` works in the terminal buffer. Roaming over animated output and
+  wheel-scrolling into scrollback are both handled inside `evil-ghostel`
+  upstream now (it registers `evil-ghostel--anchor-inhibit` on ghostel's
+  `ghostel-inhibit-anchor-functions` hook so the per-redraw anchor doesn't snap
+  point back in a motion-capable evil state, and ghostel itself intercepts the
+  wheel and gates point-sync on `ghostel--window-anchored-p`) — the local
+  `evil-ghostel-roam` / `evil-ghostel-wheel-normal` advices in `init.el` were
+  removed once the upstream package subsumed them.
   **Escape routing:** `neoemacs/ghostel-escape-dwim` replaces the
   `evil-ghostel` insert-state `<escape>` binding. It waits
   `neoemacs/ghostel-escape-timeout` seconds (0.25s) for a second Escape; a
