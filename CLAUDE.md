@@ -332,16 +332,8 @@ source file is opened.
   `UserPromptSubmit`/`PreToolUse`→working, `Notification`→waiting, `Stop`→done,
   `SessionEnd`→`spawned`/hidden). State is per-instance, no persistence;
   ghostel terminals with no Claude session stay hidden, and dead-buffer entries
-  are pruned on each invocation. `init.el` also advises
-  `consult-claude-status` to put active Claude ghostel buffers in
-  `ghostel-char-mode` (`idle`/`working`/`waiting`/`done`) and restore
-  `ghostel-semi-char-mode` on `SessionEnd` only when it made that switch; this
-  keeps `evil-ghostel` from treating Claude's inline TUI like a shell prompt and
-  injecting cursor-sync keystrokes. Since `ghostel-char-mode-map` overrides the
-  insert-state minor-mode map, `init.el` also binds
-  `neoemacs/ghostel-escape-dwim` directly in that char-mode map so `Esc Esc`
-  still leaves insert state while a single `Esc` reaches Claude. The hooks are
-  `$NEOEMACS_GHOSTEL_ID`-guarded, so they're no-ops in any non-ghostel terminal.
+  are pruned on each invocation. The hooks are `$NEOEMACS_GHOSTEL_ID`-guarded,
+  so they're no-ops in any non-ghostel terminal.
 - `autorevert` (`global-auto-revert-mode`) reloads buffers whose backing file
   changed on disk when there are no unsaved edits;
   `global-auto-revert-non-file-buffers` extends this to dired listings. Reverts

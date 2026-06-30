@@ -1577,12 +1577,7 @@ With a prefix arg (or non-nil HERE), start in the current
   (evil-define-key* 'insert evil-ghostel-mode-map
                     (kbd "&lt;escape&gt;") #'neoemacs/ghostel-escape-dwim
                     (kbd "C-c") #'neoemacs/ghostel-send-current-control
-                    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
-
-  ;; `ghostel-char-mode-map' is installed through `emulation-mode-map-alists',
-  ;; so it sees insert-state ESC before `evil-ghostel-mode-map' does.
-  (define-key ghostel-char-mode-map (kbd "&lt;escape&gt;")
-              #'neoemacs/ghostel-escape-dwim)</pre>
+                    (kbd "C-x") #'neoemacs/ghostel-send-current-control)</pre>
     <div class="prose">
       <p><strong>Ctrl passthrough.</strong> <kbd>C-c</kbd> and <kbd>C-x</kbd> are precious Emacs
       prefixes, but inside a terminal you usually want them to reach the program running there
@@ -1592,12 +1587,6 @@ With a prefix arg (or non-nil HERE), start in the current
       <code>user-error</code>s if it's somehow not a Ctrl+letter.</p>
       <p>The <code>evil-define-key*</code> wires up the insert-state map: <kbd>Esc</kbd> → the DWIM
       handler, <kbd>C-c</kbd>/<kbd>C-x</kbd> → the passthrough.</p>
-      <div class="gotcha"><span class="tag">Char-mode ESC</span> When a Claude Code session is
-      active (see the next section) the buffer runs in <code>ghostel-char-mode</code>, whose
-      <code>ghostel-char-mode-map</code> is installed via <code>emulation-mode-map-alists</code>
-      and outranks <code>evil-ghostel-mode-map</code>. So the DWIM handler is bound directly in
-      that map too, keeping <kbd>Esc Esc</kbd> → leave insert state while a single <kbd>Esc</kbd>
-      still reaches Claude.</div>
     </div>
   </div>
 
@@ -1630,7 +1619,6 @@ With a prefix arg (or non-nil HERE), start in the current
   (let ((id (format "ghostel-%d-%d" (emacs-pid)
                     (cl-incf neoemacs--ghostel-id-counter))))
     (setq neoemacs--ghostel-id id)
-    (setq neoemacs--ghostel-claude-auto-char-mode nil)
     (puthash id (current-buffer) neoemacs--ghostel-buffers-by-id)
     (add-hook 'kill-buffer-hook #'neoemacs--ghostel-unregister-id nil t)
     (setenv "NEOEMACS_GHOSTEL_ID" id)
@@ -1658,49 +1646,20 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <div class="row">
-<pre class="code">(defun neoemacs--consult-claude-status-ghostel-char-mode
-    (id status &amp;optional _tool _session-id)
-  "Keep active Claude Code ghostel buffers out of semi-char mode."
-  (when-let ((buf (gethash id neoemacs--ghostel-buffers-by-id)))
-    (when (buffer-live-p buf)
-      (with-current-buffer buf
-        (pcase status
-          ('end
-           (when (and neoemacs--ghostel-claude-auto-char-mode
-                      (eq ghostel--input-mode 'char))
-             (setq neoemacs--ghostel-claude-auto-char-mode nil)
-             (ghostel-semi-char-mode)))
-          ((or 'idle 'working 'waiting 'done)
-           (when (eq ghostel--input-mode 'semi-char)
-             (setq neoemacs--ghostel-claude-auto-char-mode t)
-             (ghostel-char-mode))))))))
-
-(use-package consult-claude
+<pre class="code">(use-package consult-claude
   :ensure nil
   :load-path "~/code/consult-claude"
   :commands (consult-claude-sessions consult-claude-register
-             consult-claude-status)
-  :config
-  (unless (advice-member-p
-           #'neoemacs--consult-claude-status-ghostel-char-mode
-           'consult-claude-status)
-    (advice-add 'consult-claude-status :after
-                #'neoemacs--consult-claude-status-ghostel-char-mode)))</pre>
+             consult-claude-status))</pre>
     <div class="prose">
-      <p>An <code>:after</code> advice on <code>consult-claude-status</code> switches a buffer
-      with a live Claude session into <code>ghostel-char-mode</code> (on
-      <code>idle</code>/<code>working</code>/<code>waiting</code>/<code>done</code>) and back to
-      <code>ghostel-semi-char-mode</code> on <code>end</code> — but only when it was the one
-      that flipped it (tracked by <code>neoemacs--ghostel-claude-auto-char-mode</code>).</p>
-      <div class="why"><span class="tag">Why char mode</span> Claude Code is an inline TUI, not
-      a shell prompt. In semi-char mode <code>evil-ghostel</code> would treat it as a prompt and
-      inject cursor-sync keystrokes into its PTY; char mode hands raw keys to the TUI instead.
-      This is also why the previous section binds <code>neoemacs/ghostel-escape-dwim</code>
-      directly in <code>ghostel-char-mode-map</code>.</div>
+      <p><code>consult-claude</code> is the terminal-agnostic package that owns the registry,
+      the status RPC, the marginalia annotator, and the
+      <code>consult-claude-sessions</code> picker. The ghostel glue above (tag-env + register)
+      is all that <code>init.el</code> needs to feed it.</p>
       <div class="why"><span class="tag">Deferred</span> <code>:commands</code> keeps
       <code>consult-claude</code> (loaded from <code>~/code/consult-claude</code> via
       <code>:load-path</code>) unloaded until the first registration, status RPC, or picker
-      call; the <code>advice-member-p</code> guard makes the <code>:config</code> idempotent.</div>
+      call.</div>
     </div>
   </div>
 

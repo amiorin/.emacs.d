@@ -1148,17 +1148,7 @@ With no file at point, fall back to `magit-ediff-dwim'."
   (add-hook 'ghostel-pre-spawn-hook #'neoemacs--ghostel-tag-env)
   ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a
   ;; terminal buffer has no use for it, so turn it off in ghostel buffers.
-  :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1)))
-  :config
-  ;; Claude terminals sit in char-mode almost permanently (see "Claude Code
-  ;; session tracking"), so its `:Char' tag is constant noise in the mode line.
-  ;; Drop just that tag by returning nil from the tag builder for `char';
-  ;; `ghostel--mode-line-refresh' filters nil parts, so the other input-mode
-  ;; tags (`:Line'/`:Copy'/`:Emacs') still show.
-  (advice-add 'ghostel--mode-line-tag-make :around
-              (lambda (orig mode label)
-                (unless (eq mode 'char)
-                  (funcall orig mode label)))))
+  :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1))))
 
 ;; evil-ghostel: keeps the terminal cursor in sync with Emacs point across
 ;; evil state transitions, so normal-state hjkl navigation works.
@@ -1203,12 +1193,7 @@ With no file at point, fall back to `magit-ediff-dwim'."
   (evil-define-key* 'insert evil-ghostel-mode-map
     (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
     (kbd "C-c") #'neoemacs/ghostel-send-current-control
-    (kbd "C-x") #'neoemacs/ghostel-send-current-control)
-
-  ;; `ghostel-char-mode-map' is installed through `emulation-mode-map-alists',
-  ;; so it sees insert-state ESC before `evil-ghostel-mode-map' does.
-  (define-key ghostel-char-mode-map (kbd "<escape>")
-              #'neoemacs/ghostel-escape-dwim))
+    (kbd "C-x") #'neoemacs/ghostel-send-current-control))
 
 ;;; --- Claude Code session tracking ------------------------------------------
 
@@ -1232,36 +1217,10 @@ With no file at point, fall back to `magit-ediff-dwim'."
 (defvar-local neoemacs--ghostel-id nil
   "This ghostel buffer's unique id, mirrored into $NEOEMACS_GHOSTEL_ID.")
 
-(defvar-local neoemacs--ghostel-claude-auto-char-mode nil
-  "Non-nil when Claude status tracking switched this buffer to char mode.")
-
 (defun neoemacs--ghostel-unregister-id ()
   "Forget this buffer's ghostel id."
   (when neoemacs--ghostel-id
     (remhash neoemacs--ghostel-id neoemacs--ghostel-buffers-by-id)))
-
-(defun neoemacs--consult-claude-status-ghostel-char-mode
-    (id status &optional _tool _session-id)
-  "Keep active Claude Code ghostel buffers out of semi-char mode.
-Claude Code is an inline TUI rather than a shell prompt, so
-`evil-ghostel' must not drive cursor-sync keystrokes into its PTY."
-  (when-let ((buf (gethash id neoemacs--ghostel-buffers-by-id)))
-    (when (buffer-live-p buf)
-      (with-current-buffer buf
-        (pcase status
-          ('end
-           (when (and neoemacs--ghostel-claude-auto-char-mode
-                      (boundp 'ghostel--input-mode)
-                      (eq ghostel--input-mode 'char)
-                      (fboundp 'ghostel-semi-char-mode))
-             (setq neoemacs--ghostel-claude-auto-char-mode nil)
-             (ghostel-semi-char-mode)))
-          ((or 'idle 'working 'waiting 'done)
-           (when (and (boundp 'ghostel--input-mode)
-                      (eq ghostel--input-mode 'semi-char)
-                      (fboundp 'ghostel-char-mode))
-             (setq neoemacs--ghostel-claude-auto-char-mode t)
-             (ghostel-char-mode))))))))
 
 (defun neoemacs--ghostel-tag-env ()
   "`ghostel-pre-spawn-hook': tag this terminal and export its id to the child.
@@ -1270,7 +1229,6 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
   (let ((id (format "ghostel-%d-%d" (emacs-pid)
                     (cl-incf neoemacs--ghostel-id-counter))))
     (setq neoemacs--ghostel-id id)
-    (setq neoemacs--ghostel-claude-auto-char-mode nil)
     (puthash id (current-buffer) neoemacs--ghostel-buffers-by-id)
     (add-hook 'kill-buffer-hook #'neoemacs--ghostel-unregister-id nil t)
     (setenv "NEOEMACS_GHOSTEL_ID" id)
@@ -1284,12 +1242,7 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 (use-package consult-claude
   :ensure nil
   :load-path "~/code/consult-claude"
-  :commands (consult-claude-sessions consult-claude-register consult-claude-status)
-  :config
-  (unless (advice-member-p #'neoemacs--consult-claude-status-ghostel-char-mode
-                           'consult-claude-status)
-    (advice-add 'consult-claude-status
-                :after #'neoemacs--consult-claude-status-ghostel-char-mode)))
+  :commands (consult-claude-sessions consult-claude-register consult-claude-status))
 
 ;;; --- Project navigation ----------------------------------------------------
 
