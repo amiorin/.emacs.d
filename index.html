@@ -1252,15 +1252,27 @@ With a prefix arg (or non-nil HERE), start in the current
 <pre class="code">(use-package magit
   :bind (("C-x g" . magit-status)
          :map magit-status-mode-map
-         ("e" . magit-ediff-show-working-tree))
+         ("e" . neoemacs/magit-ediff-working-vs-head))
   :custom
   (magit-display-buffer-function
-   #'magit-display-buffer-same-window-except-diff-v1))</pre>
+   #'magit-display-buffer-same-window-except-diff-v1)
+  :config
+  (defun neoemacs/magit-ediff-working-vs-head ()
+    "Ediff the file at point's working-tree version against its HEAD version."
+    (interactive)
+    (let ((file (magit-current-file)))
+      (if file
+          (magit-ediff-compare "HEAD" nil file file)
+        (call-interactively #'magit-ediff-dwim)))))</pre>
     <div class="prose">
       <p><strong>Magit</strong> is the Git interface. <code>C-x g</code> opens status.
       Inside the status buffer, <code>e</code> is rebound to
-      <code>magit-ediff-show-working-tree</code> — diffing the working tree against HEAD in
-      ediff (overriding magit's default <code>magit-ediff-dwim</code> on that key).</p>
+      <code>neoemacs/magit-ediff-working-vs-head</code> — a plain <em>two-buffer</em> ediff
+      of the file-at-point's working-tree version against its HEAD version
+      (<code>magit-ediff-compare "HEAD" nil …</code>, where the <code>nil</code> REVB picks the
+      working tree; the index is never involved, unlike the three-way
+      <code>magit-ediff-show-working-tree</code>). With no file at point it falls back to
+      magit's default <code>magit-ediff-dwim</code>.</p>
       <p><code>magit-display-buffer-function</code> = the
       <code>…same-window-except-diff-v1</code> variant: <code>magit-status</code> opens in
       the <em>current</em> window, while diffs and other secondary buffers still pop to

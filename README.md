@@ -49,7 +49,8 @@ M-x nerd-icons-install-fonts
   mode, evil-cleverparens paredit motions, and rainbow-delimiters.
 - **Project & Git** — projectile, consult-ripgrep project
   search, and [magit](https://magit.vc/) (`magit-status` opens in the current
-  window), plus diff-hl margin indicators and hunk actions.
+  window; `e` on a file opens a two-buffer ediff of its working-tree version
+  against HEAD), plus diff-hl margin indicators and hunk actions.
 - **Environment** — [envrc](https://github.com/purcell/envrc) gives each
   buffer the environment from its directory's `.envrc` (needs the `direnv`
   binary).

@@ -277,11 +277,16 @@ source file is opened.
   `dired-omit-mode` hides uninteresting generated files, and
   `dired-dwim-target` supports two-pane copy/rename targets.
 - Git diff sessions: `magit-status` rebinds `e` to
-  `magit-ediff-show-working-tree` (working tree vs HEAD in ediff). `ediff`
-  itself is configured side-by-side (`split-window-horizontally`) with a plain
-  in-frame control panel, and its quit confirmation is auto-answered so `q`
-  exits immediately. `transient` (magit's popup engine) maps `<escape>` to
-  `transient-quit-one` so Esc backs out of any popup one level.
+  `neoemacs/magit-ediff-working-vs-head`, which ediffs the file-at-point's
+  working-tree version against its HEAD version as a plain **two-buffer** diff
+  (`magit-ediff-compare "HEAD" nil file file` — REVB nil selects the working
+  tree, and the index is never involved, unlike the three-way
+  `magit-ediff-show-working-tree`). With no file at point it falls back to
+  `magit-ediff-dwim`. `ediff` itself is configured side-by-side
+  (`split-window-horizontally`) with a plain in-frame control panel, and its
+  quit confirmation is auto-answered so `q` exits immediately. `transient`
+  (magit's popup engine) maps `<escape>` to `transient-quit-one` so Esc backs
+  out of any popup one level.
 - `magit-display-buffer-function` is
   `magit-display-buffer-same-window-except-diff-v1`, so `magit-status` opens in
   the current window (diffs still pop elsewhere).
