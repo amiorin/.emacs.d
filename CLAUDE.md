@@ -261,8 +261,9 @@ source file is opened.
   `C-c` and `C-x` in ghostel insert state are forwarded as real terminal
   Ctrl-letter keys instead of being swallowed by Emacs prefix maps.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
-  gutter line numbers and highlight the cursor's line. `display-line-numbers-
-  type` is `t` (absolute); switch to `'relative`/`'visual` for Vim-style.
+  gutter line numbers and highlight the cursor's line.
+  `display-line-numbers-type` is `t` (absolute); switch to `'relative`/`'visual`
+  for Vim-style.
   Dired/dirvish and ghostel buffers turn line numbers off locally.
 - `dirvish` overrides `dired` globally (`dirvish-override-dired-mode`).
   `dirvish-hide-cursor nil` keeps a real (block) cursor visible instead of
@@ -339,8 +340,16 @@ source file is opened.
   `UserPromptSubmit`/`PreToolUse`→working, `Notification`→waiting, `Stop`→done,
   `SessionEnd`→`spawned`/hidden). State is per-instance, no persistence;
   ghostel terminals with no Claude session stay hidden, and dead-buffer entries
-  are pruned on each invocation. The hooks are `$NEOEMACS_GHOSTEL_ID`-guarded,
-  so they're no-ops in any non-ghostel terminal.
+  are pruned on each invocation. `init.el` also advises
+  `consult-claude-status` to put active Claude ghostel buffers in
+  `ghostel-char-mode` (`idle`/`working`/`waiting`/`done`) and restore
+  `ghostel-semi-char-mode` on `SessionEnd` only when it made that switch; this
+  keeps `evil-ghostel` from treating Claude's inline TUI like a shell prompt and
+  injecting cursor-sync keystrokes. Since `ghostel-char-mode-map` overrides the
+  insert-state minor-mode map, `init.el` also binds
+  `neoemacs/ghostel-escape-dwim` directly in that char-mode map so `Esc Esc`
+  still leaves insert state while a single `Esc` reaches Claude. The hooks are
+  `$NEOEMACS_GHOSTEL_ID`-guarded, so they're no-ops in any non-ghostel terminal.
 - `autorevert` (`global-auto-revert-mode`) reloads buffers whose backing file
   changed on disk when there are no unsaved edits;
   `global-auto-revert-non-file-buffers` extends this to dired listings. Reverts

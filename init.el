@@ -1194,6 +1194,11 @@ With no file at point, fall back to `magit-ediff-dwim'."
     (kbd "C-c") #'neoemacs/ghostel-send-current-control
     (kbd "C-x") #'neoemacs/ghostel-send-current-control)
 
+  ;; `ghostel-char-mode-map' is installed through `emulation-mode-map-alists',
+  ;; so it sees insert-state ESC before `evil-ghostel-mode-map' does.
+  (define-key ghostel-char-mode-map (kbd "<escape>")
+              #'neoemacs/ghostel-escape-dwim)
+
   ;; Let normal-state motion roam over animated output. Each redraw,
   ;; `ghostel--redraw-now' re-anchors any window following the live viewport
   ;; via `ghostel--anchor-window', whose final `set-window-point' snaps point
@@ -1248,8 +1253,42 @@ With no file at point, fall back to `magit-ediff-dwim'."
 (defvar neoemacs--ghostel-id-counter 0
   "Monotonic counter backing the per-buffer ghostel id.")
 
+(defvar neoemacs--ghostel-buffers-by-id (make-hash-table :test 'equal)
+  "Map ghostel ids to their buffers for Claude Code status side effects.")
+
 (defvar-local neoemacs--ghostel-id nil
   "This ghostel buffer's unique id, mirrored into $NEOEMACS_GHOSTEL_ID.")
+
+(defvar-local neoemacs--ghostel-claude-auto-char-mode nil
+  "Non-nil when Claude status tracking switched this buffer to char mode.")
+
+(defun neoemacs--ghostel-unregister-id ()
+  "Forget this buffer's ghostel id."
+  (when neoemacs--ghostel-id
+    (remhash neoemacs--ghostel-id neoemacs--ghostel-buffers-by-id)))
+
+(defun neoemacs--consult-claude-status-ghostel-char-mode
+    (id status &optional _tool _session-id)
+  "Keep active Claude Code ghostel buffers out of semi-char mode.
+Claude Code is an inline TUI rather than a shell prompt, so
+`evil-ghostel' must not drive cursor-sync keystrokes into its PTY."
+  (when-let ((buf (gethash id neoemacs--ghostel-buffers-by-id)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (pcase status
+          ('end
+           (when (and neoemacs--ghostel-claude-auto-char-mode
+                      (boundp 'ghostel--input-mode)
+                      (eq ghostel--input-mode 'char)
+                      (fboundp 'ghostel-semi-char-mode))
+             (setq neoemacs--ghostel-claude-auto-char-mode nil)
+             (ghostel-semi-char-mode)))
+          ((or 'idle 'working 'waiting 'done)
+           (when (and (boundp 'ghostel--input-mode)
+                      (eq ghostel--input-mode 'semi-char)
+                      (fboundp 'ghostel-char-mode))
+             (setq neoemacs--ghostel-claude-auto-char-mode t)
+             (ghostel-char-mode))))))))
 
 (defun neoemacs--ghostel-tag-env ()
   "`ghostel-pre-spawn-hook': tag this terminal and export its id to the child.
@@ -1258,6 +1297,9 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
   (let ((id (format "ghostel-%d-%d" (emacs-pid)
                     (cl-incf neoemacs--ghostel-id-counter))))
     (setq neoemacs--ghostel-id id)
+    (setq neoemacs--ghostel-claude-auto-char-mode nil)
+    (puthash id (current-buffer) neoemacs--ghostel-buffers-by-id)
+    (add-hook 'kill-buffer-hook #'neoemacs--ghostel-unregister-id nil t)
     (setenv "NEOEMACS_GHOSTEL_ID" id)
     ;; Register as `spawned' so a later SessionStart has an entry to flip.
     (consult-claude-register id (current-buffer) default-directory)))
@@ -1269,7 +1311,12 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 (use-package consult-claude
   :ensure nil
   :load-path "~/code/consult-claude"
-  :commands (consult-claude-sessions consult-claude-register consult-claude-status))
+  :commands (consult-claude-sessions consult-claude-register consult-claude-status)
+  :config
+  (unless (advice-member-p #'neoemacs--consult-claude-status-ghostel-char-mode
+                           'consult-claude-status)
+    (advice-add 'consult-claude-status
+                :after #'neoemacs--consult-claude-status-ghostel-char-mode)))
 
 ;;; --- Project navigation ----------------------------------------------------
 

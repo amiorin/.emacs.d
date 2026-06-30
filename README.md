@@ -69,7 +69,8 @@ M-x nerd-icons-install-fonts
   program.
 - **Claude Code sessions** — when Claude Code runs inside a ghostel terminal,
   `consult-claude` tracks each session's live status; `SPC c c` opens a switcher
-  to jump between them.
+  to jump between them. Active Claude buffers are switched to ghostel char mode
+  so Evil cursor-sync keys are never injected into the TUI.
 - **Help** — in Elisp buffers, `K` (normal state) opens Helpful for the symbol
   under point with no prompt and moves focus into the help window so you can
   scroll it and `q` to dismiss. `SPC h` is the help prefix.
