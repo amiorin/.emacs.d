@@ -1563,20 +1563,10 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; on the raw C-g byte (ASCII 7) in the terminal input stream. With `kkp'
   ;; active the Kitty Keyboard Protocol re-encodes C-g as an escape sequence
   ;; (ESC [ 103;5 u), so the blocking call never sees a quit and C-g cannot
-  ;; abort. Tear kkp down for the duration of the direnv run to restore the
-  ;; raw C-g byte, then re-enable it. No-op when kkp isn't active (e.g. GUI).
-  (defun neoemacs--envrc-export-restore-quit (orig-fn &rest args)
-    "Run ORIG-FN with kkp disabled so C-g aborts the direnv `call-process'."
-    (if (and (fboundp 'kkp--this-terminal-has-active-kkp-p)
-             (kkp--this-terminal-has-active-kkp-p))
-        (let ((terminal (kkp--selected-terminal)))
-          (unwind-protect
-              (progn
-                (kkp--terminal-teardown terminal)
-                (apply orig-fn args))
-            (kkp-enable-in-terminal terminal)))
-      (apply orig-fn args)))
-  (advice-add 'envrc--export :around #'neoemacs--envrc-export-restore-quit))
+  ;; abort. `kkp-restore-legacy-keys' restores the raw C-g byte for the
+  ;; duration of the advised call (no-op when kkp isn't active, e.g. GUI) --
+  ;; the upstream-supported replacement for the old hand-rolled teardown.
+  (advice-add 'envrc--export :around #'kkp-restore-legacy-keys))
 
 ;;; --- Server / EDITOR -------------------------------------------------------
 

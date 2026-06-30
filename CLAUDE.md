@@ -204,9 +204,9 @@ source file is opened.
   `C-g` as an escape sequence (`ESC [ 103;5 u`) instead of the raw byte 7, so
   Emacs's low-level quit detection during a blocking `call-process` can't see
   it. `envrc--export` runs direnv synchronously and advertises "C-g to abort",
-  so an `:around` advice (`neoemacs--envrc-export-restore-quit`) tears kkp down
-  for the duration of the call and re-enables it after — restoring the abort.
-  Any other synchronous command that relies on `C-g` would need the same.
+  so an `:around` advice (kkp's own `kkp-restore-legacy-keys`) restores the raw
+  C-g byte for the duration of the call — restoring the abort. Any other
+  synchronous command that relies on `C-g` would need the same advice.
 - Cursor: `evil-terminal-cursor-changer` reflects the evil state in the host
   terminal's cursor via DECSCUSR sequences (`cursor-type` alone only affects
   GUI Emacs). Shapes: normal/visual/motion = block, insert = bar,

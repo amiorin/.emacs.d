@@ -1939,18 +1939,10 @@ With a prefix arg (or non-nil HERE), start in the current
 <pre class="code">(use-package envrc
   :hook (after-init . envrc-global-mode)
   :config
-  (defun neoemacs--envrc-export-restore-quit (orig-fn &amp;rest args)
-    "Run ORIG-FN with kkp disabled so C-g aborts the direnv `call-process'."
-    (if (and (fboundp 'kkp--this-terminal-has-active-kkp-p)
-             (kkp--this-terminal-has-active-kkp-p))
-        (let ((terminal (kkp--selected-terminal)))
-          (unwind-protect
-              (progn
-                (kkp--terminal-teardown terminal)
-                (apply orig-fn args))
-            (kkp-enable-in-terminal terminal)))
-      (apply orig-fn args)))
-  (advice-add 'envrc--export :around #'neoemacs--envrc-export-restore-quit))</pre>
+  ;; kkp re-encodes C-g as an escape sequence, so it can't abort the blocking
+  ;; direnv `call-process'. `kkp-restore-legacy-keys' restores the raw C-g
+  ;; byte for the duration of the call (no-op when kkp isn't active).
+  (advice-add 'envrc--export :around #'kkp-restore-legacy-keys))</pre>
     <div class="prose">
       <p><strong>envrc</strong> applies each buffer's directory <code>.envrc</code> via
       <code>direnv</code> (needs the <code>direnv</code> executable on PATH).</p>
@@ -1961,9 +1953,9 @@ With a prefix arg (or non-nil HERE), start in the current
       runs direnv through a synchronous <code>call-process</code> and advertises "C-g to
       abort." That abort relies on Emacs seeing the raw <kbd>C-g</kbd> byte (ASCII 7) — but
       kkp re-encodes it as <code>ESC [ 103;5 u</code>, so the blocking call never sees the
-      quit. The <code>:around</code> advice tears kkp down for the duration (restoring the
-      raw byte), runs the export, and an <code>unwind-protect</code> re-enables kkp
-      afterward no matter what. When kkp isn't active (e.g. GUI), it just calls through.</div>
+      quit. kkp's own <code>kkp-restore-legacy-keys</code> <code>:around</code> advice
+      restores the raw byte for the duration of the export and puts kkp back afterward
+      no matter what. When kkp isn't active (e.g. GUI), it just calls through.</div>
     </div>
   </div>
 
