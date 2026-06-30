@@ -909,15 +909,28 @@ Wraps the affixation-function returned further down the advice chain
 ;; Magit: Git interface.
 (use-package magit
   :bind (("C-x g" . magit-status)
-         ;; In magit-status, `e' diffs the working tree against HEAD via ediff
-         ;; (overrides the default `magit-ediff-dwim').
+         ;; In magit-status, `e' on a file ediffs its working-tree version
+         ;; against HEAD as a plain 2-buffer diff (the index is ignored),
+         ;; overriding the default `magit-ediff-dwim'.
          :map magit-status-mode-map
-         ("e" . magit-ediff-show-working-tree))
+         ("e" . neoemacs/magit-ediff-working-vs-head))
   :custom
   ;; Open magit-status in the current window instead of splitting; diffs and
   ;; other secondary buffers still pop to another window as usual.
   (magit-display-buffer-function
-   #'magit-display-buffer-same-window-except-diff-v1))
+   #'magit-display-buffer-same-window-except-diff-v1)
+  :config
+  (defun neoemacs/magit-ediff-working-vs-head ()
+    "Ediff the file at point's working-tree version against its HEAD version.
+A plain two-buffer ediff (the index is not involved), unlike
+`magit-ediff-show-working-tree' which opens a three-way session.
+With no file at point, fall back to `magit-ediff-dwim'."
+    (interactive)
+    (let ((file (magit-current-file)))
+      (if file
+          ;; REVB nil selects the working tree; REVA \"HEAD\" the committed version.
+          (magit-ediff-compare "HEAD" nil file file)
+        (call-interactively #'magit-ediff-dwim)))))
 
 ;; Transient: the popup-menu engine behind magit (and many other packages).
 ;; Make `<escape>' an alias for `C-g' (transient-quit-one) so pressing Esc backs
