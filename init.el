@@ -567,7 +567,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    :states 'normal
    :keymaps 'override
    "-" 'dired-jump
-   "ff" 'neoemacs/consult-recent-file)
+   "ff" 'neoemacs/consult-recent-file
+   "fd" 'neoemacs/consult-dir)
   ;; s-hjkl: move between windows.
   (general-define-key
    :keymaps 'override
