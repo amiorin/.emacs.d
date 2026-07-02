@@ -12,11 +12,21 @@
 
 ;; `package-enable-at-startup' is disabled in early-init.el, so set the package
 ;; system up explicitly here.
-(require 'package)
-(setq package-archives
-      '(("gnu"    . "https://elpa.gnu.org/packages/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-        ("melpa"  . "https://melpa.org/packages/")))
+;;
+;; package.el itself is deliberately NOT loaded on the warm path: requiring it
+;; costs ~90ms, almost all of it the `url'/`browse-url'/`auth-source' subtree it
+;; pulls in -- and none of that is needed unless a package is actually being
+;; installed. The quickstart bundle below performs the activation on its own,
+;; and the `use-package-ensure-function' shim further down keeps `:ensure' from
+;; force-loading package.el for packages that are already active. The archives
+;; are configured via `with-eval-after-load' so they're in place whenever
+;; package.el *does* load (first-run bootstrap, `M-x package-install',
+;; `list-packages', or the ensure fallback installing something new).
+(with-eval-after-load 'package
+  (setq package-archives
+        '(("gnu"    . "https://elpa.gnu.org/packages/")
+          ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+          ("melpa"  . "https://melpa.org/packages/"))))
 
 ;; Fast activation via `package-quickstart'. A full `package-initialize' scans
 ;; every installed package's directory and `*-autoloads.el' on each startup
@@ -27,12 +37,12 @@
 ;; package is installed or removed, so it never goes stale.
 ;;
 ;; We deliberately skip the full `package-initialize': the quickstart file
-;; populates `package-activated-list', and `package-installed-p' short-circuits
-;; on that list while `package--initialized' is nil (its documented "usable
-;; before package is fully initialized" path), so `use-package's `:ensure' is
-;; satisfied without the expensive descriptor scan. The final branch handles the
-;; first run (or a deleted quickstart file): full-initialize once, then build the
-;; quickstart file so every subsequent startup takes the fast path.
+;; populates `package-activated-list', which the `:ensure' shim below (see
+;; `neoemacs--use-package-ensure') consults directly -- so `use-package's
+;; `:ensure' is satisfied without loading package.el at all, let alone the
+;; expensive descriptor scan. The final branch handles the first run (or a
+;; deleted quickstart file): full-initialize once, then build the quickstart
+;; file so every subsequent startup takes the fast path.
 ;;
 ;; Load the bundle by its *suffix-less* name: `load' appends `load-suffixes'
 ;; (".elc" then ".el"), so it resolves the same compiled-first preference, and
@@ -56,12 +66,27 @@
   (package-initialize)
   (package-quickstart-refresh))
 
-;; Ensure use-package is available.
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
+;; use-package ships with Emacs (29+), so it's require-able without package.el
+;; or any installation step.
 (require 'use-package)
 (setq use-package-always-ensure t)
+
+;; `:ensure' shim: `use-package-ensure-elpa' begins with `(require 'package)',
+;; so with `use-package-always-ensure' every single `use-package' form would
+;; drag package.el (and its ~90ms url subtree) onto the startup path just to
+;; conclude the package is already installed. The quickstart bundle has
+;; already populated `package-activated-list', so consult that first and only
+;; fall through to the real ensure machinery -- which loads package.el and
+;; installs from the archives -- when the package isn't active, i.e. exactly
+;; the "new `use-package' form was just added" case. (The shim checks NAME,
+;; which is also the ensured package for the `:ensure t' forms this config
+;; uses; an `:ensure other-name' form would take the fallback path, which
+;; handles it correctly, just less cheaply.)
+(defun neoemacs--use-package-ensure (name args state &optional no-refresh)
+  "Ensure NAME is installed, without loading package.el when already active."
+  (or (memq name (bound-and-true-p package-activated-list))
+      (use-package-ensure-elpa name args state no-refresh)))
+(setq use-package-ensure-function #'neoemacs--use-package-ensure)
 
 ;;; --- Core editor settings --------------------------------------------------
 
@@ -140,12 +165,16 @@
               (global-hl-line-highlight))))
 
 ;; recentf: track recently opened files (used by `consult-recent-file').
+;; Deferred to `emacs-startup-hook' (after the first paint, before any input
+;; is processed): enabling the mode reads the recentf save file from disk,
+;; and nothing consults the list until the first `SPC f r'/`SPC f d'.
 (use-package recentf
   :ensure nil
+  :defer t
   :custom
   (recentf-max-saved-items 100)
   :init
-  (recentf-mode 1)
+  (add-hook 'emacs-startup-hook (lambda () (recentf-mode 1)))
   :config
   ;; Multiple Emacs instances each keep their own in-memory `recentf-list'
   ;; and overwrite the shared save file on exit, losing the other's entries.
@@ -210,13 +239,16 @@
 ;; buffer has no unsaved edits. `global-auto-revert-non-file-buffers' extends
 ;; this to dired/dirvish (and other non-file buffers) so directory listings
 ;; refresh too. Reverts are silent (`auto-revert-verbose nil').
+;; Deferred to `emacs-startup-hook': no file buffer exists before the first
+;; paint, so there's nothing to revert during init.
 (use-package autorevert
   :ensure nil
+  :defer t
   :custom
   (global-auto-revert-non-file-buffers t)
   (auto-revert-verbose nil)
   :init
-  (global-auto-revert-mode 1))
+  (add-hook 'emacs-startup-hook (lambda () (global-auto-revert-mode 1))))
 
 ;;; --- Appearance: theme, icons, modeline ------------------------------------
 
@@ -272,8 +304,15 @@
               #'neoemacs/escape-clear-search))
 
 ;; Evil-collection: Evil bindings for the rest of Emacs.
+;; Deferred to `emacs-startup-hook' (after the first paint): `evil-collection-init'
+;; immediately requires the per-mode binding file for every feature that's
+;; already loaded (simple, help, info, dired, ...) -- a long tail of small
+;; loads that adds up on the critical path.  The hook runs before any user
+;; input is processed, so the bindings are in place for the first keystroke.
 (use-package evil-collection
-  :after evil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'evil-collection)))
   :config
   ;; Don't load evil bindings for magit — keep its native keymap.
   (setq evil-collection-mode-list (delq 'magit evil-collection-mode-list))
@@ -327,8 +366,13 @@
 ;; terminal where there's no other visual cue. `evil-goggles-use-diff-faces'
 ;; tints adds/deletes with the `diff-added'/`diff-removed' faces. Pulsing is
 ;; disabled (steady flash) since pulse animation is costly over a terminal.
+;; Deferred to `emacs-startup-hook': the flash only matters once you edit, and
+;; `evil-goggles-use-diff-faces' drags in all of diff-mode for its faces --
+;; neither belongs on the pre-paint path.
 (use-package evil-goggles
-  :after evil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'evil-goggles)))
   :config
   (setq evil-goggles-duration 0.1
         evil-goggles-pulse nil)
@@ -340,8 +384,12 @@
 ;; whose `global-anzu-mode' installs the mode-line indicator; evil-anzu wires
 ;; anzu's counter into evil's search so the count updates as you type and on
 ;; `n'/`N'. The indicator clears when the search highlight is cleared.
+;; Deferred to `emacs-startup-hook': the counter can't be needed before the
+;; first `/' search, and anzu (which it pulls in) isn't free.
 (use-package evil-anzu
-  :after evil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'evil-anzu)))
   :config
   (global-anzu-mode +1))
 
@@ -624,8 +672,13 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
   (setq vundo-glyph-alist vundo-unicode-symbols))
 
 ;; which-key: popup showing available keybindings.
+;; Deferred to `emacs-startup-hook': the popup only appears ~1s after a held
+;; prefix key, so it can never be needed before startup finishes.
 (use-package which-key
   :ensure nil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'which-key)))
   :config
   ;; Mirrors Doom's which-key tuning for readability.
   (setq which-key-sort-order #'which-key-key-order-alpha
@@ -1037,10 +1090,16 @@ With no file at point, fall back to `magit-ediff-dwim'."
 ;;; --- Dired / file management -----------------------------------------------
 
 ;; Dirvish: a polished dired replacement with previews and icons.
+;; Deferred to `emacs-startup-hook': `dirvish-override-dired-mode' (an
+;; autoload) loads dirvish *and* dired, ~70ms that isn't needed until the
+;; first dired buffer -- and the hook still arms the override before any
+;; input is processed.  nerd-icons and general are both loaded during init,
+;; so they're guaranteed up by the time the hook (and dirvish's `:config',
+;; which uses `general-define-key') runs.
 (use-package dirvish
-  :after (nerd-icons general)
+  :defer t
   :init
-  (dirvish-override-dired-mode 1)
+  (add-hook 'emacs-startup-hook (lambda () (dirvish-override-dired-mode 1)))
   ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a file
   ;; manager has no use for it, so switch it back off in dired/dirvish buffers.
   (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))

@@ -19,7 +19,12 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
   disabling UI chrome / the built-in package autoloader. It also suppresses
   redisplay/messages until startup finishes so the first visible frame is
   already themed. Both perf hacks and redisplay suppression are *restored* on
-  `emacs-startup-hook`; keep that pairing intact when editing.
+  `emacs-startup-hook`, with explicit hook depths: the redisplay restore is at
+  depth **-99** (paint first) and the GC/file-handler restores at depth **99**
+  (stay cheap for the rest of the hook), because init.el defers a batch of
+  package loads to depth-0 `emacs-startup-hook` entries that must run *after*
+  the first paint and *before* the perf hacks are unwound. Keep the pairing
+  and the depths intact when editing.
 - `init.el` — the real configuration: package bootstrap followed by one
   `use-package` form per package.
 - `README.md` — user-facing overview, install notes, and keybinding table.
@@ -39,11 +44,28 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
   'nomessage)`) for fast startup, falling back to one full `package-initialize` +
   `package-quickstart-refresh` when the bundle is missing. See the load-suffix
   rule under *Notable conventions* for why it isn't loaded as `.elc`.
-- `use-package-always-ensure t`: every `use-package` auto-installs from ELPA.
+- **package.el itself never loads on the warm path** (~90ms saved, mostly its
+  `url`/`browse-url`/`auth-source` subtree). The archives are set inside
+  `with-eval-after-load 'package`, and `use-package-ensure-function` is
+  `neoemacs--use-package-ensure`, a shim that short-circuits when the package
+  is already in `package-activated-list` (populated by the quickstart bundle)
+  and only falls through to `use-package-ensure-elpa` — which requires
+  package.el and installs — for a package that isn't active yet. Don't
+  reintroduce a top-level `(require 'package)`.
+- `use-package-always-ensure t`: every `use-package` auto-installs from ELPA
+  (via the shim above, so a newly added form still installs on next startup).
   For packages that ship with Emacs (e.g. `recentf`, `which-key`) add
   `:ensure nil` so it doesn't try to fetch them. Packages loaded from a local
   checkout (`consult-claude`, and currently `kkp` — see the kkp bullet under
   *Notable conventions*) use `:ensure nil` + `:load-path`.
+- **Startup-hook deferral pattern:** packages that are needed for the first
+  keystroke but not for the first *paint* (`evil-collection`, `dirvish`,
+  `which-key`, `recentf`, `autorevert`, `evil-goggles`, `evil-anzu`, plus the
+  earlier `corfu`/`diff-hl`/`apheleia`/`server` deferrals) are `:defer t` and
+  loaded from a depth-0 `emacs-startup-hook` lambda. Thanks to the early-init
+  hook depths (see *Layout*), those loads happen after the themed frame is
+  painted but before any queued input is processed, so they're invisible to
+  the user and off `emacs-init-time` (~0.32s warm, was ~0.53s).
 
 ## Keybinding architecture
 

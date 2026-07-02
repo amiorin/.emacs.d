@@ -111,8 +111,9 @@
   <div class="intro">
     <h2>The config, explained side by side</h2>
     <p>This is a personal terminal-Emacs configuration (<code>emacs -nw</code> inside
-    zellij) living at <code>~/.config/neoemacs</code>. It bootstraps
-    <code>package.el</code> + <code>use-package</code>, then configures one package per
+    zellij) living at <code>~/.config/neoemacs</code>. It bootstraps the package system
+    (quickstart activation + <code>use-package</code>, without loading
+    <code>package.el</code> itself), then configures one package per
     form. On the left are the relevant elisp blocks from <code>init.el</code>; on the
     right is the explanation, including the <em>why</em> and the terminal-specific gotchas.</p>
   </div>
@@ -123,22 +124,28 @@
   <div class="row">
 <pre class="code">;;; --- Package system ---
 
-(require 'package)
-(setq package-archives
-      '(("gnu"    . "https://elpa.gnu.org/packages/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-        ("melpa"  . "https://melpa.org/packages/")))
+(with-eval-after-load 'package
+  (setq package-archives
+        '(("gnu"    . "https://elpa.gnu.org/packages/")
+          ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+          ("melpa"  . "https://melpa.org/packages/"))))
 (setq package-quickstart t)
 (unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
   (package-initialize)
   (package-quickstart-refresh))</pre>
     <div class="prose">
-      <p><code>require 'package</code> loads the built-in package manager.</p>
+      <p><code>package.el</code> is deliberately <em>not</em> loaded on a normal startup:
+      requiring it costs ~90ms, almost all of it the <code>url</code> /
+      <code>browse-url</code> / <code>auth-source</code> subtree it pulls in — and none of
+      that is needed unless a package is actually being installed. The quickstart bundle
+      performs the activation on its own.</p>
       <p><code>package-archives</code> declares the three repositories packages are fetched
       from: <strong>GNU ELPA</strong> (the official, copyright-assigned archive),
       <strong>NonGNU ELPA</strong> (free packages without copyright assignment), and
-      <strong>MELPA</strong> (the large community archive). Each entry is a
-      <code>(name . url)</code> cons cell.</p>
+      <strong>MELPA</strong> (the large community archive). Wrapped in
+      <code>with-eval-after-load</code>, they're in place whenever package.el <em>does</em>
+      load — the first-run bootstrap, <code>M-x package-install</code>, or the
+      <code>:ensure</code> fallback below installing something new.</p>
       <p><code>package-quickstart</code> makes package.el maintain a single quickstart file
       containing package autoloads, load paths, and the activated package list. Loading
       that compiled bundle is much faster than scanning every installed package directory
@@ -162,18 +169,27 @@
   </div>
 
   <div class="row">
-<pre class="code">(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-(require 'use-package)
-(setq use-package-always-ensure t)</pre>
+<pre class="code">(require 'use-package)
+(setq use-package-always-ensure t)
+
+(defun neoemacs--use-package-ensure (name args state &optional no-refresh)
+  "Ensure NAME is installed, without loading package.el when already active."
+  (or (memq name (bound-and-true-p package-activated-list))
+      (use-package-ensure-elpa name args state no-refresh)))
+(setq use-package-ensure-function #'neoemacs--use-package-ensure)</pre>
     <div class="prose">
-      <p>Self-bootstrapping: if <code>use-package</code> isn't installed yet (first ever
-      launch), download the archive contents index (<code>package-refresh-contents</code>)
-      and install it. On every subsequent launch the <code>unless</code> is a no-op.</p>
-      <p><code>require</code> then loads it, and
-      <code>use-package-always-ensure&nbsp;t</code> makes <em>every</em>
+      <p><code>use-package</code> ships with Emacs 29+, so it's require-able directly —
+      no install step, no package.el needed.</p>
+      <p><code>use-package-always-ensure&nbsp;t</code> makes <em>every</em>
       <code>use-package</code> form auto-install its package from ELPA if missing.</p>
+      <div class="why"><span class="tag">Why the shim</span> the stock
+      <code>use-package-ensure-elpa</code> begins with <code>(require 'package)</code>, so
+      with <code>always-ensure</code> every single form would drag package.el (and its
+      ~90ms url subtree) back onto the startup path just to conclude the package is
+      already installed. The shim consults <code>package-activated-list</code> — already
+      populated by the quickstart bundle — and only falls through to the real ensure
+      machinery for a package that isn't active yet, i.e. exactly the "new
+      <code>use-package</code> form was just added" case.</div>
       <div class="gotcha"><span class="tag">Gotcha</span> Because of <code>always-ensure</code>,
       packages that <em>ship with Emacs</em> (like <code>recentf</code>, <code>which-key</code>,
       <code>ediff</code>) must add <code>:ensure nil</code> — otherwise use-package tries
@@ -298,10 +314,11 @@
   <div class="row">
 <pre class="code">(use-package recentf
   :ensure nil
+  :defer t
   :custom
   (recentf-max-saved-items 100)
   :init
-  (recentf-mode 1)
+  (add-hook 'emacs-startup-hook (lambda () (recentf-mode 1)))
   :config
   ;; Re-read the on-disk list and merge it into the in-memory one so the last
   ;; writer wins without discarding what a concurrent instance recorded.
@@ -372,16 +389,19 @@
   <div class="row">
 <pre class="code">(use-package autorevert
   :ensure nil
+  :defer t
   :custom
   (global-auto-revert-non-file-buffers t)
   (auto-revert-verbose nil)
   :init
-  (global-auto-revert-mode 1))</pre>
+  (add-hook 'emacs-startup-hook (lambda () (global-auto-revert-mode 1))))</pre>
     <div class="prose">
       <p><code>autorevert</code> reloads a buffer whose backing file changed on disk, as long
       as the buffer has no unsaved edits. <code>global-auto-revert-non-file-buffers</code>
       extends this to dired/dirvish (and other non-file buffers), so directory listings
-      refresh too. Reverts are silent (<code>auto-revert-verbose nil</code>).</p>
+      refresh too. Reverts are silent (<code>auto-revert-verbose nil</code>). Enabled from
+      <code>emacs-startup-hook</code> — no file buffer can exist before startup finishes, so
+      the load stays off the pre-paint path.</p>
     </div>
   </div>
 
@@ -475,14 +495,20 @@
 
   <div class="row">
 <pre class="code">(use-package evil-collection
-  :after evil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'evil-collection)))
   :config
   (setq evil-collection-mode-list (delq 'magit evil-collection-mode-list))
   (evil-collection-init))</pre>
     <div class="prose">
       <p><code>evil-collection</code> supplies consistent Evil bindings for hundreds of
-      built-in and third-party modes (dired, help, magit, …). <code>:after evil</code>
-      orders it after Evil.</p>
+      built-in and third-party modes (dired, help, magit, …). It loads from
+      <code>emacs-startup-hook</code>: <code>evil-collection-init</code> immediately requires
+      the per-mode binding file for every feature that's already loaded (simple, help,
+      info, …) — a long tail of small loads that would otherwise sit on the pre-paint
+      path. The hook still runs before any user input is processed, so the bindings are
+      in place for the first keystroke.</p>
       <p><code>delq 'magit …</code> removes magit from the list of modes it will touch
       <em>before</em> <code>evil-collection-init</code> applies the rest.</p>
       <div class="why"><span class="tag">Why drop magit</span> Magit's native keymap is
@@ -552,7 +578,9 @@
 
   <div class="row">
 <pre class="code">(use-package evil-goggles
-  :after evil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'evil-goggles)))
   :config
   (setq evil-goggles-duration 0.1
         evil-goggles-pulse nil)
@@ -561,13 +589,18 @@
     <div class="prose">
       <p><code>evil-goggles</code> briefly highlights the text affected by edits such as
       yank, delete, change, paste, and indent. Diff faces make additions/deletions easy
-      to spot, while pulse animation is disabled to keep terminal redraws cheap.</p>
+      to spot, while pulse animation is disabled to keep terminal redraws cheap. Loaded
+      from <code>emacs-startup-hook</code>: the flash only matters once you edit, and
+      <code>evil-goggles-use-diff-faces</code> drags in all of <code>diff-mode</code> for
+      its faces.</p>
     </div>
   </div>
 
   <div class="row">
 <pre class="code">(use-package evil-anzu
-  :after evil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'evil-anzu)))
   :config
   (global-anzu-mode +1))</pre>
     <div class="prose">
@@ -964,6 +997,9 @@ With a prefix arg (or non-nil HERE), start in the current
   <div class="row">
 <pre class="code">(use-package which-key
   :ensure nil
+  :defer t
+  :init
+  (add-hook 'emacs-startup-hook (lambda () (require 'which-key)))
   :config
   (setq which-key-sort-order #'which-key-key-order-alpha
         which-key-sort-uppercase-first nil
@@ -978,7 +1014,9 @@ With a prefix arg (or non-nil HERE), start in the current
     <div class="prose">
       <p><code>which-key</code> shows a popup of the available follow-up keys after you
       start a prefix (this is what renders the leader menu labels). <code>:ensure nil</code>
-      because it's built in to modern Emacs.</p>
+      because it's built in to modern Emacs. Loaded from <code>emacs-startup-hook</code> —
+      the popup only appears about a second after a held prefix key, so it can never be
+      needed before startup finishes.</p>
       <p>The settings mirror Doom's which-key tuning for readability: alphabetical key
       ordering (lowercase first), one column of padding, no cap on the number of columns, at
       least six display lines, and the popup pinned to the bottom side window
@@ -1370,9 +1408,9 @@ With a prefix arg (or non-nil HERE), start in the current
 
   <div class="row">
 <pre class="code">(use-package dirvish
-  :after (nerd-icons general)
+  :defer t
   :init
-  (dirvish-override-dired-mode 1)
+  (add-hook 'emacs-startup-hook (lambda () (dirvish-override-dired-mode 1)))
   (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
   :custom
   (dirvish-attributes '(nerd-icons subtree-state))
@@ -1400,8 +1438,10 @@ With a prefix arg (or non-nil HERE), start in the current
     <div class="prose">
       <p><strong>Dirvish</strong> upgrades dired with previews and icons.
       <code>dirvish-override-dired-mode</code> makes it the default for <em>all</em> dired.
-      <code>:after (nerd-icons general)</code> ensures icons and the keybinding DSL are
-      ready.</p>
+      It's armed from <code>emacs-startup-hook</code>: the autoload pulls in dirvish
+      <em>and</em> dired (~70ms) that isn't needed until the first dired buffer, and the
+      hook runs after the first paint but before any input — with nerd-icons and general
+      (which the <code>:config</code> keybindings need) both guaranteed loaded by then.</p>
       <ul>
         <li>The dired hook disables line numbers in file-manager buffers.</li>
         <li><code>dirvish-attributes</code> — show icons and subtree-expansion state.
