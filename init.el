@@ -1421,12 +1421,10 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 (use-package eglot
   :ensure nil
   :defer t
-  :hook ((astro-ts-mode                 . eglot-ensure)
-         (typescript-ts-mode            . eglot-ensure)
-         (tsx-ts-mode                   . eglot-ensure)
-         (clojure-ts-mode               . eglot-ensure)
-         (clojure-ts-clojurescript-mode . eglot-ensure)
-         (clojure-ts-clojurec-mode      . eglot-ensure))
+  :hook ((astro-ts-mode typescript-ts-mode tsx-ts-mode
+			clojure-ts-mode clojure-ts-clojurescript-mode
+			clojure-ts-clojurec-mode)
+         . eglot-ensure)
   :config
   ;; The Astro language server (`@astrojs/language-server', binary `astro-ls';
   ;; install with `npm i -g @astrojs/language-server'). It needs to be pointed at
@@ -1487,11 +1485,10 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 ;; nothing until such a buffer is opened. `evil-cleverparens' (below) layers its
 ;; evil-motion slurp/barf/wrap commands on top of this.
 (use-package smartparens
-  :hook ((emacs-lisp-mode               . smartparens-strict-mode)
-         (lisp-interaction-mode         . smartparens-strict-mode)
-         (clojure-ts-mode               . smartparens-strict-mode)
-         (clojure-ts-clojurescript-mode . smartparens-strict-mode)
-         (clojure-ts-clojurec-mode      . smartparens-strict-mode))
+  :hook ((emacs-lisp-mode lisp-interaction-mode
+			  clojure-ts-mode clojure-ts-clojurescript-mode
+			  clojure-ts-clojurec-mode)
+         . smartparens-strict-mode)
   :config
   (require 'smartparens-config))
 
@@ -1501,11 +1498,10 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 ;; on the Lisp-family modes -- the Clojure tree-sitter modes plus Emacs Lisp --
 ;; matching where `smartparens-strict-mode' runs.
 (use-package evil-cleverparens
-  :hook ((emacs-lisp-mode               . evil-cleverparens-mode)
-         (lisp-interaction-mode         . evil-cleverparens-mode)
-         (clojure-ts-mode               . evil-cleverparens-mode)
-         (clojure-ts-clojurescript-mode . evil-cleverparens-mode)
-         (clojure-ts-clojurec-mode      . evil-cleverparens-mode))
+  :hook ((emacs-lisp-mode lisp-interaction-mode
+			  clojure-ts-mode clojure-ts-clojurescript-mode
+			  clojure-ts-clojurec-mode)
+         . evil-cleverparens-mode)
   :bind (:map evil-cleverparens-mode-map
               ("M-5" . evil-cp-wrap-next-square)
               ("M-]" . evil-cp-wrap-previous-square))
@@ -1518,11 +1514,10 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 ;; Emacs Lisp. Deferred via `:hook', so it costs nothing until such a buffer
 ;; is opened.
 (use-package rainbow-delimiters
-  :hook ((emacs-lisp-mode               . rainbow-delimiters-mode)
-         (lisp-interaction-mode         . rainbow-delimiters-mode)
-         (clojure-ts-mode               . rainbow-delimiters-mode)
-         (clojure-ts-clojurescript-mode . rainbow-delimiters-mode)
-         (clojure-ts-clojurec-mode      . rainbow-delimiters-mode)))
+  :hook ((emacs-lisp-mode lisp-interaction-mode
+			  clojure-ts-mode clojure-ts-clojurescript-mode
+			  clojure-ts-clojurec-mode)
+         . rainbow-delimiters-mode))
 
 ;; cider: nREPL-connected REPL, inline eval, debugger, test runner -- the
 ;; runtime half of Clojure dev, complementary to clojure-lsp's static analysis

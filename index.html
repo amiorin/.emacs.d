@@ -1818,12 +1818,10 @@ With a prefix arg (or non-nil HERE), start in the current
 <pre class="code">(use-package eglot
   :ensure nil
   :defer t
-  :hook ((astro-ts-mode                 . eglot-ensure)
-         (typescript-ts-mode            . eglot-ensure)
-         (tsx-ts-mode                   . eglot-ensure)
-         (clojure-ts-mode               . eglot-ensure)
-         (clojure-ts-clojurescript-mode . eglot-ensure)
-         (clojure-ts-clojurec-mode      . eglot-ensure))
+  :hook ((astro-ts-mode typescript-ts-mode tsx-ts-mode
+          clojure-ts-mode clojure-ts-clojurescript-mode
+          clojure-ts-clojurec-mode)
+         . eglot-ensure)
   :config
   (add-to-list 'eglot-server-programs
                '(astro-ts-mode . ("astro-ls" "--stdio"
@@ -1859,20 +1857,18 @@ With a prefix arg (or non-nil HERE), start in the current
 ;; Structural editing on the Lisp-family modes: the tree-sitter Clojure modes
 ;; AND emacs-lisp-mode / lisp-interaction-mode.
 (use-package smartparens
-  :hook ((emacs-lisp-mode               . smartparens-strict-mode)
-         (lisp-interaction-mode         . smartparens-strict-mode)
-         (clojure-ts-mode               . smartparens-strict-mode)
-         (clojure-ts-clojurescript-mode . smartparens-strict-mode)
-         (clojure-ts-clojurec-mode      . smartparens-strict-mode))
+  :hook ((emacs-lisp-mode lisp-interaction-mode
+          clojure-ts-mode clojure-ts-clojurescript-mode
+          clojure-ts-clojurec-mode)
+         . smartparens-strict-mode)
   :config
   (require 'smartparens-config))
 
 (use-package evil-cleverparens
-  :hook ((emacs-lisp-mode               . evil-cleverparens-mode)
-         (lisp-interaction-mode         . evil-cleverparens-mode)
-         (clojure-ts-mode               . evil-cleverparens-mode)
-         (clojure-ts-clojurescript-mode . evil-cleverparens-mode)
-         (clojure-ts-clojurec-mode      . evil-cleverparens-mode))
+  :hook ((emacs-lisp-mode lisp-interaction-mode
+          clojure-ts-mode clojure-ts-clojurescript-mode
+          clojure-ts-clojurec-mode)
+         . evil-cleverparens-mode)
   :bind (:map evil-cleverparens-mode-map
               ("M-5" . evil-cp-wrap-next-square)
               ("M-]" . evil-cp-wrap-previous-square))
@@ -1880,11 +1876,10 @@ With a prefix arg (or non-nil HERE), start in the current
   (setq evil-cleverparens-use-additional-bindings t))
 
 (use-package rainbow-delimiters
-  :hook ((emacs-lisp-mode               . rainbow-delimiters-mode)
-         (lisp-interaction-mode         . rainbow-delimiters-mode)
-         (clojure-ts-mode               . rainbow-delimiters-mode)
-         (clojure-ts-clojurescript-mode . rainbow-delimiters-mode)
-         (clojure-ts-clojurec-mode      . rainbow-delimiters-mode)))
+  :hook ((emacs-lisp-mode lisp-interaction-mode
+          clojure-ts-mode clojure-ts-clojurescript-mode
+          clojure-ts-clojurec-mode)
+         . rainbow-delimiters-mode))
 
 (use-package cider
   :after clojure-ts-mode
