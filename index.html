@@ -1793,13 +1793,13 @@ With a prefix arg (or non-nil HERE), start in the current
          ("\\.cljs\\'" . clojure-ts-clojurescript-mode)
          ("\\.cljc\\'" . clojure-ts-clojurec-mode)
          ("\\.edn\\'"  . clojure-ts-mode))
-  :init
+  :config
   (neoemacs--ensure-treesit-grammars 'clojure))</pre>
     <div class="prose">
       <p><strong>Tree-sitter major modes.</strong> <code>treesit-language-source-alist</code>
       is populated eagerly (just an alist) so each grammar's fetch/build recipe is known;
       <code>neoemacs--ensure-treesit-grammars</code> runs the slow git-clone + C compile
-      lazily from a mode's <code>:config</code>/<code>:init</code>, and only when a grammar is
+      lazily from a mode's <code>:config</code>, and only when a grammar is
       missing — never on the startup path.</p>
       <ul>
         <li><code>typescript-ts-mode</code> / <code>tsx-ts-mode</code> ship with Emacs

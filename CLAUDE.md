@@ -150,7 +150,7 @@ source file is opened.
 - **Tree-sitter grammars.** `treesit-language-source-alist` is populated
   eagerly (it's just an alist) for `astro`, `css`, `clojure`, `typescript`, and
   `tsx`. `neoemacs--ensure-treesit-grammars` runs the slow git-clone + C compile
-  lazily from each mode's `:config`/`:init`, and only when a grammar is missing.
+  lazily from each mode's `:config`, and only when a grammar is missing.
   Major modes: `typescript-ts-mode`/`tsx-ts-mode` (built in, `:ensure nil`),
   `astro-ts-mode` (needs the css + tsx grammars too, since Astro injects other
   languages), and the `clojure-ts-mode` family (`.clj`/`.cljs`/`.cljc`/`.edn`).

@@ -1408,7 +1408,7 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
          ("\\.cljs\\'" . clojure-ts-clojurescript-mode)
          ("\\.cljc\\'" . clojure-ts-clojurec-mode)
          ("\\.edn\\'"  . clojure-ts-mode))
-  :init
+  :config
   (neoemacs--ensure-treesit-grammars 'clojure))
 
 ;; --- LSP via eglot ---------------------------------------------------------
