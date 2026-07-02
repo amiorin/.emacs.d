@@ -514,6 +514,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "SPC" '(projectile-find-file :which-key "find file in project")
     ","  '(consult-buffer :which-key "switch buffer")
     ":"  '(eval-expression :which-key "eval expression")
+    "x"  '(execute-extended-command :which-key "M-x")
     "f"  '(:ignore t :which-key "files")
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
@@ -1112,7 +1113,12 @@ With no file at point, fall back to `magit-ediff-dwim'."
 
 ;; kkp: Kitty Keyboard Protocol support for terminal Emacs, enabling
 ;; key combinations the terminal would otherwise swallow (e.g. C-S-x).
+;; Loaded from the local clone until the legacy-keys restore fix (re-assert
+;; flags after the pop, for stack-less terminals like zellij) lands upstream
+;; and reaches MELPA -- then this can go back to the plain ELPA package.
 (use-package kkp
+  :ensure nil
+  :load-path "~/code/kkp"
   :config
   (global-kkp-mode 1))
 

@@ -14,7 +14,10 @@ emacs --init-directory ~/.config/neoemacs   # Emacs 29+
 ```
 
 On first launch the package system fetches everything from GNU ELPA, NonGNU
-ELPA, and MELPA automatically. After that, install the icon fonts once:
+ELPA, and MELPA automatically — except two packages loaded from local clones:
+`consult-claude` (from `~/code/consult-claude`) and, temporarily until an
+upstream fix reaches MELPA, `kkp` (from `~/code/kkp`). After that, install the
+icon fonts once:
 
 ```
 M-x nerd-icons-install-fonts
@@ -32,8 +35,7 @@ M-x nerd-icons-install-fonts
   suspended while a selection is active so it doesn't obscure the selected
   region.
 - **Keybindings** — [general](https://github.com/noctuid/general.el) with a
-  `SPC` leader and [which-key](https://github.com/justbur/emacs-which-key)
-  popups.
+  `SPC` leader and which-key popups (the which-key that ships with Emacs).
 - **Completion & actions** — vertico, vertico-directory, orderless,
   marginalia, nerd-icons-completion, consult, consult-dir (jump/re-root by
   directory from the minibuffer), embark, embark-consult, and wgrep. In-buffer
@@ -113,6 +115,7 @@ elsewhere.
 | `SPC SPC` | find file in project            |
 | `SPC ,`   | switch buffer                   |
 | `SPC :`   | eval expression                 |
+| `SPC x`   | M-x (execute command)           |
 | `SPC /`   | search in project (ripgrep)     |
 | `SPC f f` | find file                       |
 | `SPC f p` | find file in this config        |
@@ -149,12 +152,14 @@ elsewhere.
 | `j` / `k` | down / up by visual line (`gj`/`gk` logical) |
 | `-`       | jump to dired (current dir)     |
 | `ff`      | recent file (normal state)      |
+| `fd`      | switch directory (normal state) |
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
 | `s-w`     | delete current window           |
 | `S-s-[`   | rotate windows                  |
 | `S-s-]`   | maximize window (delete others) |
 | `s-]`     | embark act                      |
+| `M-.`     | embark dwim (default action)    |
 | `s-t`     | vsplit + open fresh ghostel terminal (project root) |
 | `v` / `V` | expand / contract region (visual state) |
 | `SPC h`   | help prefix                     |

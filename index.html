@@ -781,6 +781,7 @@ With a prefix arg (or non-nil HERE), start in the current
     "SPC" '(projectile-find-file :which-key "find file in project")
     ","  '(consult-buffer :which-key "switch buffer")
     ":"  '(eval-expression :which-key "eval expression")
+    "x"  '(execute-extended-command :which-key "M-x")
     "f"  '(:ignore t :which-key "files")
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
@@ -828,7 +829,7 @@ With a prefix arg (or non-nil HERE), start in the current
       <p>The leader menu. Each entry maps a key sequence to a command plus a
       <code>:which-key</code> label shown in the popup. Top-level shortcuts:
       <code>SPC SPC</code> → find file in project, <code>SPC ,</code> → switch buffer,
-      <code>SPC :</code> → eval expression,
+      <code>SPC :</code> → eval expression, <code>SPC x</code> → <code>M-x</code>,
       <code>SPC /</code> → search the project with ripgrep, <code>SPC s</code> → save
       buffer, <code>SPC w</code> → delete window, <code>SPC n</code> → vsplit &amp;
       follow, <code>SPC t</code> → ghostel terminal at the project root.</p>
@@ -868,7 +869,8 @@ With a prefix arg (or non-nil HERE), start in the current
    :states 'normal
    :keymaps 'override
    "-" 'dired-jump
-   "ff" 'neoemacs/consult-recent-file)
+   "ff" 'neoemacs/consult-recent-file
+   "fd" 'neoemacs/consult-dir)
   (general-define-key
    :keymaps 'override
    "s-h" 'evil-window-left
@@ -888,7 +890,8 @@ With a prefix arg (or non-nil HERE), start in the current
       <ul>
         <li><code>-</code> in normal state → <code>dired-jump</code> (vim-vinegar-style
         "jump to the directory of this file"); <code>ff</code> in normal state →
-        <code>neoemacs/consult-recent-file</code>.</li>
+        <code>neoemacs/consult-recent-file</code>; <code>fd</code> in normal state →
+        <code>neoemacs/consult-dir</code>.</li>
         <li><code>s-h/j/k/l</code> — move between windows (the Super/Cmd key + hjkl).</li>
         <li><code>s-n</code> — vertical split and follow; <code>s-w</code> — delete window.</li>
         <li><code>S-s-[</code> — rotate windows; <code>S-s-]</code> — maximize (delete
@@ -1100,7 +1103,7 @@ With a prefix arg (or non-nil HERE), start in the current
       projectile roots, bookmarks); the same chord <em>inside</em> an active
       find-file/consult prompt re-roots it at the chosen directory without restarting, and
       <code>C-x C-j</code> fuzzy-jumps to any file beneath it. Also on the leader at
-      <code>SPC f d</code>.</p>
+      <code>SPC f d</code> and as <code>fd</code> in normal state.</p>
       <div class="why"><span class="tag">Pure autoload deferral</span> No <code>:after
       (consult vertico)</code> — that would force-load it the moment both are up. The
       <code>:bind</code> autoloads the commands and installs the bindings; the package
@@ -1455,6 +1458,8 @@ With a prefix arg (or non-nil HERE), start in the current
 
   <div class="row">
 <pre class="code">(use-package kkp
+  :ensure nil
+  :load-path "~/code/kkp"
   :config
   (global-kkp-mode 1))
 
@@ -1479,6 +1484,13 @@ With a prefix arg (or non-nil HERE), start in the current
       <div class="gotcha"><span class="tag">Side effect (see direnv)</span> kkp re-encodes
       <kbd>C-g</kbd> as an escape sequence instead of the raw byte 7, which breaks Emacs's
       low-level quit detection during blocking calls — handled later by the envrc advice.</div>
+      <div class="gotcha"><span class="tag">Temporary local clone</span> kkp is loaded from
+      <code>~/code/kkp</code> (<code>:ensure nil</code> + <code>:load-path</code>) instead of
+      ELPA: the MELPA build restores KKP after the envrc advice with a bare stack pop, which
+      zellij — implementing the protocol <em>without</em> the flag stack — treats as a plain
+      disable, leaving kkp dead after the first <code>envrc--export</code>. The clone carries
+      the fix (<a href="https://github.com/benotn/kkp/pull/36">PR #36</a>); revert to the
+      plain ELPA package once it's merged and on MELPA.</div>
     </div>
   </div>
 
@@ -1496,6 +1508,8 @@ With a prefix arg (or non-nil HERE), start in the current
 <pre class="code">(use-package ghostel
   :commands (ghostel)
   :bind ("s-t" . neoemacs/vsplit-ghostel)
+  :init
+  (add-hook 'ghostel-pre-spawn-hook #'neoemacs--ghostel-tag-env)
   :hook (ghostel-mode . (lambda () (display-line-numbers-mode -1))))
 
 (use-package evil-ghostel
@@ -1510,12 +1524,14 @@ With a prefix arg (or non-nil HERE), start in the current
       <code>SPC t</code>) run the vsplit-and-launch helper from earlier, rooting the
       terminal at the buffer's project root (<code>SPC u t</code> uses the current
       directory instead). Terminal buffers turn line numbers off locally because the
-      gutter is not useful there.</p>
+      gutter is not useful there, and the <code>:init</code> hook tags every spawned
+      terminal for Claude Code session tracking (see the Claude section below).</p>
       <p><strong>evil-ghostel</strong> keeps the terminal cursor in sync with Emacs point
       across Evil state changes, so normal-state <code>hjkl</code> navigation works inside
       the terminal buffer. It hooks onto <code>ghostel-mode</code>. Its <code>:config</code>
-      block (broken out in the rows below) adds Escape routing, <kbd>C-c</kbd>/<kbd>C-x</kbd>
-      passthrough, and two advices that tame the redraw anchor on an animated terminal.</p>
+      block (broken out in the rows below) adds Escape routing and
+      <kbd>C-c</kbd>/<kbd>C-x</kbd> passthrough; the redraw-anchor and wheel-scroll advices
+      that used to live here moved upstream (last row of this section).</p>
     </div>
   </div>
 

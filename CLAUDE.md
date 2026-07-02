@@ -25,8 +25,9 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
 - `README.md` — user-facing overview, install notes, and keybinding table.
 - `index.html` — browser-readable annotated walkthrough of `init.el`.
 - Everything else in the repo is generated state ignored by git (`elpa/`,
-  `eln-cache/`, `transient/`, `recentf`, `projectile-bookmarks.eld`,
-  `package-quickstart.el`, `package-quickstart.elc`).
+  `eln-cache/`, `tree-sitter/`, `transient/`, `auto-save-list/`, `recentf`,
+  `projectile-bookmarks.eld`, `custom.el`, `package-quickstart.el`,
+  `package-quickstart.elc`).
 
 ## Package management
 
@@ -40,7 +41,9 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
   rule under *Notable conventions* for why it isn't loaded as `.elc`.
 - `use-package-always-ensure t`: every `use-package` auto-installs from ELPA.
   For packages that ship with Emacs (e.g. `recentf`, `which-key`) add
-  `:ensure nil` so it doesn't try to fetch them.
+  `:ensure nil` so it doesn't try to fetch them. Packages loaded from a local
+  checkout (`consult-claude`, and currently `kkp` — see the kkp bullet under
+  *Notable conventions*) use `:ensure nil` + `:load-path`.
 
 ## Keybinding architecture
 
@@ -51,7 +54,7 @@ Three layers, used deliberately:
    groups: `f` files, `b` buffers, `p` project, `g` git, `o` open/external
    apps, `c` code (eglot/flymake actions), `u` ghostel, plus top-level
    shortcuts (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
-   `SPC :` → `eval-expression`,
+   `SPC :` → `eval-expression`, `SPC x` → `execute-extended-command`,
    `SPC /` / `SPC p s` → `consult-ripgrep`, `SPC b u` → `vundo`,
    `SPC s` → `save-buffer`, `SPC w` → `evil-window-delete`, `SPC n` →
    `neoemacs/vsplit-window-follow`, `SPC t` → `neoemacs/vsplit-ghostel`
@@ -59,7 +62,8 @@ Three layers, used deliberately:
    (terminal in the current dir), `SPC h` → help). Add user-facing commands
    here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
-   `dired-jump` and `ff` → `neoemacs/consult-recent-file` in normal state,
+   `dired-jump`, `ff` → `neoemacs/consult-recent-file`, and `fd` →
+   `neoemacs/consult-dir` in normal state,
    `s-hjkl` window movement, `s-n` vsplit +
    follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
@@ -105,7 +109,7 @@ is installed for editable grep results. `consult-ripgrep` is the project search
 edit loop. `consult-dir` switches the *directory context* from inside the
 minibuffer (`C-x C-d` globally, `C-x C-d` to re-root an active prompt,
 `C-x C-j` to fuzzy-jump to a file under the chosen dir, `SPC f d` on the
-leader). `helpful` replaces the main help commands under `help-map`. `ibuffer`
+leader and `fd` in normal state). `helpful` replaces the main help commands under `help-map`. `ibuffer`
 is the bulk buffer-management view, grouped by project with `ibuffer-projectile`.
 
 In-buffer completion (distinct from the minibuffer stack above) is `corfu`: the
@@ -207,6 +211,13 @@ source file is opened.
   so an `:around` advice (kkp's own `kkp-restore-legacy-keys`) restores the raw
   C-g byte for the duration of the call — restoring the abort. Any other
   synchronous command that relies on `C-g` would need the same advice.
+  **Temporary:** kkp is loaded from a local clone (`~/code/kkp`, `:ensure nil`
+  + `:load-path`, branch `fix-legacy-keys-restore-without-stack`) because the
+  MELPA build restores KKP with a bare stack pop, which zellij — implementing
+  the protocol *without* the flag stack — treats as a plain disable, killing
+  kkp after the first `envrc--export`. Revert to the plain ELPA package (and
+  the clone to master) once https://github.com/benotn/kkp/pull/36 is merged
+  and on MELPA.
 - Cursor: `evil-terminal-cursor-changer` reflects the evil state in the host
   terminal's cursor via DECSCUSR sequences (`cursor-type` alone only affects
   GUI Emacs). Shapes: normal/visual/motion = block, insert = bar,
