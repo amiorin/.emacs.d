@@ -739,12 +739,14 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <div class="row">
-<pre class="code">(defun neoemacs/open-file-in-default-app ()
+<pre class="code">(defun neoemacs--current-file ()
+  "Return the file at point (dired) or the visited file, as an absolute path."
+  ...)
+
+(defun neoemacs/open-file-in-default-app ()
   "Open the current file in its default macOS app, as if double-clicked."
   (interactive)
-  (let ((file ...))
-    (neoemacs--start-gui-process "open-default" "open"
-                                 (expand-file-name file))))</pre>
+  (neoemacs--start-gui-process "open-default" "open" (neoemacs--current-file)))</pre>
     <div class="prose">
       <p><code>SPC o f</code> opens the current file in whatever app macOS has registered
       for that file type. In dired/dirvish it's the file under point; elsewhere the
@@ -773,11 +775,11 @@ With a prefix arg (or non-nil HERE), start in the current
 <pre class="code">(defun neoemacs/open-file-in-obsidian ()
   "Open the current file in Obsidian."
   (interactive)
-  (let ((file ...))
-    (let ((root (locate-dominating-file file ".obsidian")))
-      (unless root
-        (user-error "Not inside an Obsidian vault ..."))
-      (neoemacs--start-gui-process "open-obsidian" "open" obsidian-url))))</pre>
+  (let* ((file (neoemacs--current-file))
+         (root (locate-dominating-file file ".obsidian")))
+    (unless root
+      (user-error "Not inside an Obsidian vault ..."))
+    (neoemacs--start-gui-process "open-obsidian" "open" obsidian-url)))</pre>
     <div class="prose">
       <p><code>SPC o o</code> opens the current file in Obsidian. It detects the nearest
       parent directory containing <code>.obsidian</code>, uses that directory name as the

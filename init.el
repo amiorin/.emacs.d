@@ -476,6 +476,17 @@ BUFFER is nil so the helpers' chatty stdout/stderr is discarded."
     (apply #'start-process name nil
            (if reattach (cons reattach program-args) program-args))))
 
+(defun neoemacs--current-file ()
+  "Return the file the current buffer is \"about\", as an absolute path.
+In a dired/dirvish buffer this is the file under point; elsewhere it is
+the visited file.  Signals a `user-error' when there is neither."
+  (expand-file-name
+   (cond ((derived-mode-p 'dired-mode)
+          (or (dired-get-filename nil t)
+              (user-error "No file on this line")))
+         ((buffer-file-name))
+         (t (user-error "No file on this line or in this buffer")))))
+
 (defun neoemacs/open-file-in-default-app ()
   "Open the current file in its default macOS app, as if double-clicked in Finder.
 In a dired/dirvish buffer this is the file under point; elsewhere it is
@@ -493,13 +504,7 @@ which launches the app *inside* the GUI session; the same handoff is why
 zellij.  Runs async via `neoemacs--start-gui-process' (which handles the
 zellij session boundary) so Emacs isn't blocked."
   (interactive)
-  (let ((file (cond ((derived-mode-p 'dired-mode)
-                     (or (dired-get-filename nil t)
-                         (user-error "No file on this line")))
-                    ((buffer-file-name))
-                    (t (user-error "No file on this line or in this buffer")))))
-    (neoemacs--start-gui-process "open-default" "open"
-                                 (expand-file-name file))))
+  (neoemacs--start-gui-process "open-default" "open" (neoemacs--current-file)))
 
 (defun neoemacs/open-dir-in-finder ()
   "Reveal the current directory in macOS Finder.
@@ -521,21 +526,16 @@ directory containing `.obsidian', whose folder name becomes the vault
 name.  Hands an `obsidian://open' URL to macOS `open' (async, via
 `neoemacs--start-gui-process' so it works under zellij)."
   (interactive)
-  (let ((file (cond ((derived-mode-p 'dired-mode)
-                     (or (dired-get-filename nil t)
-                         (user-error "No file on this line")))
-                    ((buffer-file-name))
-                    (t (user-error "No file on this line or in this buffer")))))
-    (setq file (expand-file-name file))
-    (let ((root (locate-dominating-file file ".obsidian")))
-      (unless root
-        (user-error "Not inside an Obsidian vault (no .obsidian above %s)" file))
-      (setq root (expand-file-name root))
-      (let ((url (format "obsidian://open?vault=%s&file=%s"
-                         (url-hexify-string
-                          (file-name-nondirectory (directory-file-name root)))
-                         (url-hexify-string (file-relative-name file root)))))
-        (neoemacs--start-gui-process "open-obsidian" "open" url)))))
+  (let* ((file (neoemacs--current-file))
+         (root (locate-dominating-file file ".obsidian")))
+    (unless root
+      (user-error "Not inside an Obsidian vault (no .obsidian above %s)" file))
+    (setq root (expand-file-name root))
+    (let ((url (format "obsidian://open?vault=%s&file=%s"
+                       (url-hexify-string
+                        (file-name-nondirectory (directory-file-name root)))
+                       (url-hexify-string (file-relative-name file root)))))
+      (neoemacs--start-gui-process "open-obsidian" "open" url))))
 
 ;;; --- Keybindings -----------------------------------------------------------
 
