@@ -93,6 +93,16 @@
 ;; Disable backup files (the `filename~' clutter).
 (setq make-backup-files nil)
 
+;; Disable lock files (the `.#filename' symlink clutter). These exist to warn
+;; when another process has the same file open, which doesn't matter here.
+(setq create-lockfiles nil)
+
+;; Redirect auto-save files (the `#filename#' clutter) into a central
+;; directory instead of scattering them next to edited files.
+(let ((auto-save-dir (locate-user-emacs-file "auto-save/")))
+  (make-directory auto-save-dir 'parents)
+  (setq auto-save-file-name-transforms `((".*" ,auto-save-dir t))))
+
 ;; Answer long yes/no prompts with a single `y' or `n', no RET required.
 (setq use-short-answers t)
 
@@ -1408,6 +1418,11 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
          ("\\.cljs\\'" . clojure-ts-clojurescript-mode)
          ("\\.cljc\\'" . clojure-ts-clojurec-mode)
          ("\\.edn\\'"  . clojure-ts-mode))
+  :custom
+  ;; Let C-M-x / cider-eval-defun-at-point reach into a (comment ...) form and
+  ;; evaluate the top-level form at point instead of the whole comment block.
+  (clojure-toplevel-inside-comment-form t)
+  (clojure-ts-toplevel-inside-comment-form t)
   :config
   (neoemacs--ensure-treesit-grammars 'clojure))
 
