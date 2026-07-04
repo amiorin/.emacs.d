@@ -1837,7 +1837,12 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
     (define-key map (kbd "C-c C-t") nil t)
     (define-key map (kbd "C-c t") 'cider-test-commands-map))
   (dolist (key '("C-r" "C-t" "C-a" "C-n" "C-s" "C-l" "C-p" "C-b" "C-f"))
-    (define-key cider-test-commands-map (kbd key) nil t)))
+    (define-key cider-test-commands-map (kbd key) nil t))
+  ;; Inspector on a Ctrl-free `C-c i' prefix (so `, i r' / `, i i' via the
+  ;; comma alias), mirroring the test-command prefix move above.
+  (dolist (map (list cider-mode-map cider-repl-mode-map))
+    (define-key map (kbd "C-c i r") 'cider-inspect-last-result)
+    (define-key map (kbd "C-c i i") 'cider-inspect)))
 
 ;;; --- Environment: direnv ---------------------------------------------------
 
