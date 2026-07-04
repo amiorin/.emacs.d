@@ -224,7 +224,8 @@ source file is opened.
   `evil-normal-state-map` (not the override map, so mode-local `s` bindings
   still win) runs `evil-avy-goto-char-timer` — the evil motion wrapper is
   defined eagerly by evil-integration.el, so the avy form only installs the
-  package. Shadows `evil-substitute` (`cl` is equivalent).
+  package and sets `avy-background t` (dim the screen while hints are up).
+  Shadows `evil-substitute` (`cl` is equivalent).
 - Evil search: `evil-search-module` is `'evil-search`, so `/` and `?` use
   Vim-style `evil-ex-search` (incremental, `n`/`N` repeat, substitution
   offsets) instead of isearch. `evil-symbol-word-search t` makes `*`/`#` (and

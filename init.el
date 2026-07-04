@@ -434,6 +434,10 @@
 ;; `evil-substitute'; `cl' does the same thing.
 (use-package avy
   :defer t
+  :custom
+  ;; Dim the rest of the screen while the hint overlays are up
+  ;; (`avy-background-face' grays out non-candidate text), so the labels pop.
+  (avy-background t)
   :init
   (with-eval-after-load 'evil
     (define-key evil-normal-state-map (kbd "s") #'evil-avy-goto-char-timer)))

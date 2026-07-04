@@ -617,13 +617,16 @@
   <div class="row">
 <pre class="code">(use-package avy
   :defer t
+  :custom
+  (avy-background t)   ; dim the screen while hints are up
   :init
   (with-eval-after-load 'evil
     (define-key evil-normal-state-map (kbd "s") #'evil-avy-goto-char-timer)))</pre>
     <div class="prose">
       <p><code>avy</code> jumps to any visible position: <kbd>s</kbd> in normal state runs
       <code>evil-avy-goto-char-timer</code> — type the target characters, pause, then hit
-      the overlay label to jump. The evil motion wrapper is defined eagerly by
+      the overlay label to jump. <code>avy-background</code> dims everything but the
+      candidates while the hints are up so the labels pop. The evil motion wrapper is defined eagerly by
       evil-integration.el when Evil loads and avy autoloads on first invocation, so this
       form only installs the package. Bound in <code>evil-normal-state-map</code> rather
       than the override map so mode-local <kbd>s</kbd> bindings (dired's sort, magit)
