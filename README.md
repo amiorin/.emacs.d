@@ -43,7 +43,7 @@ M-x nerd-icons-install-fonts
   `-nw`) plus cape for file/dabbrev fallbacks.
 - **Languages** — tree-sitter major modes for TypeScript/TSX,
   [Astro](https://github.com/Sorixelle/astro-ts-mode), and Clojure, with LSP via
-  the built-in [eglot](https://github.com/joaotavora/eglot) (astro-ls,
+  [lsp-mode](https://github.com/emacs-lsp/lsp-mode) (astro-ls,
   typescript-language-server, clojure-lsp), on-save formatting via
   [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL
   tooling via [cider](https://github.com/clojure-emacs/cider). The Lisp-family
@@ -135,9 +135,9 @@ elsewhere.
 | `SPC g l` | log for current file            |
 | `SPC g j` / `SPC g k` | next / previous hunk   |
 | `SPC g s` / `SPC g x` | stage / revert hunk    |
-| `SPC c a` | code actions (eglot)            |
-| `SPC c r` | rename symbol (eglot)           |
-| `SPC c f` | format buffer (eglot)           |
+| `SPC c a` | code actions (lsp-mode)         |
+| `SPC c r` | rename symbol (lsp-mode)        |
+| `SPC c f` | format buffer (lsp-mode)        |
 | `SPC c c` | Claude Code sessions (consult-claude) |
 | `SPC c d` | buffer diagnostics (flymake)    |
 | `SPC o o` | open current file in Obsidian   |

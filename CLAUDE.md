@@ -74,7 +74,7 @@ Three layers, used deliberately:
 1. **Leader key** via `general` — `neoemacs/leader` is a definer with prefix
    `SPC` (and `M-SPC` as a global fallback for non-normal states). Mnemonic
    groups: `f` files, `b` buffers, `p` project, `g` git, `o` open/external
-   apps, `c` code (eglot/flymake actions), `u` ghostel, plus top-level
+   apps, `c` code (lsp-mode/flymake actions), `u` ghostel, plus top-level
    shortcuts (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
    `SPC :` → `eval-expression`, `SPC x` → `execute-extended-command`,
    `SPC /` / `SPC p s` → `consult-ripgrep`, `SPC b u` → `vundo`,
@@ -139,11 +139,11 @@ at-point popup, armed via `global-corfu-mode` on `emacs-startup-hook` (off the
 critical path). `corfu-terminal` re-renders its child-frame popup as a buffer
 overlay so it works under `emacs -nw` (guarded by `display-graphic-p`, so it's
 a no-op in a GUI frame). `cape` adds `cape-file` and `cape-dabbrev` capfs as
-fallbacks; in eglot-managed buffers the LSP capf supplies code completion.
+fallbacks; in lsp-mode-managed buffers the LSP capf supplies code completion.
 
 ## Languages & dev environment
 
-The language layer is tree-sitter major modes + `eglot` (LSP) + `corfu`
+The language layer is tree-sitter major modes + `lsp-mode` (LSP) + `corfu`
 completion + `apheleia` formatting, all deferred so they cost nothing until a
 source file is opened.
 
@@ -154,15 +154,21 @@ source file is opened.
   Major modes: `typescript-ts-mode`/`tsx-ts-mode` (built in, `:ensure nil`),
   `astro-ts-mode` (needs the css + tsx grammars too, since Astro injects other
   languages), and the `clojure-ts-mode` family (`.clj`/`.cljs`/`.cljc`/`.edn`).
-- **eglot** (built in, `:ensure nil`, fully deferred): `eglot-ensure` on the
-  TS/TSX/Astro/Clojure mode hooks. The `:config` registers the servers eglot
-  doesn't know by default — `astro-ls --stdio` (pointed at the project's own
-  `node_modules/typescript/lib` via `tsdk`) and `clojure-lsp` for the tree-sitter
-  Clojure modes (clojure-lsp bundles clj-kondo, so linting arrives over flymake
-  with no separate linter). The JSON-RPC events buffer is disabled for
-  performance. Leader actions live under `SPC c`: `ca` code actions, `cr`
-  rename, `cf` format buffer, `cd` show diagnostics. Requires `astro-ls`,
-  `typescript-language-server`, and `clojure-lsp` on PATH as appropriate.
+- **lsp-mode** (fully deferred): `lsp-deferred` on the TS/TSX/Astro/Clojure
+  mode hooks — unlike plain `lsp` it also waits until the buffer is displayed
+  before starting a server. All three servers are built-in lsp-mode clients:
+  `typescript-language-server` (ts-ls), `astro-ls` (lsp-astro points `tsdk` at
+  the workspace's own `node_modules/typescript/lib`), and `clojure-lsp` for the
+  tree-sitter Clojure modes (clojure-lsp bundles clj-kondo, so linting arrives
+  over flymake with no separate linter). `lsp-diagnostics-provider` is pinned
+  to `:flymake` (flycheck isn't installed), `lsp-completion-provider` is
+  `:none` so corfu consumes the plain LSP capf (a `lsp-completion-mode` hook
+  routes its matching through orderless), the breadcrumb header line is off,
+  and JSON-RPC I/O logging is disabled for performance. Leader actions live
+  under `SPC c`: `ca` code actions, `cr` rename, `cf` format buffer, `cd` show
+  diagnostics; the full command map is on the `lsp-keymap-prefix` `C-c l`.
+  Requires `astro-ls`, `typescript-language-server`, and `clojure-lsp` on PATH
+  as appropriate.
 - **apheleia** reformats on save *asynchronously* (diffs the formatter output
   back in, preserving point/scroll), armed via `apheleia-global-mode` on
   `emacs-startup-hook`. Astro is mapped to `prettier`; TS/TSX use apheleia's

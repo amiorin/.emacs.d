@@ -847,10 +847,10 @@ With a prefix arg (or non-nil HERE), start in the current
     "of" '(neoemacs/open-file-in-default-app :which-key "open file in default app")
     "od" '(neoemacs/open-dir-in-finder :which-key "open dir in Finder")
     "c"  '(:ignore t :which-key "code")
-    "ca" '(eglot-code-actions :which-key "code actions")
+    "ca" '(lsp-execute-code-action :which-key "code actions")
     "cc" '(consult-claude-sessions :which-key "claude sessions")
-    "cr" '(eglot-rename :which-key "rename symbol")
-    "cf" '(eglot-format-buffer :which-key "format buffer")
+    "cr" '(lsp-rename :which-key "rename symbol")
+    "cf" '(lsp-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
     "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
     "s"  '(save-buffer :which-key "save buffer")
@@ -880,7 +880,7 @@ With a prefix arg (or non-nil HERE), start in the current
         <li><strong>o</strong> open — <code>oo</code> opens the current file in Obsidian,
         <code>of</code> opens it in its default macOS app, <code>od</code> reveals the
         current directory in Finder.</li>
-        <li><strong>c</strong> code — eglot code actions / rename / format and flymake diagnostics,
+        <li><strong>c</strong> code — lsp-mode code actions / rename / format and flymake diagnostics,
         plus <code>cc</code> → <code>consult-claude-sessions</code> (the live Claude Code session switcher).</li>
         <li><strong>u</strong> ghostel — <code>ut</code> opens a ghostel terminal in the current directory (the <code>t</code> variant uses the project root).</li>
         <li><strong>h</strong> → the whole <code>help-command</code> map.</li>
@@ -1268,7 +1268,7 @@ With a prefix arg (or non-nil HERE), start in the current
     <div class="prose">
       <p><strong>corfu</strong> is the at-point completion popup — vertico handles
       <code>M-x</code>/find-file prompts, corfu handles completion <em>inside</em> a buffer
-      (e.g. the candidates eglot produces while typing code). It pops up automatically after
+      (e.g. the candidates lsp-mode produces while typing code). It pops up automatically after
       two characters, and <code>corfu-preselect 'valid</code> preselects the typed prefix only
       when it is itself a valid match — otherwise the first candidate is selected, so
       <code>RET</code> completes to a real candidate. While the popup is open, <kbd>SPC</kbd>
@@ -1280,7 +1280,7 @@ With a prefix arg (or non-nil HERE), start in the current
       <p><strong>corfu-terminal</strong> re-renders corfu's child-frame popup as a buffer
       overlay so it works under <code>emacs -nw</code>; the <code>display-graphic-p</code>
       guard makes it a no-op in a GUI frame. <strong>cape</strong> adds file-path and
-      in-buffer-word (dabbrev) completion-at-point backends as fallbacks; in eglot-managed
+      in-buffer-word (dabbrev) completion-at-point backends as fallbacks; in lsp-mode-managed
       buffers the LSP capf supplies code completion.</p>
       <div class="why"><span class="tag">Off the critical path</span>
       <code>global-corfu-mode</code> is armed on <code>emacs-startup-hook</code>, so the
@@ -1722,7 +1722,7 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <!-- ===================================================================== -->
-  <div class="sec-head" id="lang"><h2>Project navigation &amp; languages</h2><p>Projectile, markdown, tree-sitter modes, eglot (LSP), formatting, and Clojure tooling.</p></div>
+  <div class="sec-head" id="lang"><h2>Project navigation &amp; languages</h2><p>Projectile, markdown, tree-sitter modes, lsp-mode (LSP), formatting, and Clojure tooling.</p></div>
 
   <div class="row">
 <pre class="code">(use-package projectile
@@ -1815,34 +1815,37 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <div class="row">
-<pre class="code">(use-package eglot
-  :ensure nil
+<pre class="code">(use-package lsp-mode
   :defer t
-  :hook ((astro-ts-mode typescript-ts-mode tsx-ts-mode
-          clojure-ts-mode clojure-ts-clojurescript-mode
-          clojure-ts-clojurec-mode)
-         . eglot-ensure)
+  :hook (((astro-ts-mode typescript-ts-mode tsx-ts-mode
+           clojure-ts-mode clojure-ts-clojurescript-mode
+           clojure-ts-clojurec-mode)
+          . lsp-deferred)
+         (lsp-completion-mode . neoemacs/lsp-completion-orderless))
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :custom
+  (lsp-completion-provider :none)      ; corfu owns the capf, no company
+  (lsp-diagnostics-provider :flymake)  ; flycheck isn't installed
+  (lsp-headerline-breadcrumb-enable nil)
   :config
-  (add-to-list 'eglot-server-programs
-               '(astro-ts-mode . ("astro-ls" "--stdio"
-                                   :initializationOptions
-                                   (:typescript (:tsdk "node_modules/typescript/lib")))))
-  (add-to-list 'eglot-server-programs
-               '((clojure-ts-mode clojure-ts-clojurescript-mode clojure-ts-clojurec-mode)
-                 . ("clojure-lsp"))))</pre>
+  (setq read-process-output-max (* 1024 1024)))</pre>
     <div class="prose">
-      <p><strong>eglot</strong> is built in (<code>:ensure nil</code>) and fully deferred:
-      <code>eglot-ensure</code> on the language hooks arms LSP without loading eglot at
-      startup — it loads the first time one of those modes turns on. Leader actions live
-      under <code>SPC c</code> (<code>ca</code> code actions, <code>cr</code> rename,
-      <code>cf</code> format, <code>cd</code> diagnostics).</p>
-      <p>The <code>:config</code> registers the servers eglot doesn't know by default:
-      <code>astro-ls --stdio</code> (pointed at the project's own
-      <code>node_modules/typescript</code> via <code>tsdk</code>) and <code>clojure-lsp</code>
-      for the tree-sitter Clojure modes. clojure-lsp bundles clj-kondo, so linting arrives
-      over flymake with no separate linter. TS/TSX use eglot's built-in
-      <code>typescript-language-server</code> entry. Requires the matching server binaries on
-      PATH.</p>
+      <p><strong>lsp-mode</strong> is fully deferred: <code>lsp-deferred</code> on the
+      language hooks arms LSP without loading lsp-mode at startup — it loads the first time
+      one of those modes turns on, and (unlike plain <code>lsp</code>) waits until the buffer
+      is displayed before starting a server. Leader actions live under <code>SPC c</code>
+      (<code>ca</code> code actions, <code>cr</code> rename, <code>cf</code> format,
+      <code>cd</code> diagnostics); the long tail of LSP commands is on
+      <code>C-c l</code>.</p>
+      <p>All three servers ship as built-in lsp-mode clients: <code>astro-ls</code>
+      (lsp-astro points <code>tsdk</code> at the project's own
+      <code>node_modules/typescript</code>), <code>typescript-language-server</code> for
+      TS/TSX, and <code>clojure-lsp</code> for the tree-sitter Clojure modes. clojure-lsp
+      bundles clj-kondo, so linting arrives over flymake with no separate linter. Completion
+      goes through the plain LSP capf (<code>lsp-completion-provider :none</code>) so corfu
+      consumes it directly, matched with orderless like everything else. Requires the
+      matching server binaries on PATH.</p>
     </div>
   </div>
 
@@ -1891,7 +1894,7 @@ With a prefix arg (or non-nil HERE), start in the current
     <div class="prose">
       <p><strong>apheleia</strong> reformats on save <em>asynchronously</em> — it diffs the
       formatter output back in, so point/scroll are preserved and the UI never blocks
-      (preferable to <code>eglot-format-buffer</code> on save in a terminal). Armed via
+      (preferable to <code>lsp-format-buffer</code> on save in a terminal). Armed via
       <code>apheleia-global-mode</code> on <code>emacs-startup-hook</code>. Astro maps to
       <code>prettier</code>; TS/TSX use apheleia's defaults.</p>
       <p><strong>Lisp structural editing.</strong> Three layers ride on the Lisp-family

@@ -623,10 +623,10 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "of" '(neoemacs/open-file-in-default-app :which-key "open file in default app")
     "od" '(neoemacs/open-dir-in-finder :which-key "open dir in Finder")
     "c"  '(:ignore t :which-key "code")
-    "ca" '(eglot-code-actions :which-key "code actions")
+    "ca" '(lsp-execute-code-action :which-key "code actions")
     "cc" '(consult-claude-sessions :which-key "claude sessions")
-    "cr" '(eglot-rename :which-key "rename symbol")
-    "cf" '(eglot-format-buffer :which-key "format buffer")
+    "cr" '(lsp-rename :which-key "rename symbol")
+    "cf" '(lsp-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
     "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
     "s"  '(save-buffer :which-key "save buffer")
@@ -927,7 +927,7 @@ Wraps the affixation-function returned further down the advice chain
 
 ;; Corfu: the at-point completion popup -- the in-buffer counterpart to the
 ;; vertico minibuffer stack above (vertico handles `M-x'/find-file prompts;
-;; corfu handles completion *inside* a buffer, e.g. the candidates eglot
+;; corfu handles completion *inside* a buffer, e.g. the candidates lsp-mode
 ;; produces while typing code). Together they give the whole completion surface.
 ;;
 ;; Deferred: `global-corfu-mode' is autoloaded, so adding it to
@@ -1017,7 +1017,7 @@ Wraps the affixation-function returned further down the advice chain
   (unless (display-graphic-p)
     (corfu-terminal-mode 1)))
 
-;; Cape: extra `completion-at-point' backends. eglot installs its own LSP capf
+;; Cape: extra `completion-at-point' backends. lsp-mode installs its own LSP capf
 ;; buffer-locally in managed buffers (so code completion there comes from the
 ;; language server); these add file-path and dabbrev (in-buffer word) completion
 ;; as fallbacks everywhere else -- e.g. completing a `./src/...' path or a word
@@ -1450,7 +1450,7 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 
 ;; typescript-ts-mode / tsx-ts-mode ship with Emacs (29+), so `:ensure nil'.
 ;; Astro projects are full of `.ts'/`.tsx' siblings; route them here and let
-;; eglot (below) attach for LSP. `:mode' keeps the mode -- and the grammar
+;; lsp-mode (below) attach for LSP. `:mode' keeps the mode -- and the grammar
 ;; install in `:config' -- deferred until such a file is opened.
 (use-package typescript-ts-mode
   :ensure nil
@@ -1461,8 +1461,8 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 
 ;; astro-ts-mode: tree-sitter major mode for `.astro' single-file components.
 ;; `:mode' defers the whole package (and its grammar install) until the first
-;; `.astro' file is visited -- zero startup cost. eglot attaches via the shared
-;; hook in the eglot block below.
+;; `.astro' file is visited -- zero startup cost. lsp-mode attaches via the
+;; shared hook in the lsp-mode block below.
 (use-package astro-ts-mode
   :mode "\\.astro\\'"
   :config
@@ -1470,8 +1470,8 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 
 ;; clojure-ts-mode: tree-sitter major mode for Clojure/ClojureScript/cljc/edn.
 ;; Deferred via `:mode' like astro/typescript -- the grammar is ensured
-;; (compiled if missing) on first visit, so there's zero startup cost. eglot
-;; attaches via the shared hook in the eglot block below; cider and
+;; (compiled if missing) on first visit, so there's zero startup cost. lsp-mode
+;; attaches via the shared hook in the lsp-mode block below; cider and
 ;; evil-cleverparens hook on at the end of the file.
 (use-package clojure-ts-mode
   :mode (("\\.clj\\'"  . clojure-ts-mode)
@@ -1486,52 +1486,70 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   :config
   (neoemacs--ensure-treesit-grammars 'clojure))
 
-;; --- LSP via eglot ---------------------------------------------------------
+;; --- LSP via lsp-mode -------------------------------------------------------
 ;;
-;; eglot is built in (`:ensure nil'). It's fully deferred: `eglot-ensure' is
-;; autoloaded, so listing it on the language hooks arms LSP without loading
-;; eglot at startup -- the package loads the first time one of those modes turns
-;; on (i.e. when you open a real source file), never during init. The `:config'
-;; (server table + perf tweaks) then runs once, at that first attach.
-(use-package eglot
-  :ensure nil
+;; lsp-mode is fully deferred: `lsp-deferred' is autoloaded, so listing it on
+;; the language hooks arms LSP without loading lsp-mode at startup -- the
+;; package loads the first time one of those modes turns on (i.e. when you open
+;; a real source file), never during init. `lsp-deferred' (unlike plain `lsp')
+;; also waits until the buffer is actually displayed before starting a server.
+;;
+;; All three servers used here ship as built-in lsp-mode clients:
+;; `typescript-language-server' (ts-ls) for TS/TSX, `astro-ls' for Astro
+;; (lsp-astro points `tsdk' at the workspace's own
+;; `node_modules/typescript/lib', same as the old eglot entry did), and
+;; `clojure-lsp' for the Clojure family (it bundles clj-kondo, so linting
+;; arrives over the diagnostics provider with no separate linter package).
+;; Requires `astro-ls', `typescript-language-server', and `clojure-lsp' on PATH
+;; as appropriate.
+(use-package lsp-mode
   :defer t
-  :hook ((astro-ts-mode typescript-ts-mode tsx-ts-mode
-			clojure-ts-mode clojure-ts-clojurescript-mode
-			clojure-ts-clojurec-mode)
-         . eglot-ensure)
-  :config
-  ;; The Astro language server (`@astrojs/language-server', binary `astro-ls';
-  ;; install with `npm i -g @astrojs/language-server'). It needs to be pointed at
-  ;; the project's own TypeScript via `tsdk' -- a relative path resolves against
-  ;; the project root eglot starts the server in, so the project's
-  ;; `node_modules/typescript' is used. TS/TSX files use eglot's built-in
-  ;; `typescript-language-server' entry, so only Astro needs registering here.
-  (add-to-list 'eglot-server-programs
-               '(astro-ts-mode . ("astro-ls" "--stdio"
-                                  :initializationOptions
-                                  (:typescript (:tsdk "node_modules/typescript/lib")))))
-  ;; clojure-lsp drives the clojure-ts-mode family. eglot's built-in server
-  ;; table only knows the classic clojure-mode names, so register the tree-sitter
-  ;; modes explicitly. clojure-lsp bundles clj-kondo, so linting arrives over
-  ;; eglot's flymake alongside completion/nav/rename -- no separate linter
-  ;; package. Requires the `clojure-lsp' binary on PATH.
-  (add-to-list 'eglot-server-programs
-               '((clojure-ts-mode clojure-ts-clojurescript-mode clojure-ts-clojurec-mode)
-                 . ("clojure-lsp")))
+  :hook (((astro-ts-mode typescript-ts-mode tsx-ts-mode
+			 clojure-ts-mode clojure-ts-clojurescript-mode
+			 clojure-ts-clojurec-mode)
+          . lsp-deferred)
+         ;; corfu consumes lsp-mode's capf directly; route its candidate
+         ;; matching through orderless like every other completion here.
+         (lsp-completion-mode . neoemacs/lsp-completion-orderless))
+  :init
+  ;; Must be set before lsp-mode loads. The prefix map holds the long tail of
+  ;; LSP commands (the everyday ones live on the leader under `SPC c').
+  (setq lsp-keymap-prefix "C-c l")
+  (defun neoemacs/lsp-completion-orderless ()
+    "Match lsp-mode completion candidates with orderless (corfu setup)."
+    (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
+          '(orderless)))
+  :custom
+  ;; corfu drives in-buffer completion off the plain capf; `:none' stops
+  ;; lsp-mode from trying to configure company (not installed) around it.
+  (lsp-completion-provider :none)
+  ;; Diagnostics over flymake, as under eglot before -- flycheck isn't
+  ;; installed, and `SPC c d' / the flymake commands keep working unchanged.
+  (lsp-diagnostics-provider :flymake)
+  ;; Keep the minimal in-buffer UI this config had under eglot: no breadcrumb
+  ;; header line eating a row of the terminal frame.
+  (lsp-headerline-breadcrumb-enable nil)
   ;; Don't log every LSP JSON-RPC message to a buffer -- it's a measurable drag
-  ;; on a chatty server and only useful when debugging eglot itself. The setting
-  ;; was renamed across eglot versions, so set whichever this Emacs has.
-  (when (boundp 'eglot-events-buffer-config)
-    (setq eglot-events-buffer-config '(:size 0 :format full)))
-  (when (boundp 'eglot-events-buffer-size)
-    (setq eglot-events-buffer-size 0)))
+  ;; on a chatty server and only useful when debugging lsp-mode itself.
+  (lsp-log-io nil)
+  :config
+  ;; LSP servers stream large JSON payloads; read process output in bigger
+  ;; chunks than the Emacs default (lsp-mode's performance guide recommends 1MiB).
+  (setq read-process-output-max (* 1024 1024))
+  ;; Map the tree-sitter mode names to their LSP language ids. Current lsp-mode
+  ;; already ships all of these (so each `add-to-list' is a no-op); they're
+  ;; spelled out to keep activation working on an older checkout.
+  (dolist (entry '((astro-ts-mode . "astro")
+                   (clojure-ts-mode . "clojure")
+                   (clojure-ts-clojurescript-mode . "clojurescript")
+                   (clojure-ts-clojurec-mode . "clojure")))
+    (add-to-list 'lsp-language-id-configuration entry)))
 
 ;; --- Formatting: apheleia --------------------------------------------------
 ;;
 ;; apheleia reformats on save *asynchronously* (it diffs the formatter's output
 ;; back in, so point/scroll are preserved and the UI never blocks) -- preferable
-;; to `eglot-format-buffer' on save for a terminal workflow. Deferred the same
+;; to `lsp-format-buffer' on save for a terminal workflow. Deferred the same
 ;; way as corfu: the autoloaded `apheleia-global-mode' is armed on
 ;; `emacs-startup-hook', so the package loads off the critical path.
 ;;
@@ -1547,7 +1565,7 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 
 ;;; --- Clojure tooling -------------------------------------------------------
 ;;
-;; The major mode (`clojure-ts-mode') and its LSP attach (clojure-lsp via eglot)
+;; The major mode (`clojure-ts-mode') and its LSP attach (clojure-lsp via lsp-mode)
 ;; are set up above with the other tree-sitter languages. These two add the
 ;; editing and REPL layers.
 
