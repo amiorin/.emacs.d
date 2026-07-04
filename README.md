@@ -38,7 +38,8 @@ M-x nerd-icons-install-fonts
   `SPC` leader and which-key popups (the which-key that ships with Emacs).
 - **Completion & actions** — vertico, vertico-directory, orderless,
   marginalia, nerd-icons-completion, consult, consult-dir (jump/re-root by
-  directory from the minibuffer), embark, embark-consult, and wgrep. In-buffer
+  directory from the minibuffer), consult-lsp (LSP symbols/diagnostics through
+  consult), embark, embark-consult, and wgrep. In-buffer
   completion is [corfu](https://github.com/minad/corfu) (with corfu-terminal for
   `-nw`) plus cape for file/dabbrev fallbacks.
 - **Languages** — tree-sitter major modes for TypeScript/TSX,
@@ -140,6 +141,9 @@ elsewhere.
 | `SPC c f` | format buffer (lsp-mode)        |
 | `SPC c c` | Claude Code sessions (consult-claude) |
 | `SPC c d` | buffer diagnostics (flymake)    |
+| `SPC c D` | workspace diagnostics (consult-lsp) |
+| `SPC c s` | file symbols (consult-lsp)      |
+| `SPC c S` | workspace symbols (consult-lsp) |
 | `SPC o o` | open current file in Obsidian   |
 | `SPC o f` | open current file in default app |
 | `SPC o d` | open current directory in Finder |

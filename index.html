@@ -852,6 +852,9 @@ With a prefix arg (or non-nil HERE), start in the current
     "cr" '(lsp-rename :which-key "rename symbol")
     "cf" '(lsp-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
+    "cD" '(consult-lsp-diagnostics :which-key "workspace diagnostics")
+    "cs" '(consult-lsp-file-symbols :which-key "file symbols")
+    "cS" '(consult-lsp-symbols :which-key "workspace symbols")
     "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
     "s"  '(save-buffer :which-key "save buffer")
     "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
@@ -881,6 +884,8 @@ With a prefix arg (or non-nil HERE), start in the current
         <code>of</code> opens it in its default macOS app, <code>od</code> reveals the
         current directory in Finder.</li>
         <li><strong>c</strong> code — lsp-mode code actions / rename / format and flymake diagnostics,
+        consult-lsp symbol/diagnostic pickers (<code>cs</code> file symbols, <code>cS</code> workspace
+        symbols, <code>cD</code> workspace diagnostics),
         plus <code>cc</code> → <code>consult-claude-sessions</code> (the live Claude Code session switcher).</li>
         <li><strong>u</strong> ghostel — <code>ut</code> opens a ghostel terminal in the current directory (the <code>t</code> variant uses the project root).</li>
         <li><strong>h</strong> → the whole <code>help-command</code> map.</li>
@@ -1830,7 +1835,12 @@ With a prefix arg (or non-nil HERE), start in the current
   (lsp-diagnostics-provider :flymake)  ; flycheck isn't installed
   (lsp-headerline-breadcrumb-enable nil)
   :config
-  (setq read-process-output-max (* 1024 1024)))</pre>
+  (setq read-process-output-max (* 1024 1024)))
+
+(use-package consult-lsp
+  :after lsp-mode
+  :bind (:map lsp-mode-map
+              ([remap xref-find-apropos] . consult-lsp-symbols)))</pre>
     <div class="prose">
       <p><strong>lsp-mode</strong> is fully deferred: <code>lsp-deferred</code> on the
       language hooks arms LSP without loading lsp-mode at startup — it loads the first time
@@ -1850,6 +1860,12 @@ With a prefix arg (or non-nil HERE), start in the current
       goes through the plain LSP capf (<code>lsp-completion-provider :none</code>) so corfu
       consumes it directly, matched with orderless like everything else. Requires the
       matching server binaries on PATH.</p>
+      <p><strong>consult-lsp</strong> surfaces LSP data through the consult minibuffer UI,
+      with live preview as you move: <code>SPC c s</code> file symbols, <code>SPC c S</code>
+      workspace-wide symbol search, <code>SPC c D</code> workspace diagnostics (the
+      buffer-local flymake list stays on <code>SPC c d</code>). In lsp buffers
+      <code>xref-find-apropos</code> (<code>C-M-.</code>) is remapped to
+      <code>consult-lsp-symbols</code>.</p>
     </div>
   </div>
 

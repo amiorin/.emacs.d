@@ -171,6 +171,10 @@ source file is opened.
   and JSON-RPC I/O logging is disabled for performance. Leader actions live
   under `SPC c`: `ca` code actions, `cr` rename, `cf` format buffer, `cd` show
   diagnostics; the full command map is on the `lsp-keymap-prefix` `C-c l`.
+  `consult-lsp` (`:after lsp-mode`) surfaces LSP data through the consult
+  minibuffer UI: `cs` file symbols, `cS` workspace symbols, `cD` workspace
+  diagnostics (vs. the buffer-local flymake list on `cd`), and
+  `xref-find-apropos` is remapped to `consult-lsp-symbols` in lsp buffers.
   Requires `astro-ls`, `typescript-language-server`, and `clojure-lsp` on PATH
   as appropriate.
 - **apheleia** reformats on save *asynchronously* (diffs the formatter output

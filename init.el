@@ -628,6 +628,9 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "cr" '(lsp-rename :which-key "rename symbol")
     "cf" '(lsp-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
+    "cD" '(consult-lsp-diagnostics :which-key "workspace diagnostics")
+    "cs" '(consult-lsp-file-symbols :which-key "file symbols")
+    "cS" '(consult-lsp-symbols :which-key "workspace symbols")
     "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
     "s"  '(save-buffer :which-key "save buffer")
     "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
@@ -1551,6 +1554,22 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
                    (clojure-ts-clojurescript-mode . "clojurescript")
                    (clojure-ts-clojurec-mode . "clojure")))
     (add-to-list 'lsp-language-id-configuration entry)))
+
+;; consult-lsp: lsp-mode data through the consult/vertico minibuffer UI --
+;; `consult-lsp-symbols' (workspace-wide symbol search),
+;; `consult-lsp-file-symbols' (symbols in the current buffer, like an
+;; imenu-over-LSP), and `consult-lsp-diagnostics' (workspace-wide diagnostics,
+;; vs. the buffer-local flymake list on `SPC c d'). All three preview the
+;; candidate as you move, like every other consult command. Leader entries live
+;; under `SPC c' (`cs' / `cS' / `cD'); the commands are autoloaded, so those
+;; bindings don't load anything early. `:after lsp-mode' keeps the package off
+;; the startup path (lsp-mode itself only loads on the first source file), and
+;; the remap points `xref-find-apropos' (`C-M-.', xref's pattern-based symbol
+;; search) at the richer consult UI in lsp buffers.
+(use-package consult-lsp
+  :after lsp-mode
+  :bind (:map lsp-mode-map
+              ([remap xref-find-apropos] . consult-lsp-symbols)))
 
 ;; --- Formatting: apheleia --------------------------------------------------
 ;;
