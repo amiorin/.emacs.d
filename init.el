@@ -1644,8 +1644,8 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; into a single plain reference count.
   (defconst neoemacs--lsp-clojure-modes
     '(clojure-mode clojurec-mode clojurescript-mode
-      clojure-ts-mode clojure-ts-clojurec-mode clojure-ts-clojurescript-mode
-      edn-mode))
+		   clojure-ts-mode clojure-ts-clojurec-mode clojure-ts-clojurescript-mode
+		   edn-mode))
   (defun neoemacs--lsp-local-truename (path)
     "Return local PATH with symlinks resolved, leaving remote paths alone."
     (if (and path (not (file-remote-p path)))
