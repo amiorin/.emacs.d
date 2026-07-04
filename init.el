@@ -451,10 +451,26 @@
 ;;; --- Window management helpers ---------------------------------------------
 
 (defun neoemacs/vsplit-window-follow ()
-  "Split the window horizontally and move focus into the new split."
+  "Split the window, put the new window on the right, and select it.
+Not `evil-window-vsplit' + `evil-window-right': with the default
+`evil-vsplit-window-right' nil evil creates *and selects* the new window
+on the LEFT, so moving right lands back in the ORIGINAL window — anything
+opened next (e.g. the ghostel from `neoemacs/vsplit-ghostel') hijacks the
+original window and its buffer history, leaving the leftover split with
+an empty `window-prev-buffers' (whose `bury-buffer'/`q' then falls back
+to the global MRU list — the just-created terminal).  Splitting right and
+staying in the genuinely new window keeps the original window's history
+where the user left it.  The new window inherits a copy of that history,
+like Vim copies the jumplist into a new split, so burying works there too."
   (interactive)
-  (evil-window-vsplit)
-  (evil-window-right 1))
+  (let ((orig (selected-window)))
+    (select-window (split-window orig nil 'right))
+    (set-window-prev-buffers
+     (selected-window)
+     (mapcar #'copy-sequence (window-prev-buffers orig)))
+    (when (and (bound-and-true-p evil-auto-balance-windows)
+               (window-parent))
+      (balance-windows (window-parent)))))
 
 (defun neoemacs/vsplit-ghostel (&optional here)
   "Open a vertical split, move focus into it, and launch ghostel there.

@@ -92,7 +92,14 @@ Three layers, used deliberately:
    magit's native `magit-fetch` instead of being swallowed by the override
    prefix,
    `s-hjkl` window movement, `s-n` vsplit +
-   follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
+   follow (`neoemacs/vsplit-window-follow` splits *right* with plain
+   `split-window` and selects the new window, copying the original window's
+   `window-prev-buffers` into it — deliberately not `evil-window-vsplit` +
+   `evil-window-right`, which with the default `evil-vsplit-window-right` nil
+   selects the new *left* window so "move right" lands back in the original
+   window; ghostel splits then hijacked the original window's history and
+   left a history-less window whose `q`/`bury-buffer` fell back to the MRU
+   ghostel buffer), `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
    dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`). Two editing-model
    tweaks live here too: `,` (normal/visual/motion) is a `general-simulate-key`
