@@ -1355,6 +1355,10 @@ With no file at point, fall back to `magit-ediff-dwim'."
 (use-package ghostel
   :commands (ghostel)
   :bind ("s-t" . neoemacs/vsplit-ghostel)
+  ;; Name buffers from Emacs's tracked directory instead of the terminal title;
+  ;; shell titles can contain prompt-level abbreviations like ~/.c/neoemacs.
+  :custom
+  (ghostel-buffer-name-function #'ghostel-buffer-name-by-directory)
   ;; Tag every spawned terminal so Claude Code sessions running inside it can
   ;; report status back (see "Claude Code session tracking" below). The hook
   ;; runs in the host buffer with `process-environment' dynamically bound, so
