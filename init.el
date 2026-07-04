@@ -1631,6 +1631,44 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; LSP servers stream large JSON payloads; read process output in bigger
   ;; chunks than the Emacs default (lsp-mode's performance guide recommends 1MiB).
   (setq read-process-output-max (* 1024 1024))
+  ;; clojure-lsp canonicalizes classpath/source paths (~/code -> /Volumes/...).
+  ;; Keep Emacs buffers on the friendly ~/code spelling for display, but speak
+  ;; truename URIs to clojure-lsp so its source/test path classifier sees the
+  ;; same paths it indexed; otherwise code lenses collapse "N refs | M tests"
+  ;; into a single plain reference count.
+  (defconst neoemacs--lsp-clojure-modes
+    '(clojure-mode clojurec-mode clojurescript-mode
+      clojure-ts-mode clojure-ts-clojurec-mode clojure-ts-clojurescript-mode
+      edn-mode))
+  (defun neoemacs--lsp-local-truename (path)
+    "Return local PATH with symlinks resolved, leaving remote paths alone."
+    (if (and path (not (file-remote-p path)))
+        (file-truename path)
+      path))
+  (defun neoemacs--lsp-truename-path-to-uri (path)
+    "Convert PATH to an LSP URI after resolving local symlinks."
+    (lsp--path-to-uri-1 (neoemacs--lsp-local-truename path)))
+  (defun neoemacs--lsp-uri-to-abbreviated-path (uri)
+    "Convert URI to a path, then re-apply `directory-abbrev-alist'."
+    (let ((path (lsp--uri-to-path-1 uri)))
+      (if (and (stringp path) (file-name-absolute-p path))
+          (expand-file-name (neoemacs--abbreviate-file-display-name path))
+        path)))
+  (defun neoemacs--lsp-clojure-truename-root (orig session file-name)
+    "Resolve symlinked Clojure project roots before lsp-mode starts clojure-lsp."
+    (let ((root (funcall orig session file-name)))
+      (if (and root (apply #'derived-mode-p neoemacs--lsp-clojure-modes))
+          (directory-file-name (neoemacs--lsp-local-truename root))
+        root)))
+  (advice-add 'lsp--calculate-root :around #'neoemacs--lsp-clojure-truename-root)
+  (with-eval-after-load 'lsp-clojure
+    ;; The `setf' expanders for `lsp--client' slots only exist after lsp-mode's
+    ;; `cl-defstruct' has loaded, so expand this form at runtime, not while
+    ;; reading init.el.
+    (eval
+     '(when-let ((client (gethash 'clojure-lsp lsp-clients)))
+        (setf (lsp--client-path->uri-fn client) #'neoemacs--lsp-truename-path-to-uri
+              (lsp--client-uri->path-fn client) #'neoemacs--lsp-uri-to-abbreviated-path))))
   ;; Map the tree-sitter mode names to their LSP language ids. Current lsp-mode
   ;; already ships all of these (so each `add-to-list' is a no-op); they're
   ;; spelled out to keep activation working on an older checkout.
