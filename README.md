@@ -27,7 +27,8 @@ M-x nerd-icons-install-fonts
 
 - **Editing** — [evil](https://github.com/emacs-evil/evil) +
   evil-collection for Vim emulation across Emacs, plus evil-surround,
-  evil-commentary, evil-goggles,
+  evil-commentary, evil-goggles, [avy](https://github.com/abo-abo/avy)
+  (`s` in normal state jumps anywhere on screen),
   [expand-region](https://github.com/magnars/expand-region.el), and vundo.
   `/` and `?` use Vim-style incremental search (evil-ex-search) with full-symbol
   matching, an `n`/`N`-aware match count in the mode line (evil-anzu), and
@@ -71,7 +72,7 @@ M-x nerd-icons-install-fonts
   to Evil normal state; `C-c` and `C-x` are forwarded to the running terminal
   program.
 - **Claude Code sessions** — when Claude Code runs inside a ghostel terminal,
-  `consult-claude` tracks each session's live status; `SPC c c` opens a switcher
+  `consult-claude` tracks each session's live status; `f c` (normal state) opens a switcher
   to jump between them.
 - **Help** — in Elisp buffers, `K` (normal state) opens Helpful for the symbol
   under point with no prompt and moves focus into the help window so you can
@@ -139,7 +140,6 @@ elsewhere.
 | `SPC c a` | code actions (lsp-mode)         |
 | `SPC c r` | rename symbol (lsp-mode)        |
 | `SPC c f` | format buffer (lsp-mode)        |
-| `SPC c c` | Claude Code sessions (consult-claude) |
 | `SPC c d` | buffer diagnostics (flymake)    |
 | `SPC c D` | workspace diagnostics (consult-lsp) |
 | `SPC c s` | file symbols (consult-lsp)      |
@@ -157,6 +157,8 @@ elsewhere.
 | `-`       | jump to dired (current dir)     |
 | `ff`      | recent file (normal state)      |
 | `fd`      | switch directory (normal state) |
+| `fc`      | Claude Code sessions (normal state) |
+| `s`       | avy jump to chars (normal state) |
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
 | `s-w`     | delete current window           |

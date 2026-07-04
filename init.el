@@ -423,6 +423,21 @@
   :config
   (global-anzu-mode +1))
 
+;; avy: jump to any visible position by typing a few characters and picking a
+;; hint label. `s' in normal state runs `evil-avy-goto-char-timer' -- type the
+;; target chars, pause `avy-timeout-seconds', then hit the overlay label to
+;; jump. The evil motion wrapper is defined eagerly by evil-integration.el
+;; when evil loads (avy itself autoloads on first invocation), so this form
+;; only installs the package -- no `:config' needed and nothing on the
+;; startup path. Bound in `evil-normal-state-map', not the override map, so
+;; mode-local `s' bindings (dired's sort, magit) still win. This shadows
+;; `evil-substitute'; `cl' does the same thing.
+(use-package avy
+  :defer t
+  :init
+  (with-eval-after-load 'evil
+    (define-key evil-normal-state-map (kbd "s") #'evil-avy-goto-char-timer)))
+
 ;;; --- Window management helpers ---------------------------------------------
 
 (defun neoemacs/vsplit-window-follow ()
@@ -624,7 +639,6 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "od" '(neoemacs/open-dir-in-finder :which-key "open dir in Finder")
     "c"  '(:ignore t :which-key "code")
     "ca" '(lsp-execute-code-action :which-key "code actions")
-    "cc" '(consult-claude-sessions :which-key "claude sessions")
     "cr" '(lsp-rename :which-key "rename symbol")
     "cf" '(lsp-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
@@ -650,7 +664,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    :keymaps 'override
    "-" 'dired-jump
    "ff" 'neoemacs/consult-recent-file
-   "fd" 'neoemacs/consult-dir)
+   "fd" 'neoemacs/consult-dir
+   "fc" 'consult-claude-sessions)
   ;; s-hjkl: move between windows.
   (general-define-key
    :keymaps 'override
@@ -1523,6 +1538,10 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
           '(orderless)))
   :custom
+  ;; Skip the interactive "import project root?" prompt: guess the workspace
+  ;; root from the project (projectile/project.el) instead of asking on the
+  ;; first visit to each new project.
+  (lsp-auto-guess-root t)
   ;; Code lenses: the grey "N references | M tests" annotation rendered above
   ;; each definition (an overlay, so it works in -nw). The counts come from the
   ;; server; clojure-lsp splits out the "| M tests" part because

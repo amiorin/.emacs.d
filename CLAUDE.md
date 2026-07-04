@@ -84,8 +84,9 @@ Three layers, used deliberately:
    (terminal in the current dir), `SPC h` → help). Add user-facing commands
    here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
-   `dired-jump`, `ff` → `neoemacs/consult-recent-file`, and `fd` →
-   `neoemacs/consult-dir` in normal state,
+   `dired-jump`, `ff` → `neoemacs/consult-recent-file`, `fd` →
+   `neoemacs/consult-dir`, and `fc` → `consult-claude-sessions` in normal
+   state,
    `s-hjkl` window movement, `s-n` vsplit +
    follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
@@ -167,7 +168,9 @@ source file is opened.
   outside this repo). `lsp-diagnostics-provider` is pinned
   to `:flymake` (flycheck isn't installed), `lsp-completion-provider` is
   `:none` so corfu consumes the plain LSP capf (a `lsp-completion-mode` hook
-  routes its matching through orderless), the breadcrumb header line is off,
+  routes its matching through orderless), `lsp-auto-guess-root t` takes the
+  workspace root from projectile/project.el instead of prompting "import
+  project root?" on each new project, the breadcrumb header line is off,
   and JSON-RPC I/O logging is disabled for performance. Leader actions live
   under `SPC c`: `ca` code actions, `cr` rename, `cf` format buffer, `cd` show
   diagnostics; the full command map is on the `lsp-keymap-prefix` `C-c l`.
@@ -213,7 +216,11 @@ source file is opened.
   before). Don't reintroduce those blocks here; let Custom own `custom.el`.
 - Evil extras: `evil-surround`, `evil-commentary`, and `evil-goggles` are
   enabled globally. `vundo` is a visualizer over built-in undo, not a
-  replacement undo engine.
+  replacement undo engine. `avy` is installed fully deferred: `s` in
+  `evil-normal-state-map` (not the override map, so mode-local `s` bindings
+  still win) runs `evil-avy-goto-char-timer` — the evil motion wrapper is
+  defined eagerly by evil-integration.el, so the avy form only installs the
+  package. Shadows `evil-substitute` (`cl` is equivalent).
 - Evil search: `evil-search-module` is `'evil-search`, so `/` and `?` use
   Vim-style `evil-ex-search` (incremental, `n`/`N` repeat, substitution
   offsets) instead of isearch. `evil-symbol-word-search t` makes `*`/`#` (and
@@ -366,7 +373,8 @@ source file is opened.
   `use-package consult-claude :ensure nil :load-path … :commands …`, so it's
   deferred until first use). The package is terminal-agnostic: it owns the
   in-memory session registry, the `consult-claude-status` status RPC, the
-  marginalia annotator, and the `consult-claude-sessions` picker (`SPC c c`) —
+  marginalia annotator, and the `consult-claude-sessions` picker (`fc` in
+  normal state, alongside `ff`/`fd` in the override map) —
   a consult switcher listing sessions with live status
   (`working`/`waiting`/`done`/`idle`), age, and directory; selecting one jumps
   to its terminal. The ghostel-specific glue stays in `init.el` and feeds the
