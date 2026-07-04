@@ -345,7 +345,10 @@ source file is opened.
   out of any popup one level.
 - `magit-display-buffer-function` is
   `magit-display-buffer-same-window-except-diff-v1`, so `magit-status` opens in
-  the current window (diffs still pop elsewhere).
+  the current window (diffs still pop elsewhere). Symmetrically,
+  `magit-bury-buffer-function` is `neoemacs/magit-bury-buffer-keep-window`, so
+  `q` (and `C-u q`, which kills) never deletes a window — the window stays and
+  shows its previous buffer, unlike the default `magit-mode-quit-window`.
 - `diff-hl` renders VC hunk indicators in the terminal margin, refreshes around
   Magit operations, and supplies leader hunk actions at `SPC g j/k/s/x`.
 - Help: `neoemacs/describe-symbol-at-point` (`K` in normal state in

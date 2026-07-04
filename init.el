@@ -1136,7 +1136,17 @@ Wraps the affixation-function returned further down the advice chain
   ;; other secondary buffers still pop to another window as usual.
   (magit-display-buffer-function
    #'magit-display-buffer-same-window-except-diff-v1)
+  ;; `q' (magit-mode-bury-buffer) must never delete a window. The default
+  ;; `magit-mode-quit-window' deletes the window when it was created for the
+  ;; magit buffer (diff/log popups); this replacement only buries or kills the
+  ;; buffer, so the window stays and shows its previous buffer.
+  (magit-bury-buffer-function #'neoemacs/magit-bury-buffer-keep-window)
   :config
+  (defun neoemacs/magit-bury-buffer-keep-window (kill)
+    "Bury (or with KILL non-nil, kill) the current magit buffer.
+Never deletes the window; it falls back to its previous buffer."
+    (if kill (kill-current-buffer) (bury-buffer)))
+
   (defun neoemacs/magit-ediff-working-vs-head ()
     "Ediff the file at point's working-tree version against its HEAD version.
 A plain two-buffer ediff (the index is not involved), unlike
