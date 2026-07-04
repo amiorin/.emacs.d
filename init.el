@@ -121,6 +121,12 @@
           `((,(concat "\\`" (regexp-quote (file-truename code-dir)))
              . ,code-dir)))))
 
+(defun neoemacs--abbreviate-file-display-name (file)
+  "Return FILE with truename spellings collapsed for display."
+  (if (and (stringp file) (file-name-absolute-p file))
+      (abbreviate-file-name file)
+    file))
+
 ;; Keep Custom's machine-written settings out of init.el. With `custom-file'
 ;; unset, Custom defaults to `user-init-file' and rewrites its blocks into
 ;; init.el (which is how stale entries crept in before). Point it at its own
@@ -832,6 +838,53 @@ Wraps the affixation-function returned further down the advice chain
          ("M-g i" . consult-imenu))
   :bind (:map consult-narrow-map
               ("?" . consult-narrow-help)))
+
+;; xref and consult-xref compare result paths against the project root directly
+;; instead of piping both sides through `abbreviate-file-name'. That misses the
+;; ~/code directory-abbrev above when one side is the symlink spelling and the
+;; other is the /Volumes truename, so normalize the *display* strings first.
+(with-eval-after-load 'xref
+  (defun neoemacs--xref-group-name-for-display (orig group project-root)
+    "Normalize xref GROUP and PROJECT-ROOT before project-relative display."
+    (if (eq xref-file-name-display 'project-relative)
+        (funcall orig
+                 (neoemacs--abbreviate-file-display-name group)
+                 (when project-root
+                   (file-name-as-directory
+                    (neoemacs--abbreviate-file-display-name project-root))))
+      (funcall orig group project-root)))
+  (advice-add 'xref--group-name-for-display
+              :around #'neoemacs--xref-group-name-for-display))
+
+(with-eval-after-load 'consult-xref
+  (defun neoemacs--consult-xref-abbreviate-candidates (candidates)
+    "Normalize Consult xref candidate paths through `directory-abbrev-alist'."
+    (let ((root (consult--project-root)))
+      (when root
+        (setq root (file-name-as-directory
+                    (neoemacs--abbreviate-file-display-name root))))
+      (mapcar
+       (lambda (cand)
+         (let ((xref (get-text-property 0 'consult-xref cand)))
+           (if (not xref)
+               cand
+             (let* ((loc (xref-item-location xref))
+                    (group (neoemacs--abbreviate-file-display-name
+                            (xref-location-group loc)))
+                    (display-group (if (and root (string-prefix-p root group))
+                                       (substring group (length root))
+                                     group))
+                    (new-cand (consult--format-file-line-match
+                               display-group
+                               (or (xref-location-line loc) 0)
+                               (xref-item-summary xref))))
+               (add-text-properties
+                0 1 `(consult-xref ,xref consult--prefix-group ,display-group)
+                new-cand)
+               new-cand))))
+       candidates)))
+  (advice-add 'consult-xref--candidates
+              :filter-return #'neoemacs--consult-xref-abbreviate-candidates))
 
 ;; consult-dir: switch the *directory context* from inside the minibuffer.
 ;; `C-x C-d' globally jumps to a directory (recent dirs, projectile roots,
