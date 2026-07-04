@@ -86,7 +86,11 @@ Three layers, used deliberately:
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
    `dired-jump`, `ff` → `neoemacs/consult-recent-file`, `fd` →
    `neoemacs/consult-dir`, and `fc` → `consult-claude-sessions` in normal
-   state,
+   state — the `f` bindings sit on an explicit prefix map
+   (`neoemacs--normal-f-map`) bound through a `general-predicate-dispatch`
+   filter that returns nil in `magit-mode` buffers, so `f` falls through to
+   magit's native `magit-fetch` instead of being swallowed by the override
+   prefix,
    `s-hjkl` window movement, `s-n` vsplit +
    follow, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,

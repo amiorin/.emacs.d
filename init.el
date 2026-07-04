@@ -669,13 +669,25 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
   ;; Bound into `help-map' the same way embark-bindings is (see the embark form).
   (define-key help-map "t" #'emacs-init-time)
   ;; `-' in normal state jumps to dired (vinegar-style).
+  ;; The `f' bindings sit on an explicit prefix map dispatched through a
+  ;; `general-predicate-dispatch' filter instead of plain "ff"/"fd"/"fc"
+  ;; sequences: a two-key sequence would make `f' an unconditional prefix in
+  ;; the override map, shadowing magit's `f' (magit-fetch) -- magit keeps its
+  ;; native keymap (no evil-collection), so only a filter that returns nil in
+  ;; magit buffers lets the key fall through to it.
+  (defvar neoemacs--normal-f-map
+    (let ((map (make-sparse-keymap)))
+      (define-key map "f" #'neoemacs/consult-recent-file)
+      (define-key map "d" #'neoemacs/consult-dir)
+      (define-key map "c" #'consult-claude-sessions)
+      map)
+    "Normal-state `f' prefix map (inactive in magit buffers).")
   (general-define-key
    :states 'normal
    :keymaps 'override
    "-" 'dired-jump
-   "ff" 'neoemacs/consult-recent-file
-   "fd" 'neoemacs/consult-dir
-   "fc" 'consult-claude-sessions)
+   "f" (general-predicate-dispatch neoemacs--normal-f-map
+         (derived-mode-p 'magit-mode) nil))
   ;; s-hjkl: move between windows.
   (general-define-key
    :keymaps 'override
