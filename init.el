@@ -820,6 +820,11 @@ Wraps the affixation-function returned further down the advice chain
 
 ;; Consult: enhanced search and navigation commands.
 (use-package consult
+  :init
+  ;; Show xref results through the Consult/Vertico picker (with grouped,
+  ;; relative paths and live preview) instead of the default `*xref*' buffer.
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
   :bind (("C-s"   . consult-line)
          ("C-x b" . consult-buffer)
          ("M-y"   . consult-yank-pop)
