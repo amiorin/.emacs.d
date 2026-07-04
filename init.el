@@ -1826,7 +1826,18 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   (cider-repl-display-help-banner nil)
   (cider-repl-pop-to-buffer-on-connect 'display-only)
   (cider-save-file-on-load t)
-  (cider-font-lock-dynamically '(macro core function var)))
+  (cider-font-lock-dynamically '(macro core function var))
+  :config
+  ;; Test commands on a Ctrl-free prefix: `C-c t t' (so `, t t' via the comma
+  ;; alias) instead of `C-c C-t C-t'. Move the prefix in every map that
+  ;; carries it, and drop the C-<letter> duplicates from the test map so each
+  ;; command has one binding and which-key shows one entry.
+  (dolist (map (list cider-mode-map cider-repl-mode-map
+                     cider-test-report-mode-map))
+    (define-key map (kbd "C-c C-t") nil t)
+    (define-key map (kbd "C-c t") 'cider-test-commands-map))
+  (dolist (key '("C-r" "C-t" "C-a" "C-n" "C-s" "C-l" "C-p" "C-b" "C-f"))
+    (define-key cider-test-commands-map (kbd key) nil t)))
 
 ;;; --- Environment: direnv ---------------------------------------------------
 

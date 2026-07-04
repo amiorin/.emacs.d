@@ -198,6 +198,12 @@ source file is opened.
 - **Clojure tooling.** `cider` is the nREPL runtime half (REPL, inline eval,
   test runner), complementary to clojure-lsp's static analysis — they run
   together. `:after clojure-ts-mode` keeps it deferred; `C-c C-j` jacks in.
+  The test commands live on the Ctrl-free prefix `C-c t` (so `, t t` runs the
+  test at point via the comma alias): `:config` moves
+  `cider-test-commands-map` from `C-c C-t` to `C-c t` in `cider-mode-map`,
+  `cider-repl-mode-map`, and `cider-test-report-mode-map`, and unbinds the
+  map's `C-<letter>` duplicates so only the plain-letter finals remain
+  (`C-c ,` is left as cider's alternate prefix).
 - **Lisp structural editing.** Three layers ride on the Lisp-family modes — the
   tree-sitter Clojure modes (`clojure-ts-mode` + cljs/cljc) *and* `emacs-lisp-mode`
   / `lisp-interaction-mode`: `smartparens` (`smartparens-strict-mode`, refuses
