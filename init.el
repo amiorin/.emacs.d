@@ -1595,6 +1595,12 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; Must be set before lsp-mode loads. The prefix map holds the long tail of
   ;; LSP commands (the everyday ones live on the leader under `SPC c').
   (setq lsp-keymap-prefix "C-c l")
+  ;; In LSP buffers, use Vim's gd/gr mnemonics for server-backed navigation.
+  ;; Associate the bindings with the `lsp-mode' minor mode here, before the
+  ;; server eventually starts, so Evil does not need a later keymap refresh.
+  (evil-define-key 'normal 'lsp-mode
+    "gd" #'lsp-find-definition
+    "gr" #'lsp-find-references)
   (defun neoemacs/lsp-completion-orderless ()
     "Match lsp-mode completion candidates with orderless (corfu setup)."
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
@@ -1624,10 +1630,6 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; on a chatty server and only useful when debugging lsp-mode itself.
   (lsp-log-io nil)
   :config
-  ;; In LSP buffers, use Vim's gd/gr mnemonics for server-backed navigation.
-  (evil-define-key 'normal lsp-mode-map
-    "gd" #'lsp-find-definition
-    "gr" #'lsp-find-references)
   ;; LSP servers stream large JSON payloads; read process output in bigger
   ;; chunks than the Emacs default (lsp-mode's performance guide recommends 1MiB).
   (setq read-process-output-max (* 1024 1024))
