@@ -144,6 +144,7 @@ elsewhere.
 | `SPC c D` | workspace diagnostics (consult-lsp) |
 | `SPC c s` | file symbols (consult-lsp)      |
 | `SPC c S` | workspace symbols (consult-lsp) |
+| `gd` / `gr` | LSP definition / references (LSP buffers) |
 | `SPC o o` | open current file in Obsidian   |
 | `SPC o f` | open current file in default app |
 | `SPC o d` | open current directory in Finder |

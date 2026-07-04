@@ -1857,6 +1857,9 @@ With a prefix arg (or non-nil HERE), start in the current
   (lsp-diagnostics-provider :flymake)  ; flycheck isn't installed
   (lsp-headerline-breadcrumb-enable nil)
   :config
+  (evil-define-key 'normal lsp-mode-map
+    "gd" #'lsp-find-definition
+    "gr" #'lsp-find-references)
   (setq read-process-output-max (* 1024 1024)))
 
 (use-package consult-lsp
@@ -1869,7 +1872,8 @@ With a prefix arg (or non-nil HERE), start in the current
       one of those modes turns on, and (unlike plain <code>lsp</code>) waits until the buffer
       is displayed before starting a server. Leader actions live under <code>SPC c</code>
       (<code>ca</code> code actions, <code>cr</code> rename, <code>cf</code> format,
-      <code>cd</code> diagnostics); the long tail of LSP commands is on
+      <code>cd</code> diagnostics); in LSP buffers <code>gd</code> and <code>gr</code>
+      jump to definitions and references; the long tail of LSP commands is on
       <code>C-c l</code>.</p>
       <p>All three servers ship as built-in lsp-mode clients: <code>astro-ls</code>
       (lsp-astro points <code>tsdk</code> at the project's own
