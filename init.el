@@ -296,6 +296,7 @@
 (use-package doom-modeline
   :after nerd-icons
   :init
+  (setq doom-modeline-buffer-file-name-style 'relative-from-project)
   (doom-modeline-mode 1))
 
 ;;; --- Evil: Vim emulation ---------------------------------------------------
