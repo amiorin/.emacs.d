@@ -1520,6 +1520,13 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
           '(orderless)))
   :custom
+  ;; Code lenses: the grey "N references | M tests" annotation rendered above
+  ;; each definition (an overlay, so it works in -nw). The counts come from the
+  ;; server; clojure-lsp splits out the "| M tests" part because
+  ;; `:lens-segregate-test-references? true' is set in
+  ;; ~/.config/clojure-lsp/config.edn (a server-side setting -- lsp-mode only
+  ;; draws what the server sends).
+  (lsp-lens-enable t)
   ;; corfu drives in-buffer completion off the plain capf; `:none' stops
   ;; lsp-mode from trying to configure company (not installed) around it.
   (lsp-completion-provider :none)

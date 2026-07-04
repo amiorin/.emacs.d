@@ -1825,6 +1825,7 @@ With a prefix arg (or non-nil HERE), start in the current
   :init
   (setq lsp-keymap-prefix "C-c l")
   :custom
+  (lsp-lens-enable t)                  ; "N references | M tests" overlays
   (lsp-completion-provider :none)      ; corfu owns the capf, no company
   (lsp-diagnostics-provider :flymake)  ; flycheck isn't installed
   (lsp-headerline-breadcrumb-enable nil)
@@ -1842,7 +1843,10 @@ With a prefix arg (or non-nil HERE), start in the current
       (lsp-astro points <code>tsdk</code> at the project's own
       <code>node_modules/typescript</code>), <code>typescript-language-server</code> for
       TS/TSX, and <code>clojure-lsp</code> for the tree-sitter Clojure modes. clojure-lsp
-      bundles clj-kondo, so linting arrives over flymake with no separate linter. Completion
+      bundles clj-kondo, so linting arrives over flymake with no separate linter. Code
+      lenses show a grey "N references | M tests" overlay above each definition — the
+      test/reference split is clojure-lsp's <code>:lens-segregate-test-references?</code>,
+      set in <code>~/.config/clojure-lsp/config.edn</code>. Completion
       goes through the plain LSP capf (<code>lsp-completion-provider :none</code>) so corfu
       consumes it directly, matched with orderless like everything else. Requires the
       matching server binaries on PATH.</p>

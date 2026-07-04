@@ -160,7 +160,11 @@ source file is opened.
   `typescript-language-server` (ts-ls), `astro-ls` (lsp-astro points `tsdk` at
   the workspace's own `node_modules/typescript/lib`), and `clojure-lsp` for the
   tree-sitter Clojure modes (clojure-lsp bundles clj-kondo, so linting arrives
-  over flymake with no separate linter). `lsp-diagnostics-provider` is pinned
+  over flymake with no separate linter). `lsp-lens-enable t` shows code lenses
+  — the grey "N references | M tests" overlay above each definition; the
+  test/reference split is clojure-lsp's `:lens-segregate-test-references?
+  true`, set in `~/.config/clojure-lsp/config.edn` (a server-side setting,
+  outside this repo). `lsp-diagnostics-provider` is pinned
   to `:flymake` (flycheck isn't installed), `lsp-completion-provider` is
   `:none` so corfu consumes the plain LSP capf (a `lsp-completion-mode` hook
   routes its matching through orderless), the breadcrumb header line is off,
