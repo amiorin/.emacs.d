@@ -919,16 +919,56 @@ Wraps the affixation-function returned further down the advice chain
   :defer t
   :init
   (add-hook 'emacs-startup-hook #'global-corfu-mode)
-  ;; While the popup is active: SPC inserts an orderless separator (so you can
-  ;; keep narrowing with a second component instead of dismissing the popup),
-  ;; RET completes to the selected candidate, and TAB / S-TAB cycle candidates.
+  ;; While the popup is active: RET completes to the selected candidate and
+  ;; TAB / S-TAB cycle candidates. The separator key (SPC / M-SPC) is bound
+  ;; conditionally in `:config' below.
   :bind (:map corfu-map
-              ("SPC" . corfu-insert-separator)
               ("RET" . corfu-insert)
               ("TAB" . corfu-next)
               ([tab] . corfu-next)
               ("S-TAB" . corfu-previous)
               ([backtab] . corfu-previous))
+  :config
+  ;; SPC inserts an orderless separator (so you can keep narrowing with a
+  ;; second component instead of dismissing the popup) -- except in
+  ;; markdown-derived modes (markdown-mode, gfm-mode), where a space is prose,
+  ;; so SPC quits the popup and types a real space while M-SPC takes over as
+  ;; the separator. Two subtleties force the shape of the code below:
+  ;;
+  ;; 1. SPC can't just fall through to `self-insert-command': with
+  ;;    `corfu-quit-at-boundary' nil corfu keeps completing across the space,
+  ;;    and a typed space is indistinguishable from the separator char to both
+  ;;    corfu's continue logic and orderless matching -- so the popup would
+  ;;    keep narrowing anyway. The quit must be explicit.
+  (defun neoemacs/corfu-quit-and-insert-space ()
+    "Quit the corfu popup, then insert a literal space."
+    (interactive)
+    (corfu-quit)
+    (call-interactively #'self-insert-command))
+  (define-key corfu-map (kbd "SPC")
+	      '(menu-item "corfu-separator-dwim" corfu-insert-separator
+			  :filter (lambda (cmd)
+				    (if (derived-mode-p 'markdown-mode)
+					#'neoemacs/corfu-quit-and-insert-space
+				      cmd))))
+  ;; 2. M-SPC can't live in `corfu-map': corfu installs its map at
+  ;;    minor-mode precedence (`minor-mode-overriding-map-alist'), which loses
+  ;;    to `emulation-mode-map-alists' -- where general's override map binds
+  ;;    M-SPC as the leader's global fallback. So the markdown separator is
+  ;;    bound in its own emulation-alist entry, prepended so it beats the
+  ;;    leader, keyed on `completion-in-region-mode' so it exists only while
+  ;;    the popup is live, and mode-filtered so outside markdown M-SPC still
+  ;;    reaches the leader.
+  (defvar neoemacs--corfu-markdown-separator-map
+    (let ((map (make-sparse-keymap)))
+      (define-key map (kbd "M-SPC")
+		  '(menu-item "corfu-insert-separator" corfu-insert-separator
+			      :filter (lambda (cmd)
+					(when (derived-mode-p 'markdown-mode) cmd))))
+      map)
+    "Keymap making M-SPC the corfu separator in markdown buffers.")
+  (add-to-list 'emulation-mode-map-alists
+	       `((completion-in-region-mode . ,neoemacs--corfu-markdown-separator-map)))
   :custom
   ;; Pop up automatically as you type (don't wait for an explicit TAB).
   (corfu-auto t)
