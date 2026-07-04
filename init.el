@@ -106,6 +106,21 @@
 ;; Answer long yes/no prompts with a single `y' or `n', no RET required.
 (setq use-short-answers t)
 
+;; ~/code is a symlink (currently to /Volumes/Blue/code), so the same file has
+;; two names: tools that call `file-truename' (projectile's project root,
+;; recentf, ...) see the volume path while the visited buffer keeps the ~/code
+;; form, and anything comparing the two — e.g. doom-modeline's project-relative
+;; path — degenerates into "green/../../../../U/a/c/g/deps.edn".
+;; `directory-abbrev-alist' is Emacs's mechanism for exactly this: it teaches
+;; `abbreviate-file-name' that the truename form should display as ~/code, so
+;; both spellings collapse back to one. Resolved dynamically so it survives the
+;; volume moving again (and is a no-op if ~/code stops being a symlink).
+(let ((code-dir (expand-file-name "~/code")))
+  (when (file-symlink-p code-dir)
+    (setq directory-abbrev-alist
+          `((,(concat "\\`" (regexp-quote (file-truename code-dir)))
+             . ,code-dir)))))
+
 ;; Keep Custom's machine-written settings out of init.el. With `custom-file'
 ;; unset, Custom defaults to `user-init-file' and rewrites its blocks into
 ;; init.el (which is how stale entries crept in before). Point it at its own
@@ -273,7 +288,11 @@
 ;; Run `M-x nerd-icons-install-fonts' once after first launch.
 (use-package nerd-icons)
 
-;; doom-modeline: fancy modeline matching the doom themes.
+;; doom-modeline: fancy modeline matching the doom themes. The project-relative
+;; buffer path stays sane for files under the ~/code symlink because of the
+;; `directory-abbrev-alist' entry in Core editor settings — the modeline
+;; abbreviates the project root before diffing it against the buffer path, so
+;; both sides use the ~/code spelling.
 (use-package doom-modeline
   :after nerd-icons
   :init
