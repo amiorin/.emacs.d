@@ -1917,7 +1917,11 @@ With a prefix arg (or non-nil HERE), start in the current
               ("M-5" . evil-cp-wrap-next-square)
               ("M-]" . evil-cp-wrap-previous-square))
   :init
-  (setq evil-cleverparens-use-additional-bindings t))
+  (setq evil-cleverparens-use-additional-bindings t)
+  (setq evil-cleverparens-use-s-and-S nil)   ; keep `s' free for avy
+  :config
+  (evil-define-key 'normal evil-cleverparens-mode-map
+    "S" 'evil-cp-change-whole-line))
 
 (use-package rainbow-delimiters
   :hook ((emacs-lisp-mode lisp-interaction-mode
@@ -1944,7 +1948,11 @@ With a prefix arg (or non-nil HERE), start in the current
       edits that would unbalance a sexp (<code>smartparens-config</code> loads the default
       pairs); <code>evil-cleverparens</code> adds paredit-style slurp/barf/wrap through evil
       motions (<code>M-5</code> / <code>M-]</code> wrap the next/previous form in square
-      brackets); and <code>rainbow-delimiters</code> depth-colors the parens.</p>
+      brackets); and <code>rainbow-delimiters</code> depth-colors the parens.
+      <code>evil-cleverparens-use-s-and-S</code> is nil because minor-mode maps beat
+      <code>evil-normal-state-map</code> — cleverparens' <code>s</code> would shadow the avy
+      jump in every Lisp buffer; the paren-safe <code>S</code>
+      (<code>evil-cp-change-whole-line</code>) is re-added on its own.</p>
       <p><strong>Clojure REPL.</strong> <code>cider</code> is the nREPL runtime half — REPL,
       inline eval, test runner — complementary to clojure-lsp's static analysis (they run
       together); <code>:after clojure-ts-mode</code> keeps it deferred, and

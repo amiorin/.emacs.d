@@ -1644,7 +1644,15 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
               ("M-5" . evil-cp-wrap-next-square)
               ("M-]" . evil-cp-wrap-previous-square))
   :init
-  (setq evil-cleverparens-use-additional-bindings t))
+  (setq evil-cleverparens-use-additional-bindings t)
+  ;; Don't let cleverparens bind `s'/`S' in its mode map -- minor-mode maps
+  ;; beat `evil-normal-state-map', so its `s' (evil-cp-substitute) would
+  ;; shadow the avy jump in every Lisp buffer. The paren-safe `S' is worth
+  ;; keeping, so it's re-added by itself in `:config'.
+  (setq evil-cleverparens-use-s-and-S nil)
+  :config
+  (evil-define-key 'normal evil-cleverparens-mode-map
+    "S" 'evil-cp-change-whole-line))
 
 ;; rainbow-delimiters: depth-colored parens/brackets/braces. Hooked on the
 ;; Lisp-family modes where nesting depth matters most -- the tree-sitter

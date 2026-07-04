@@ -193,7 +193,11 @@ source file is opened.
   edits that would unbalance a sexp; `smartparens-config` loads the default
   pairs), `evil-cleverparens` (paredit-style slurp/barf/wrap through evil
   motions, `evil-cleverparens-use-additional-bindings t`, with `M-5` /
-  `M-]` bound to wrap-square), and `rainbow-delimiters` (depth-colored parens).
+  `M-]` bound to wrap-square; `evil-cleverparens-use-s-and-S` is nil so
+  cleverparens' mode map doesn't shadow the avy `s` binding in Lisp buffers —
+  minor-mode maps beat `evil-normal-state-map` — with the paren-safe `S`
+  (`evil-cp-change-whole-line`) re-added on its own), and
+  `rainbow-delimiters` (depth-colored parens).
   evil-cleverparens pulls in paredit + smartparens.
 
 ## Notable conventions
