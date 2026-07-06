@@ -88,6 +88,12 @@
       (use-package-ensure-elpa name args state no-refresh)))
 (setq use-package-ensure-function #'neoemacs--use-package-ensure)
 
+;;; --- Environment -----------------------------------------------------------
+
+(let ((sock (format "/tmp/%s@%s.agent" (user-login-name) (system-name))))
+  (when (file-exists-p sock)
+    (setenv "SSH_AUTH_SOCK" sock)))
+
 ;;; --- Core editor settings --------------------------------------------------
 
 ;; Disable backup files (the `filename~' clutter).
@@ -1398,14 +1404,7 @@ With no file at point, fall back to `magit-ediff-dwim'."
 
 ;;; --- Terminal integration --------------------------------------------------
 
-;; kkp: Kitty Keyboard Protocol support for terminal Emacs, enabling
-;; key combinations the terminal would otherwise swallow (e.g. C-S-x).
-;; Loaded from the local clone until the legacy-keys restore fix (re-assert
-;; flags after the pop, for stack-less terminals like zellij) lands upstream
-;; and reaches MELPA -- then this can go back to the plain ELPA package.
 (use-package kkp
-  :ensure nil
-  :load-path "~/code/kkp"
   :config
   (global-kkp-mode 1))
 
@@ -1436,6 +1435,7 @@ With no file at point, fall back to `magit-ediff-dwim'."
   ;; Name buffers from Emacs's tracked directory instead of the terminal title;
   ;; shell titles can contain prompt-level abbreviations like ~/.c/neoemacs.
   :custom
+  (ghostel-shell "/usr/bin/fish")
   (ghostel-buffer-name-function #'ghostel-buffer-name-by-directory)
   ;; Tag every spawned terminal so Claude Code sessions running inside it can
   ;; report status back (see "Claude Code session tracking" below). The hook
@@ -1600,7 +1600,8 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
         (css        "https://github.com/tree-sitter/tree-sitter-css")
         (clojure    "https://github.com/sogaiu/tree-sitter-clojure")
         (typescript "https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src")
-        (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")))
+        (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")
+        (yaml       "https://github.com/tree-sitter-grammars/tree-sitter-yaml")))
 
 (defun neoemacs--ensure-treesit-grammars (&rest langs)
   "Install each grammar in LANGS via tree-sitter if it isn't already built.
@@ -1647,6 +1648,16 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   (clojure-ts-toplevel-inside-comment-form t)
   :config
   (neoemacs--ensure-treesit-grammars 'clojure))
+
+;; yaml-ts-mode ships with Emacs (29+), so `:ensure nil'.
+(use-package yaml-ts-mode
+  :ensure nil
+  :mode "\\.ya?ml\\'"
+  :config
+  (neoemacs--ensure-treesit-grammars 'yaml))
+
+(use-package terraform-mode
+  :mode "\\.tf\\'")
 
 ;; --- LSP via lsp-mode -------------------------------------------------------
 ;;

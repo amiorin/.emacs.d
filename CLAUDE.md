@@ -56,8 +56,7 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
   (via the shim above, so a newly added form still installs on next startup).
   For packages that ship with Emacs (e.g. `recentf`, `which-key`) add
   `:ensure nil` so it doesn't try to fetch them. Packages loaded from a local
-  checkout (`consult-claude`, and currently `kkp` — see the kkp bullet under
-  *Notable conventions*) use `:ensure nil` + `:load-path`.
+  checkout (`consult-claude`) use `:ensure nil` + `:load-path`.
 - **Startup-hook deferral pattern:** packages that are needed for the first
   keystroke but not for the first *paint* (`evil-collection`, `dirvish`,
   `which-key`, `recentf`, `autorevert`, `evil-goggles`, `evil-anzu`, plus the
@@ -276,13 +275,6 @@ source file is opened.
   so an `:around` advice (kkp's own `kkp-restore-legacy-keys`) restores the raw
   C-g byte for the duration of the call — restoring the abort. Any other
   synchronous command that relies on `C-g` would need the same advice.
-  **Temporary:** kkp is loaded from a local clone (`~/code/kkp`, `:ensure nil`
-  + `:load-path`, branch `fix-legacy-keys-restore-without-stack`) because the
-  MELPA build restores KKP with a bare stack pop, which zellij — implementing
-  the protocol *without* the flag stack — treats as a plain disable, killing
-  kkp after the first `envrc--export`. Revert to the plain ELPA package (and
-  the clone to master) once https://github.com/benotn/kkp/pull/36 is merged
-  and on MELPA.
 - Cursor: `evil-terminal-cursor-changer` reflects the evil state in the host
   terminal's cursor via DECSCUSR sequences (`cursor-type` alone only affects
   GUI Emacs). Shapes: normal/visual/motion = block, insert = bar,
