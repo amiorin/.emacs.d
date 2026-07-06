@@ -76,7 +76,10 @@ M-x nerd-icons-install-fonts
   to jump between them.
 - **Help** — in Elisp buffers, `K` (normal state) opens Helpful for the symbol
   under point with no prompt and moves focus into the help window so you can
-  scroll it and `q` to dismiss. `SPC h` is the help prefix.
+  scroll it and `q` to dismiss. In Clojure buffers (and the CIDER REPL), `K`
+  shows the doc for the symbol under point — `cider-doc` when a REPL is
+  connected, clojure-lsp's hover doc otherwise — without leaving the code
+  window. `SPC h` is the help prefix.
 - **External app helpers** — open the current file in its default macOS app
   (as if double-clicked), reveal the current directory in Finder, and open the
   current file in Obsidian when it lives inside a vault. All run via macOS
@@ -172,6 +175,7 @@ elsewhere.
 | `SPC h`   | help prefix                     |
 | `SPC h t` | show startup time               |
 | `K`       | Helpful for symbol at point (Elisp buffers) |
+| `K`       | Clojure doc for symbol at point: cider-doc, else LSP hover (Clojure buffers + REPL) |
 
 In dired, `h` goes up a directory, `l` enters the file/directory, and `TAB`
 toggles a directory's subtree. `y` is a "yank" prefix that copies the entry's

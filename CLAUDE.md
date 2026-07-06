@@ -186,7 +186,7 @@ source file is opened.
   under `SPC c`: `ca` code actions, `cr` rename, `cf` format buffer, `cd` show
   diagnostics; the full command map is on the `lsp-keymap-prefix` `C-c l`.
   `consult-lsp` (`:after lsp-mode`) surfaces LSP data through the consult
-  minibuffer UI: `cs` file symbols, `cS` workspace symbols, `cD` workspace
+  minibuffer UI: `cs` file symbols, `cS` workspace symbols, `cx` workspace
   diagnostics (vs. the buffer-local flymake list on `cd`), and
   `xref-find-apropos` is remapped to `consult-lsp-symbols` in lsp buffers.
   Requires `astro-ls`, `typescript-language-server`, and `clojure-lsp` on PATH
@@ -370,6 +370,16 @@ source file is opened.
   focus lands there (so you can immediately scroll/navigate it and `q` to
   dismiss). `SPC h` is bound to `help-command` for the rest of the help map,
   and `SPC h t` / `C-h t` show `emacs-init-time`.
+  The Clojure counterpart is `neoemacs/clojure-doc-at-point` (`K` in normal
+  state in the clojure-ts modes, and in `cider-mode-map`/`cider-repl-mode-map`
+  once cider loads): `cider-doc` when `cider-current-repl` finds a connected
+  REPL, else clojure-lsp's `lsp-describe-thing-at-point`. Unlike the elisp
+  `K` it does *not* select the doc window (`cider-doc-auto-select-buffer` is
+  nil, and the LSP `*lsp-help*` buffer is display-only). The cider-map
+  rebinds live in cider's `:config` deliberately — cider-mode is a minor
+  mode, so evil-collection's own `K` → `cider-doc` there would shadow the
+  major-mode binding (and error on a dead REPL instead of falling back to
+  LSP); the `:config` runs after evil-collection's cider setup, so it wins.
 - macOS external helpers (all under the `o` leader group): `SPC o f` opens the
   current file in its default app via macOS `open` (LaunchServices routes it as
   if double-clicked — this replaced an earlier Quick Look command, since

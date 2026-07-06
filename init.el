@@ -524,6 +524,20 @@ Uses Helpful, then selects the `helpful-mode' window so focus lands there
             (select-window win)))
       (user-error "No symbol at point"))))
 
+(defun neoemacs/clojure-doc-at-point ()
+  "Show Clojure documentation for the symbol under point, staying in the code.
+Prefers `cider-doc' (live arglists/docstring over nREPL) when a CIDER REPL
+is connected for this buffer; falls back to clojure-lsp's hover doc
+(`lsp-describe-thing-at-point') so `K' still works without a REPL.
+Neither path selects the doc window (`cider-doc-auto-select-buffer' is nil)."
+  (interactive)
+  (cond
+   ((and (featurep 'cider) (cider-current-repl))
+    (cider-doc))
+   ((bound-and-true-p lsp-mode)
+    (lsp-describe-thing-at-point))
+   (t (user-error "No CIDER REPL connected and no LSP session in this buffer"))))
+
 (defun neoemacs/find-file-in-config ()
   "Find a file under the Emacs config directory (`user-emacs-directory').
 Opens a `find-file' prompt rooted at the private config dir (currently
@@ -668,7 +682,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "cr" '(lsp-rename :which-key "rename symbol")
     "cf" '(lsp-format-buffer :which-key "format buffer")
     "cd" '(flymake-show-buffer-diagnostics :which-key "diagnostics")
-    "cD" '(consult-lsp-diagnostics :which-key "workspace diagnostics")
+    "cx" '(consult-lsp-diagnostics :which-key "workspace diagnostics")
     "cs" '(consult-lsp-file-symbols :which-key "file symbols")
     "cS" '(consult-lsp-symbols :which-key "workspace symbols")
     "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
@@ -720,6 +734,17 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    :states 'normal
    :keymaps '(emacs-lisp-mode-map lisp-interaction-mode-map)
    "K" 'neoemacs/describe-symbol-at-point)
+  ;; `K' in Clojure buffers: cider-doc when a REPL is connected, clojure-lsp
+  ;; hover doc otherwise (general defers these until the keymaps exist). The
+  ;; cider-mode/REPL rebinds live in the cider `:config' -- cider-mode is a
+  ;; *minor* mode, so evil-collection's own `K' there would shadow these
+  ;; major-mode bindings once a REPL is up.
+  (general-define-key
+   :states 'normal
+   :keymaps '(clojure-ts-mode-map
+              clojure-ts-clojurescript-mode-map
+              clojure-ts-clojurec-mode-map)
+   "K" 'neoemacs/clojure-doc-at-point)
   ;; Make `j'/`k' move by *visual* line so navigation follows wrapped text
   ;; instead of jumping over a whole logical line. `gj'/`gk' are swapped to the
   ;; logical-line motions so the old behaviour is still one keystroke away.
@@ -1728,7 +1753,7 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
 ;; imenu-over-LSP), and `consult-lsp-diagnostics' (workspace-wide diagnostics,
 ;; vs. the buffer-local flymake list on `SPC c d'). All three preview the
 ;; candidate as you move, like every other consult command. Leader entries live
-;; under `SPC c' (`cs' / `cS' / `cD'); the commands are autoloaded, so those
+;; under `SPC c' (`cs' / `cS' / `cx'); the commands are autoloaded, so those
 ;; bindings don't load anything early. `:after lsp-mode' keeps the package off
 ;; the startup path (lsp-mode itself only loads on the first source file), and
 ;; the remap points `xref-find-apropos' (`C-M-.', xref's pattern-based symbol
@@ -1827,6 +1852,9 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   (cider-repl-pop-to-buffer-on-connect 'display-only)
   (cider-save-file-on-load t)
   (cider-font-lock-dynamically '(macro core function var))
+  ;; `K' doc lookups stay in the code window: don't select the *cider-doc*
+  ;; popup (see `neoemacs/clojure-doc-at-point').
+  (cider-doc-auto-select-buffer nil)
   :config
   ;; Test commands on a Ctrl-free prefix: `C-c t t' (so `, t t' via the comma
   ;; alias) instead of `C-c C-t C-t'. Move the prefix in every map that
@@ -1842,7 +1870,17 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   ;; comma alias), mirroring the test-command prefix move above.
   (dolist (map (list cider-mode-map cider-repl-mode-map))
     (define-key map (kbd "C-c i r") 'cider-inspect-last-result)
-    (define-key map (kbd "C-c i i") 'cider-inspect)))
+    (define-key map (kbd "C-c i i") 'cider-inspect))
+  ;; `K' -> the cider/LSP doc dwim everywhere cider is active. cider-mode is a
+  ;; minor mode, so evil-collection's `K' -> `cider-doc' in these maps would
+  ;; otherwise shadow the clojure-ts-mode-map binding (and error on a dead
+  ;; REPL, where the dwim falls back to LSP). This runs after
+  ;; evil-collection's cider setup (its `with-eval-after-load' fires during
+  ;; cider's load, before this `:config'), so these bindings win.
+  (general-define-key
+   :states '(normal visual)
+   :keymaps '(cider-mode-map cider-repl-mode-map)
+   "K" 'neoemacs/clojure-doc-at-point))
 
 ;;; --- Environment: direnv ---------------------------------------------------
 
