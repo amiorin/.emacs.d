@@ -94,6 +94,13 @@
   (when (file-exists-p sock)
     (setenv "SSH_AUTH_SOCK" sock)))
 
+;; asdf shims: subprocesses (clojure-lsp, etc.) need the shims directory on
+;; PATH even when no .envrc injects it.
+(let ((shims (expand-file-name "~/.asdf/shims")))
+  (when (file-directory-p shims)
+    (add-to-list 'exec-path shims)
+    (setenv "PATH" (concat shims ":" (getenv "PATH")))))
+
 ;;; --- Core editor settings --------------------------------------------------
 
 ;; Disable backup files (the `filename~' clutter).
