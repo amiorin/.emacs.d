@@ -428,6 +428,17 @@ source file is opened.
   changed on disk when there are no unsaved edits;
   `global-auto-revert-non-file-buffers` extends this to dired listings. Reverts
   are silent (`auto-revert-verbose nil`).
+- `recentf` records a file not just when it's first visited (`find-file-hook`)
+  but every time its buffer *becomes current*:
+  `neoemacs--recentf-bump-current-buffer` on `buffer-list-update-hook` calls
+  `recentf-add-file` so the focused file jumps to the top of `recentf-list`,
+  making `SPC f r` order by recency of focus rather than of visit. That hook
+  fires very often, so it bails out unless the current buffer has a backing
+  file whose entry isn't already on top — an idle buffer switch then does no
+  list churn (and doesn't trip the focus-loss save hooks). Separately,
+  multi-instance staleness is handled by `neoemacs--recentf-merge-from-disk`
+  (re-reads and merges the on-disk list before every save and before `SPC f r`)
+  and writes are deduped/quiet via `neoemacs--recentf-save-quietly`.
 - `markdown-mode`: `README.md` opens in `gfm-mode`, other `.md`/`.markdown` in
   `markdown-mode`. Wiki links (`[[note]]`) are enabled and tuned for Obsidian
   vaults — `markdown-wiki-link-search-subdirectories` resolves a bare name to a

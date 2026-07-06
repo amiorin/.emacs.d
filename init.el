@@ -256,7 +256,22 @@
   (add-function :after after-focus-change-function
                 #'neoemacs--recentf-save-on-focus-loss)
   (add-hook 'window-selection-change-functions
-            #'neoemacs--recentf-save-quietly))
+            #'neoemacs--recentf-save-quietly)
+
+  ;; Recentf normally records a file only when it is first visited
+  ;; (`find-file-hook'). Also bump a file-visiting buffer to the top of
+  ;; `recentf-list' every time it *becomes the current buffer*, so the order
+  ;; tracks recency of focus and `SPC f r' surfaces what you last switched to.
+  ;; `buffer-list-update-hook' fires very often, so bail out unless the current
+  ;; buffer has a backing file whose entry isn't already on top -- an idle
+  ;; buffer switch then does no list churn (and the save hooks above stay quiet).
+  (defun neoemacs--recentf-bump-current-buffer ()
+    (let ((file (buffer-file-name)))
+      (when (and file
+                 (not (equal (car recentf-list)
+                             (recentf-expand-file-name file))))
+        (recentf-add-file file))))
+  (add-hook 'buffer-list-update-hook #'neoemacs--recentf-bump-current-buffer))
 
 ;; `SPC f r' picks a recent file: merge the on-disk list in first so entries
 ;; recorded by other Emacs instances show up (the save side merges symmetrically).
