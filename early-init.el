@@ -89,5 +89,22 @@
 (setq native-comp-async-report-warnings-errors 'silent
       load-prefer-newer t)
 
+;; Homebrew Emacs native-comp links tiny trampoline `.eln' files through
+;; libgccjit/GCC. On Apple Silicon, GCC's thread-local storage runtime lives in
+;; the GCC target libdir as `libemutls_w.a'; without that directory in
+;; LIBRARY_PATH, startup can fail with "ld: library 'emutls_w' not found".
+(let (gcc-target-libdir)
+  (dolist (dir (file-expand-wildcards
+                "/opt/homebrew/lib/gcc/current/gcc/aarch64-apple-darwin*/[0-9]*"
+                t))
+    (when (file-exists-p (expand-file-name "libemutls_w.a" dir))
+      (setq gcc-target-libdir dir)))
+  (when gcc-target-libdir
+    (let ((library-path (getenv "LIBRARY_PATH")))
+      (setenv "LIBRARY_PATH"
+              (if (and library-path (not (equal library-path "")))
+                  (concat gcc-target-libdir ":" library-path)
+                gcc-target-libdir)))))
+
 (provide 'early-init)
 ;;; early-init.el ends here

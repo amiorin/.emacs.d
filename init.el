@@ -1356,10 +1356,11 @@ With no file at point, fall back to `magit-ediff-dwim'."
   (dirvish-hide-details nil)
   ;; `-A' ("almost all") lists dotfiles but omits the `.' and `..' entries;
   ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
-  ;; `--group-directories-first' sorts directories ahead of files, but it's a
-  ;; GNU `ls' extension; macOS ships BSD `ls' which lacks it, so use Homebrew
-  ;; coreutils `gls' when present and fall back to plain `-Al' otherwise.
+  ;; `--group-directories-first' and `--dired' metadata are GNU `ls' extensions;
+  ;; macOS ships BSD `ls' which lacks them, so use Homebrew coreutils `gls'
+  ;; when present and fall back to plain `-Al' otherwise.
   (insert-directory-program (if (executable-find "gls") "gls" "ls"))
+  (dired-use-ls-dired (if (executable-find "gls") t nil))
   (dired-listing-switches (if (executable-find "gls")
                               "-Al --group-directories-first"
                             "-Al"))
@@ -1442,7 +1443,9 @@ With no file at point, fall back to `magit-ediff-dwim'."
   ;; Name buffers from Emacs's tracked directory instead of the terminal title;
   ;; shell titles can contain prompt-level abbreviations like ~/.c/neoemacs.
   :custom
-  (ghostel-shell "/usr/bin/fish")
+  (ghostel-shell (or (executable-find "fish")
+                     (getenv "SHELL")
+                     "/bin/sh"))
   (ghostel-buffer-name-function #'ghostel-buffer-name-by-directory)
   ;; Tag every spawned terminal so Claude Code sessions running inside it can
   ;; report status back (see "Claude Code session tracking" below). The hook
@@ -1600,12 +1603,18 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 ;;
 ;; Astro injects other languages into a `.astro' file (TS in the frontmatter,
 ;; CSS in <style>, TSX-ish markup), so `astro-ts-mode' relies on the css and tsx
-;; grammars in addition to its own. tsx/typescript live in subdirectories of one
-;; repo, hence the explicit SOURCE-DIR field.
+;; grammars in addition to its own. `clojure-ts-mode' also uses embedded
+;; markdown-inline and regex parsers, and expects a pinned Clojure grammar
+;; revision. tsx/typescript live in subdirectories of one repo, hence the
+;; explicit SOURCE-DIR field.
 (setq treesit-language-source-alist
       '((astro      "https://github.com/virchau13/tree-sitter-astro")
         (css        "https://github.com/tree-sitter/tree-sitter-css")
-        (clojure    "https://github.com/sogaiu/tree-sitter-clojure")
+        (clojure    "https://github.com/sogaiu/tree-sitter-clojure.git" "unstable-20250526")
+        (markdown-inline "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
+                         "v0.5.2"
+                         "tree-sitter-markdown-inline/src")
+        (regex      "https://github.com/tree-sitter/tree-sitter-regex" "v0.24.3")
         (typescript "https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src")
         (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")
         (yaml       "https://github.com/tree-sitter-grammars/tree-sitter-yaml")))
@@ -1654,7 +1663,7 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   (clojure-toplevel-inside-comment-form t)
   (clojure-ts-toplevel-inside-comment-form t)
   :config
-  (neoemacs--ensure-treesit-grammars 'clojure))
+  (neoemacs--ensure-treesit-grammars 'clojure 'markdown-inline 'regex))
 
 ;; yaml-ts-mode ships with Emacs (29+), so `:ensure nil'.
 (use-package yaml-ts-mode
