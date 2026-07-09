@@ -784,6 +784,28 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    "gj" 'evil-next-line
    "gk" 'evil-previous-line))
 
+(use-package javelin
+  :after general
+  :config
+  (general-define-key
+   :keymaps 'override
+   "s-q" 'javelin-go-or-assign-to-6
+   "s-e" 'javelin-go-or-assign-to-8
+   "s-r" 'javelin-go-or-assign-to-9
+   "s-a" 'javelin-go-or-assign-to-1
+   "s-d" 'javelin-go-or-assign-to-3
+   "s-f" 'javelin-go-or-assign-to-4
+   "s-g" 'javelin-go-or-assign-to-5
+   "S-s-q" 'javelin-assign-to-6
+   "S-s-e" 'javelin-assign-to-8
+   "S-s-r" 'javelin-assign-to-9
+   "S-s-a" 'javelin-assign-to-1
+   "S-s-d" 'javelin-assign-to-3
+   "S-s-f" 'javelin-assign-to-4
+   "S-s-g" 'javelin-assign-to-5
+   "s-p" 'javelin-toggle-quick-menu
+   "s-<backspace>" 'evil-switch-to-windows-last-buffer))
+
 ;; expand-region: grow/shrink the selection by semantic units. In visual
 ;; state `v' expands the region and `V' contracts it.
 ;; `:after (evil general)' alone would *load* expand-region as soon as general
