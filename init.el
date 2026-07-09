@@ -174,6 +174,9 @@
       ;; Don't force the cursor line fully visible after a wheel scroll.
       make-cursor-line-fully-visible nil)
 
+(setq-default truncate-lines t)
+(setq auto-hscroll-mode 'current-line)
+
 ;; Line numbers in the gutter, and highlight the line the cursor is on.
 (setq display-line-numbers-type t)
 (global-display-line-numbers-mode 1)
