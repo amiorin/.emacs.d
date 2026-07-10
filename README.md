@@ -152,6 +152,7 @@ elsewhere.
 | `SPC o f` | open current file in default app |
 | `SPC o d` | open current directory in Finder |
 | `SPC s`   | save buffer                     |
+| `s-s`     | save buffer                     |
 | `SPC w`   | delete current window           |
 | `SPC n`   | vertical split + follow focus   |
 | `SPC t`   | vsplit + ghostel terminal (project root) |

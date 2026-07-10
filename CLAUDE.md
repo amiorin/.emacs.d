@@ -98,7 +98,7 @@ Three layers, used deliberately:
    selects the new *left* window so "move right" lands back in the original
    window; ghostel splits then hijacked the original window's history and
    left a history-less window whose `q`/`bury-buffer` fell back to the MRU
-   ghostel buffer), `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
+   ghostel buffer), `s-s` save buffer, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
    dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`). Two editing-model
    tweaks live here too: `,` (normal/visual/motion) is a `general-simulate-key`

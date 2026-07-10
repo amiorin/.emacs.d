@@ -749,7 +749,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    "-" 'dired-jump
    "f" (general-predicate-dispatch neoemacs--normal-f-map
          (derived-mode-p 'magit-mode) nil))
-  ;; s-hjkl: move between windows.
+  ;; Super-key window shortcuts, plus `s-s' to save the current buffer.
   (general-define-key
    :keymaps 'override
    "s-h" 'evil-window-left
@@ -757,6 +757,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    "s-k" 'evil-window-up
    "s-l" 'evil-window-right
    "s-n" 'neoemacs/vsplit-window-follow
+   "s-s" 'save-buffer
    "s-w" 'evil-window-delete
    "S-s-[" 'evil-window-rotate-downwards
    "S-s-]" 'delete-other-windows)
