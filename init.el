@@ -1383,10 +1383,14 @@ With no file at point, fall back to `magit-ediff-dwim'."
   ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
   ;; `--group-directories-first' and `--dired' metadata are GNU `ls' extensions;
   ;; macOS ships BSD `ls' which lacks them, so use Homebrew coreutils `gls'
-  ;; when present and fall back to plain `-Al' otherwise.
+  ;; when present. On Linux the system `ls' is GNU — detect via `--dired'.
   (insert-directory-program (if (executable-find "gls") "gls" "ls"))
-  (dired-use-ls-dired (if (executable-find "gls") t nil))
-  (dired-listing-switches (if (executable-find "gls")
+  (dired-use-ls-dired (or (executable-find "gls")
+                          (eq 0 (ignore-errors
+                                  (call-process "ls" nil nil nil "--dired")))))
+  (dired-listing-switches (if (or (executable-find "gls")
+                                  (eq 0 (ignore-errors
+                                          (call-process "ls" nil nil nil "--dired"))))
                               "-Al --group-directories-first"
                             "-Al"))
   ;; Show a real block cursor in dired/dirvish buffers. By default dirvish
