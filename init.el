@@ -1636,7 +1636,8 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 ;; grammars in addition to its own. `clojure-ts-mode' also uses embedded
 ;; markdown-inline and regex parsers, and expects a pinned Clojure grammar
 ;; revision. tsx/typescript live in subdirectories of one repo, hence the
-;; explicit SOURCE-DIR field.
+;; explicit SOURCE-DIR field. Python and YAML use their built-in `*-ts-mode'
+;; major modes and only need grammar sources here.
 (setq treesit-language-source-alist
       '((astro      "https://github.com/virchau13/tree-sitter-astro")
         (css        "https://github.com/tree-sitter/tree-sitter-css")
@@ -1644,6 +1645,7 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
         (markdown-inline "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
                          "v0.5.2"
                          "tree-sitter-markdown-inline/src")
+        (python     "https://github.com/tree-sitter/tree-sitter-python")
         (regex      "https://github.com/tree-sitter/tree-sitter-regex" "v0.24.3")
         (typescript "https://github.com/tree-sitter/tree-sitter-typescript" nil "typescript/src")
         (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")
@@ -1694,6 +1696,18 @@ A no-op once the grammars exist, so it's safe to call from a mode `:config'
   (clojure-ts-toplevel-inside-comment-form t)
   :config
   (neoemacs--ensure-treesit-grammars 'clojure 'markdown-inline 'regex))
+
+;; python-ts-mode ships with Emacs (29+), so `:ensure nil'. Remap the built-in
+;; `python-mode' associations instead of adding only a `.py' pattern, so files
+;; like `.pyi', SConstruct, and scripts recognized by python.el use tree-sitter
+;; too. The grammar is installed lazily before the first `python-ts-mode' call.
+(use-package python
+  :ensure nil
+  :defer t
+  :init
+  (add-to-list 'major-mode-remap-alist '(python-mode . python-ts-mode))
+  :config
+  (neoemacs--ensure-treesit-grammars 'python))
 
 ;; yaml-ts-mode ships with Emacs (29+), so `:ensure nil'.
 (use-package yaml-ts-mode

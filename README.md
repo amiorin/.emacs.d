@@ -43,8 +43,8 @@ M-x nerd-icons-install-fonts
   consult), embark, embark-consult, and wgrep. In-buffer
   completion is [corfu](https://github.com/minad/corfu) (with corfu-terminal for
   `-nw`) plus cape for file/dabbrev fallbacks.
-- **Languages** — tree-sitter major modes for TypeScript/TSX,
-  [Astro](https://github.com/Sorixelle/astro-ts-mode), and Clojure, with LSP via
+- **Languages** — tree-sitter major modes for TypeScript/TSX, Python,
+  [Astro](https://github.com/Sorixelle/astro-ts-mode), YAML, and Clojure, with LSP via
   [lsp-mode](https://github.com/emacs-lsp/lsp-mode) (astro-ls,
   typescript-language-server, clojure-lsp), on-save formatting via
   [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL
