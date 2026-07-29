@@ -1477,6 +1477,14 @@ With no file at point, fall back to `magit-ediff-dwim'."
                      (getenv "SHELL")
                      "/bin/sh"))
   (ghostel-buffer-name-function #'ghostel-buffer-name-by-directory)
+  ;; Let programs running in the terminal set the clipboard with OSC 52; off by
+  ;; default in ghostel, and its terminfo deliberately doesn't advertise it, so
+  ;; the failure is silent — the sequence arrives, is parsed, and is dropped.
+  ;; Without this a CLI on a remote box has no way to hand a URL to the browser
+  ;; on the local machine. The handler `kill-new's the text, so `clipetty' above
+  ;; carries it the rest of the way to the host terminal over SSH.
+  ;; Trade-off: any command's output can now overwrite the clipboard silently.
+  (ghostel-enable-osc52 t)
   ;; Tag every spawned terminal so Claude Code sessions running inside it can
   ;; report status back (see "Claude Code session tracking" below). The hook
   ;; runs in the host buffer with `process-environment' dynamically bound, so
