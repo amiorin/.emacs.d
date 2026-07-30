@@ -396,9 +396,15 @@ source file is opened.
   `C-c C-k`/`ZQ` → `server-edit-abort`. They're scoped to the client buffer so
   evil's global `ZZ`/`ZQ` stay intact everywhere else.
 - Claude Code session tracking lives in the standalone **`consult-claude`**
-  package (a separate repo loaded from `~/code/consult-claude` via
-  `use-package consult-claude :ensure nil :load-path … :commands …`, so it's
-  deferred until first use). The package is terminal-agnostic: it owns the
+  package (a separate repo, <https://github.com/amiorin/consult-claude>). It's
+  not on any ELPA archive, so a bare `package-vc-install` of that URL — guarded
+  on `package-activated-list`, exactly like `neoemacs--use-package-ensure` —
+  installs it into `package-user-dir` once and lets the quickstart bundle
+  activate it on every later startup; the `use-package` form itself is then
+  `:ensure nil` + `:commands …`, deferred until first use. Don't switch this to
+  use-package's `:vc` keyword: its handler calls `package-installed-p`
+  unconditionally at every startup, which autoloads package.el back onto the
+  warm path (see *Package management*). The package is terminal-agnostic: it owns the
   in-memory session registry, the `consult-claude-status` status RPC, the
   marginalia annotator, and the `consult-claude-sessions` picker (`fc` in
   normal state, alongside `ff`/`fd` in the override map) —

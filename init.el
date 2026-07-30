@@ -1584,9 +1584,23 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 ;; package; the ghostel glue above feeds it (`consult-claude-register' at spawn,
 ;; the Claude hooks calling `consult-claude-status'). `:commands' defers the
 ;; load until the first registration / RPC / picker call.
+;;
+;; It isn't on any ELPA archive, so it's installed straight from its git repo
+;; with `package-vc-install', which drops it into `package-user-dir' like any
+;; other package (and refreshes the quickstart bundle, so from the next startup
+;; on it activates through the bundle and `:ensure nil' is accurate).
+;;
+;; The install is guarded on `package-activated-list' for the same reason as
+;; `neoemacs--use-package-ensure': once the package is there, package.el and
+;; package-vc never load on the warm path. The idiomatic `:vc' keyword can't be
+;; used for that reason -- its handler calls `package-installed-p'
+;; unconditionally on every startup, which autoloads package.el and its ~90ms
+;; `url' subtree.
+(unless (memq 'consult-claude (bound-and-true-p package-activated-list))
+  (package-vc-install "https://github.com/amiorin/consult-claude"))
+
 (use-package consult-claude
   :ensure nil
-  :load-path "~/code/consult-claude"
   :commands (consult-claude-sessions consult-claude-register consult-claude-status))
 
 ;;; --- Project navigation ----------------------------------------------------

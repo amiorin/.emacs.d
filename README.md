@@ -14,9 +14,11 @@ emacs --init-directory ~/.config/neoemacs   # Emacs 29+
 ```
 
 On first launch the package system fetches everything from GNU ELPA, NonGNU
-ELPA, and MELPA automatically — except two packages loaded from local clones:
-`consult-claude` (from `~/code/consult-claude`) and, temporarily until an
-upstream fix reaches MELPA, `kkp` (from `~/code/kkp`). After that, install the
+ELPA, and MELPA automatically — except `consult-claude`, which is installed
+straight from its git repo
+([amiorin/consult-claude](https://github.com/amiorin/consult-claude)) with
+`package-vc-install`, and, temporarily until an upstream fix reaches MELPA,
+`kkp` (loaded from a local clone at `~/code/kkp`). After that, install the
 icon fonts once:
 
 ```

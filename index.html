@@ -1731,9 +1731,11 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <div class="row">
-<pre class="code">(use-package consult-claude
+<pre class="code">(unless (memq 'consult-claude (bound-and-true-p package-activated-list))
+  (package-vc-install "https://github.com/amiorin/consult-claude"))
+
+(use-package consult-claude
   :ensure nil
-  :load-path "~/code/consult-claude"
   :commands (consult-claude-sessions consult-claude-register
              consult-claude-status))</pre>
     <div class="prose">
@@ -1741,10 +1743,19 @@ With a prefix arg (or non-nil HERE), start in the current
       the status RPC, the marginalia annotator, and the
       <code>consult-claude-sessions</code> picker. The ghostel glue above (tag-env + register)
       is all that <code>init.el</code> needs to feed it.</p>
+      <p>It lives on GitHub rather than an ELPA archive, so
+      <code>package-vc-install</code> clones it into <code>package-user-dir</code> like any
+      other package — and refreshes the quickstart bundle, so every later startup
+      activates it from there and <code>:ensure nil</code> is accurate.</p>
+      <div class="why"><span class="tag">Why not <code>:vc</code></span> The guard on
+      <code>package-activated-list</code> is the same trick as
+      <code>neoemacs--use-package-ensure</code>: once installed, package.el never touches
+      the warm path. use-package's idiomatic <code>:vc</code> keyword can't do that — its
+      handler calls <code>package-installed-p</code> unconditionally at every startup,
+      autoloading package.el and its ~90ms <code>url</code> subtree.</div>
       <div class="why"><span class="tag">Deferred</span> <code>:commands</code> keeps
-      <code>consult-claude</code> (loaded from <code>~/code/consult-claude</code> via
-      <code>:load-path</code>) unloaded until the first registration, status RPC, or picker
-      call.</div>
+      <code>consult-claude</code> unloaded until the first registration, status RPC, or
+      picker call.</div>
     </div>
   </div>
 
