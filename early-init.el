@@ -75,9 +75,12 @@
 ;; `modify-all-frames-parameters', which drops the bar on the live frame
 ;; *and* updates `default-frame-alist' for future frames.
 ;; (`inhibit-redisplay' above keeps this from flashing.)
-(menu-bar-mode -1)
-(tool-bar-mode -1)
-(scroll-bar-mode -1)
+(when (fboundp 'menu-bar-mode)
+  (menu-bar-mode -1))
+(when (fboundp 'tool-bar-mode)
+  (tool-bar-mode -1))
+(when (fboundp 'scroll-bar-mode)
+  (scroll-bar-mode -1))
 
 ;; Suppress the GUI startup screen and reduce early redisplay work.
 (setq inhibit-startup-screen t

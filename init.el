@@ -58,13 +58,21 @@
 ;; load below -- *before* anything else pulls in treesit.el -- so the form would
 ;; hit a void `treesit-ready-p' and abort the whole bundle. `treesit-ready-p'
 ;; lives in treesit.el; preload it so those autoload forms evaluate cleanly.
-;; (Guarded: `treesit-available-p' is a C builtin present on every build, but
-;; treesit.el itself only exists on builds compiled with tree-sitter support.)
+;; A missing grammar is expected here because this config installs grammars
+;; lazily when their mode first loads, so suppress that premature warning while
+;; evaluating the generated autoloads; the mode's real readiness checks remain
+;; untouched. (Guarded: `treesit-available-p' is a C builtin present on every
+;; build, but treesit.el itself only exists with tree-sitter support.)
 (when (treesit-available-p)
   (require 'treesit))
-(unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
-  (package-initialize)
-  (package-quickstart-refresh))
+;; Declared here to avoid loading warnings.el solely for this temporary binding.
+(defvar warning-suppress-log-types nil)
+(let ((warning-suppress-types (cons '(treesit) warning-suppress-types))
+      (warning-suppress-log-types
+       (cons '(treesit) warning-suppress-log-types)))
+  (unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
+    (package-initialize)
+    (package-quickstart-refresh)))
 
 ;; use-package ships with Emacs (29+), so it's require-able without package.el
 ;; or any installation step.
