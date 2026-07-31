@@ -1681,13 +1681,37 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
         (tsx        "https://github.com/tree-sitter/tree-sitter-typescript" nil "tsx/src")
         (yaml       "https://github.com/tree-sitter-grammars/tree-sitter-yaml")))
 
+(defun neoemacs--treesit-missing-compiler ()
+  "Return the generic name of the missing C toolchain, or nil if it's present.
+`treesit-install-language-grammar' compiles the cloned grammar with a C *and* a
+C++ compiler, each looked up as the first of a fixed list on PATH (see
+`treesit--build-grammar'): \"cc\"/\"gcc\"/\"c99\", then \"c++\"/\"g++\"."
+  (cond ((not (seq-find #'executable-find '("cc" "gcc" "c99"))) "cc")
+        ((not (seq-find #'executable-find '("c++" "g++")))      "c++")))
+
 (defun neoemacs--ensure-treesit-grammars (&rest langs)
   "Install each grammar in LANGS via tree-sitter if it isn't already built.
 A no-op once the grammars exist, so it's safe to call from a mode `:config'
-\(it runs the slow git-clone + compile only on first use of each language)."
-  (dolist (lang langs)
-    (unless (treesit-language-available-p lang)
-      (treesit-install-language-grammar lang))))
+\(it runs the slow git-clone + compile only on first use of each language).
+
+With no C compiler on PATH the build dies inside `call-process' with a bare
+\"Searching for program: cc\", and the mode then reports only the *downstream*
+failure -- a `treesit-load-language-error' listing every .so filename it tried,
+which says nothing about the real cause. So check the toolchain up front and
+say so plainly instead of attempting a compile that cannot succeed."
+  (let ((missing (seq-remove #'treesit-language-available-p langs)))
+    (when missing
+      (let ((cc (neoemacs--treesit-missing-compiler)))
+        (if (not cc)
+            (mapc #'treesit-install-language-grammar missing)
+          (display-warning
+           'treesit
+           (format "No C compiler (%s) on PATH, so the tree-sitter grammar%s \
+for %s cannot be built.  Install one (e.g. `nix profile add nixpkgs#gcc'), \
+then reopen this file."
+                   cc
+                   (if (cdr missing) "s" "")
+                   (mapconcat #'symbol-name missing ", "))))))))
 
 ;; typescript-ts-mode / tsx-ts-mode ship with Emacs (29+), so `:ensure nil'.
 ;; Astro projects are full of `.ts'/`.tsx' siblings; route them here and let
