@@ -1658,8 +1658,8 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 ;; and on `treesit-extra-load-path'. `treesit-language-source-alist' tells
 ;; `treesit-install-language-grammar' where to fetch and how to build each one;
 ;; populating it is cheap (just an alist), so it's done eagerly. The actual
-;; install (a git clone + C compile) only runs lazily from each mode's `:config'
-;; below, and only when the grammar is missing -- never on the startup path.
+;; install (a git clone + C compile) only runs lazily when a matching file is
+;; first visited, and only when the grammar is missing -- never on startup.
 ;;
 ;; Astro injects other languages into a `.astro' file (TS in the frontmatter,
 ;; CSS in <style>, TSX-ish markup), so `astro-ts-mode' relies on the css and tsx
@@ -1725,13 +1725,22 @@ then reopen this file."
   (neoemacs--ensure-treesit-grammars 'typescript 'tsx))
 
 ;; astro-ts-mode: tree-sitter major mode for `.astro' single-file components.
-;; `:mode' defers the whole package (and its grammar install) until the first
-;; `.astro' file is visited -- zero startup cost. lsp-mode attaches via the
-;; shared hook in the lsp-mode block below.
+;; The package checks for all three grammars while it is loading, before a
+;; use-package `:config' form could install them.  Route new buffers through a
+;; small dispatcher which installs the grammars *before* requiring the package;
+;; otherwise first use fails with `treesit-load-language-error' and a long list
+;; of missing libtree-sitter-astro filenames.  This remains fully lazy: neither
+;; the package nor the installers run until an Astro file is visited.
+(defun neoemacs-astro-ts-mode ()
+  "Install Astro's tree-sitter grammars, then enter `astro-ts-mode'."
+  (interactive)
+  (neoemacs--ensure-treesit-grammars 'astro 'css 'tsx)
+  (require 'astro-ts-mode)
+  (astro-ts-mode))
+
 (use-package astro-ts-mode
-  :mode "\\.astro\\'"
-  :config
-  (neoemacs--ensure-treesit-grammars 'astro 'css 'tsx))
+  :commands astro-ts-mode
+  :mode ("\\.astro\\'" . neoemacs-astro-ts-mode))
 
 ;; clojure-ts-mode: tree-sitter major mode for Clojure/ClojureScript/cljc/edn.
 ;; Deferred via `:mode' like astro/typescript -- the grammar is ensured
