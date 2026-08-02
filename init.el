@@ -52,27 +52,29 @@
 ;; before the eln lookup *and* marks the file no-native (see lread.c). `load'
 ;; with NOERROR returns nil if neither file exists, triggering the fallback.
 (setq package-quickstart t)
-;; Some `*-ts-mode' packages (e.g. astro-ts-mode) gate their `auto-mode-alist'
-;; entry on a top-level `(treesit-ready-p ...)' call in their autoload file.
-;; package.el bakes those autoload forms into package-quickstart.el, which we
-;; load below -- *before* anything else pulls in treesit.el -- so the form would
-;; hit a void `treesit-ready-p' and abort the whole bundle. `treesit-ready-p'
-;; lives in treesit.el; preload it so those autoload forms evaluate cleanly.
-;; A missing grammar is expected here because this config installs grammars
-;; lazily when their mode first loads, so suppress that premature warning while
-;; evaluating the generated autoloads; the mode's real readiness checks remain
-;; untouched. (Guarded: `treesit-available-p' is a C builtin present on every
-;; build, but treesit.el itself only exists with tree-sitter support.)
+;; Some `*-ts-mode' packages (notably astro-ts-mode) gate their
+;; `auto-mode-alist' entry on a top-level `(treesit-ready-p ...)' call in their
+;; autoload file.  package.el copies that form into package-quickstart.el, so it
+;; runs on every startup even though no Astro file is being opened.  Preload
+;; treesit.el so the call is defined, then temporarily force its QUIET argument:
+;; a missing grammar is expected because this config installs grammars lazily
+;; in the dispatcher below.  The normal readiness checks remain noisy, so a
+;; genuine failure while opening an Astro file is still reported.
 (when (treesit-available-p)
   (require 'treesit))
-;; Declared here to avoid loading warnings.el solely for this temporary binding.
-(defvar warning-suppress-log-types nil)
-(let ((warning-suppress-types (cons '(treesit) warning-suppress-types))
-      (warning-suppress-log-types
-       (cons '(treesit) warning-suppress-log-types)))
-  (unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
-    (package-initialize)
-    (package-quickstart-refresh)))
+
+(defun neoemacs--treesit-ready-p-quietly (fn language &optional _quiet)
+  "Call FN for LANGUAGE without emitting a premature startup warning."
+  (funcall fn language t))
+
+(when (fboundp 'treesit-ready-p)
+  (advice-add 'treesit-ready-p :around #'neoemacs--treesit-ready-p-quietly))
+(unwind-protect
+    (unless (load (locate-user-emacs-file "package-quickstart") 'noerror 'nomessage)
+      (package-initialize)
+      (package-quickstart-refresh))
+  (when (fboundp 'treesit-ready-p)
+    (advice-remove 'treesit-ready-p #'neoemacs--treesit-ready-p-quietly)))
 
 ;; use-package ships with Emacs (29+), so it's require-able without package.el
 ;; or any installation step.
