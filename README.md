@@ -47,8 +47,8 @@ M-x nerd-icons-install-fonts
   `-nw`) plus cape for file/dabbrev fallbacks.
 - **Languages** — tree-sitter major modes for TypeScript/TSX, Python,
   [Astro](https://github.com/Sorixelle/astro-ts-mode), YAML, and Clojure, with LSP via
-  [lsp-mode](https://github.com/emacs-lsp/lsp-mode) (astro-ls,
-  typescript-language-server, clojure-lsp), on-save formatting via
+  [lsp-mode](https://github.com/emacs-lsp/lsp-mode) (astro-ls — installed
+  automatically on first Astro visit — typescript-language-server, clojure-lsp), on-save formatting via
   [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL
   tooling via [cider](https://github.com/clojure-emacs/cider). The Lisp-family
   modes (Clojure and Emacs Lisp) get structural editing — smartparens strict

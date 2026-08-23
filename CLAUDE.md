@@ -197,8 +197,30 @@ source file is opened.
   minibuffer UI: `cs` file symbols, `cS` workspace symbols, `cx` workspace
   diagnostics (vs. the buffer-local flymake list on `cd`), and
   `xref-find-apropos` is remapped to `consult-lsp-symbols` in lsp buffers.
-  Requires `astro-ls`, `typescript-language-server`, and `clojure-lsp` on PATH
-  as appropriate.
+  Requires `typescript-language-server` and `clojure-lsp` on PATH as
+  appropriate. `astro-ls` is **auto-installed**: the Astro hook is
+  `neoemacs/lsp-astro-deferred`, not plain `lsp-deferred` — it runs
+  `lsp-deferred` when the binary is found, else `lsp-ensure-server`, which
+  npm-installs `@astrojs/language-server` into `lsp-server-install-dir` and
+  auto-starts `lsp` in the waiting buffers when done (lsp-mode would otherwise
+  block on an interactive "could be installed automatically" prompt).
+  lsp-mode's own `lsp-astro.el` registers the npm bin as `astroserver` (the
+  real name is `astro-ls`) and starts a bare `astro-ls` looked up only on
+  `PATH`, so the cached install is never found and every visit reinstalls;
+  `init.el` re-registers the dependency and client (in
+  `with-eval-after-load 'lsp-astro`) to use `executable-find` or
+  `lsp-package-path`, so the cached binary is detected. astro-ls also refuses
+  to initialize without a `typescript.tsdk` directory; lsp-astro only checks
+  the workspace's `node_modules/typescript/lib`, so
+  `lsp-astro--get-initialization-options` is overridden to fall back to a
+  `typescript` package lsp-mode npm-installs into its cache (dependency
+  `neoemacs-typescript`, ensured by `neoemacs/lsp-astro-deferred` when the
+  workspace has none). Separately, the
+  post-install `npx i-peers` step lsp-mode runs fails for this package
+  (it re-resolves an unpublished `astro-scripts` devDependency), so
+  `lsp--npm-dependency-install` is advised to treat a peer-install failure as
+  success once the package's `bin/` exists — the peers are optional and
+  apheleia handles prettier anyway.
 - **apheleia** reformats on save *asynchronously* (diffs the formatter output
   back in, preserving point/scroll), armed via `apheleia-global-mode` on
   `emacs-startup-hook`. Astro is mapped to `prettier`; TS/TSX use apheleia's

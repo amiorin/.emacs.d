@@ -1807,11 +1807,18 @@ then reopen this file."
 ;; `node_modules/typescript/lib', same as the old eglot entry did), and
 ;; `clojure-lsp' for the Clojure family (it bundles clj-kondo, so linting
 ;; arrives over the diagnostics provider with no separate linter package).
-;; Requires `astro-ls', `typescript-language-server', and `clojure-lsp' on PATH
-;; as appropriate.
+;; Requires `typescript-language-server' and `clojure-lsp' on PATH as
+;; appropriate. `astro-ls' is auto-installed instead: the Astro hook is
+;; `neoemacs/lsp-astro-deferred', which runs `lsp-deferred' when the binary is
+;; available and otherwise calls `lsp-ensure-server', which npm-installs
+;; `@astrojs/language-server' into lsp-mode's cache (`lsp-server-install-dir')
+;; and auto-starts `lsp' in the waiting Astro buffers once the install
+;; finishes. Without this, lsp-mode stops at an interactive "could be
+;; installed automatically: eslint / astro-ls" prompt on every visit.
 (use-package lsp-mode
   :defer t
-  :hook (((astro-ts-mode typescript-ts-mode tsx-ts-mode
+  :hook ((astro-ts-mode . neoemacs/lsp-astro-deferred)
+         ((typescript-ts-mode tsx-ts-mode
 			 clojure-ts-mode clojure-ts-clojurescript-mode
 			 clojure-ts-clojurec-mode)
           . lsp-deferred)
@@ -1828,6 +1835,87 @@ then reopen this file."
   (evil-define-key 'normal 'lsp-mode
     "gd" #'lsp-find-definition
     "gr" #'lsp-find-references)
+  ;; lsp-astro.el registers the npm dependency with the wrong bin name
+  ;; ("astroserver"; the package ships `astro-ls') and starts the server with a
+  ;; bare "astro-ls" that is only looked up on PATH, never in lsp-mode's
+  ;; install cache.  The cached install is therefore never found, so every
+  ;; `.astro' visit re-runs `lsp-ensure-server'.  Re-register the dependency
+  ;; and the client so the cached binary is detected and used.
+  (with-eval-after-load 'lsp-astro
+    (lsp-dependency 'astro-language-server
+                    '(:system "astro-ls")
+                    '(:npm :package "@astrojs/language-server"
+                           :path "astro-ls"))
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (lsp-stdio-connection
+                       (lambda ()
+                         (list (or (executable-find "astro-ls")
+                                   (lsp-package-path 'astro-language-server))
+                               "--stdio")))
+      :activation-fn (lsp-activate-on "astro")
+      :initialization-options #'lsp-astro--get-initialization-options
+      :server-id 'astro-ls
+      :download-server-fn (lambda (_client callback error-callback _update?)
+                            (lsp-package-ensure 'astro-language-server
+                                                callback error-callback)))))
+  ;; astro-ls refuses to initialize without a `typescript.tsdk' directory.
+  ;; lsp-astro only looks in the workspace's node_modules and sends nothing
+  ;; otherwise (-> "The `typescript.tsdk' init option is required").  Fall
+  ;; back to a TypeScript that lsp-mode npm-installs into its own cache.
+  (with-eval-after-load 'lsp-astro
+    (lsp-dependency 'neoemacs-typescript
+                    '(:npm :package "typescript" :path "tsc"))
+    (defun neoemacs--lsp-astro-tsdk ()
+      "Return a typescript/lib directory for astro-ls, or nil."
+      (seq-find #'file-exists-p
+                (list (f-join (lsp-workspace-root) "node_modules/typescript/lib")
+                      (f-join lsp-server-install-dir
+                              "npm/typescript/lib/node_modules/typescript/lib"))))
+    (define-advice lsp-astro--get-initialization-options
+        (:override () neoemacs-tsdk-fallback)
+      (if-let* ((library (neoemacs--lsp-astro-tsdk)))
+          `(:typescript (:tsdk ,library))
+        (lsp-warn "astro-ls: no typescript/lib found (run npm install in %s)"
+                  (lsp-workspace-root)))))
+  (defun neoemacs/lsp-astro-deferred ()
+    "Start LSP for Astro, installing `astro-ls' (and TypeScript) if missing."
+    (require 'lsp-astro)
+    (cond
+     ((not (lsp--server-binary-present? (gethash 'astro-ls lsp-clients)))
+      ;; Async npm install; lsp-mode starts `lsp' here when it completes.
+      (lsp-ensure-server 'astro-ls))
+     ((not (neoemacs--lsp-astro-tsdk))
+      (let ((buf (current-buffer)))
+        (lsp-package-ensure 'neoemacs-typescript
+                            (lambda ()
+                              (when (buffer-live-p buf)
+                                (with-current-buffer buf (lsp))))
+                            (lambda (err)
+                              (lsp-warn "Installing typescript failed: %s" err)))))
+     (t (lsp-deferred))))
+  ;; After `npm install' of a server, lsp-mode runs `npx i-peers' to add the
+  ;; package's peer dependencies.  For @astrojs/language-server that step
+  ;; re-resolves the whole dependency tree and dies on `astro-scripts@0.0.14'
+  ;; (an unpublished monorepo-only devDependency) -- even though the server
+  ;; binary is already installed and its peers (prettier, prettier-plugin-astro)
+  ;; are optional and handled by apheleia anyway.  Treat a peer-install failure
+  ;; as success when the package's bin directory exists, so lsp-mode still
+  ;; auto-starts in the waiting buffers instead of reporting a failed install.
+  (define-advice lsp--npm-dependency-install
+      (:around (orig callback error-callback &rest args) neoemacs-tolerate-peers)
+    (let* ((package (plist-get args :package))
+           (bin-dir (and package
+                         (f-join lsp-server-install-dir "npm" package "bin"))))
+      (apply orig callback
+             (lambda (err)
+               (if (and bin-dir (f-dir-p bin-dir))
+                   (progn
+                     (lsp-log "Ignoring peer-dependency install failure for %s: %s"
+                              package err)
+                     (funcall callback))
+                 (funcall error-callback err)))
+             args)))
   (defun neoemacs/lsp-completion-orderless ()
     "Match lsp-mode completion candidates with orderless (corfu setup)."
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
