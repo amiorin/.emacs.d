@@ -1380,6 +1380,15 @@ With no file at point, fall back to `magit-ediff-dwim'."
   ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a file
   ;; manager has no use for it, so switch it back off in dired/dirvish buffers.
   (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
+  ;; Sort dotfiles first. UTF-8 locales collate names with the leading `.'
+  ;; ignored, so hidden files interleave with visible ones; byte-order
+  ;; collation puts `.' before any letter. Scoped to `insert-directory' so
+  ;; only the listing's sort changes — `LANG' stays intact and filenames
+  ;; still decode as UTF-8.
+  (defun neoemacs--dired-c-collate (orig &rest args)
+    (let ((process-environment (cons "LC_COLLATE=C" process-environment)))
+      (apply orig args)))
+  (advice-add 'insert-directory :around #'neoemacs--dired-c-collate)
   :custom
   ;; `vc-state' is dropped here: it's an overlay-based attribute that shows
   ;; nothing in terminal Emacs. Per-file VC status comes from `diff-hl-dired-mode'
