@@ -159,12 +159,18 @@ completion + `apheleia` formatting, all deferred so they cost nothing until a
 source file is opened.
 
 - **Tree-sitter grammars.** `treesit-language-source-alist` is populated
-  eagerly (it's just an alist) for `astro`, `css`, `clojure`, `typescript`, and
-  `tsx`. `neoemacs--ensure-treesit-grammars` runs the slow git-clone + C compile
+  eagerly (it's just an alist) for `astro`, `css`, `clojure` (plus its embedded
+  `markdown-inline`/`regex`), `python`, `typescript`, `tsx`, and `yaml`.
+  `neoemacs--ensure-treesit-grammars` runs the slow git-clone + C compile
   lazily when a matching file is first visited, and only when a grammar is
-  missing. Astro uses `neoemacs-astro-ts-mode` as a dispatcher so its grammars
-  are installed before `astro-ts-mode` loads and performs its eager readiness
-  checks. It requires a **C and C++ compiler on PATH** (`cc`/`gcc`/`c99` and `c++`/`g++`,
+  missing. Astro, TypeScript/TSX, and YAML route through `neoemacs-*-ts-mode`
+  dispatchers that install the grammars *before* requiring the mode library —
+  those libraries call `treesit-ready-p` at top level while loading (their
+  tails conditionally add `auto-mode-alist` entries), so a `use-package
+  :config` install runs too late and the first visit on a grammar-less machine
+  emits a noisy "Cannot activate tree-sitter" warning. (`python.el` and
+  `clojure-ts-mode` have no such top-level check, so they keep the plain
+  `:config` ensure.) It requires a **C and C++ compiler on PATH** (`cc`/`gcc`/`c99` and `c++`/`g++`,
   the lists `treesit--build-grammar` searches); `neoemacs--treesit-missing-compiler`
   checks for them up front and warns naming the unbuildable grammars, because
   otherwise the compile dies with a bare "Searching for program: cc" and the

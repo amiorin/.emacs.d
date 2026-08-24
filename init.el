@@ -1726,14 +1726,29 @@ then reopen this file."
 
 ;; typescript-ts-mode / tsx-ts-mode ship with Emacs (29+), so `:ensure nil'.
 ;; Astro projects are full of `.ts'/`.tsx' siblings; route them here and let
-;; lsp-mode (below) attach for LSP. `:mode' keeps the mode -- and the grammar
-;; install in `:config' -- deferred until such a file is opened.
+;; lsp-mode (below) attach for LSP.  Like astro-ts-mode below, the library
+;; calls `treesit-ready-p' at top level while loading (its tail conditionally
+;; adds `auto-mode-alist' entries), so a `:config' grammar install runs too
+;; late: the first visit on a grammar-less machine emits the noisy "Cannot
+;; activate tree-sitter" warning before the install.  Dispatchers ensure the
+;; grammars first; everything stays lazy until a matching file is opened.
+(defun neoemacs-typescript-ts-mode ()
+  "Install the typescript/tsx tree-sitter grammars, then enter `typescript-ts-mode'."
+  (interactive)
+  (neoemacs--ensure-treesit-grammars 'typescript 'tsx)
+  (typescript-ts-mode))
+
+(defun neoemacs-tsx-ts-mode ()
+  "Install the typescript/tsx tree-sitter grammars, then enter `tsx-ts-mode'."
+  (interactive)
+  (neoemacs--ensure-treesit-grammars 'typescript 'tsx)
+  (tsx-ts-mode))
+
 (use-package typescript-ts-mode
   :ensure nil
-  :mode (("\\.ts\\'"  . typescript-ts-mode)
-         ("\\.tsx\\'" . tsx-ts-mode))
-  :config
-  (neoemacs--ensure-treesit-grammars 'typescript 'tsx))
+  :commands (typescript-ts-mode tsx-ts-mode)
+  :mode (("\\.ts\\'"  . neoemacs-typescript-ts-mode)
+         ("\\.tsx\\'" . neoemacs-tsx-ts-mode)))
 
 ;; astro-ts-mode: tree-sitter major mode for `.astro' single-file components.
 ;; The package checks for all three grammars while it is loading, before a
@@ -1783,12 +1798,18 @@ then reopen this file."
   :config
   (neoemacs--ensure-treesit-grammars 'python))
 
-;; yaml-ts-mode ships with Emacs (29+), so `:ensure nil'.
+;; yaml-ts-mode ships with Emacs (29+), so `:ensure nil'.  Same top-level
+;; `treesit-ready-p' problem as typescript-ts-mode above, same dispatcher fix.
+(defun neoemacs-yaml-ts-mode ()
+  "Install the yaml tree-sitter grammar, then enter `yaml-ts-mode'."
+  (interactive)
+  (neoemacs--ensure-treesit-grammars 'yaml)
+  (yaml-ts-mode))
+
 (use-package yaml-ts-mode
   :ensure nil
-  :mode "\\.ya?ml\\'"
-  :config
-  (neoemacs--ensure-treesit-grammars 'yaml))
+  :commands yaml-ts-mode
+  :mode ("\\.ya?ml\\'" . neoemacs-yaml-ts-mode))
 
 (use-package terraform-mode
   :mode "\\.tf\\'")
