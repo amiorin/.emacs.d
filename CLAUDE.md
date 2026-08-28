@@ -182,6 +182,13 @@ source file is opened.
   (built in, `:ensure nil`),
   `astro-ts-mode` (needs the css + tsx grammars too, since Astro injects other
   languages), and the `clojure-ts-mode` family (`.clj`/`.cljs`/`.cljc`/`.edn`).
+  `astro-ts-mode` is **not** installed from MELPA: the current MELPA snapshot
+  (20260711.131) declares `Package-Requires: ((emacs "31"))` and refuses to
+  install on Emacs 30, while upstream master still declares `(emacs "30")` —
+  so it uses the same guarded `package-vc-install` pattern as `consult-claude`
+  (`:ensure nil`, install guarded on `package-activated-list`). Don't switch it
+  back to a plain MELPA ensure until a MELPA build installable on the running
+  Emacs exists (or Emacs 31 is in use).
 - **lsp-mode** (fully deferred): `lsp-deferred` on the TS/TSX/Astro/Clojure
   mode hooks — unlike plain `lsp` it also waits until the buffer is displayed
   before starting a server. All three servers are built-in lsp-mode clients:

@@ -17,7 +17,10 @@ On first launch the package system fetches everything from GNU ELPA, NonGNU
 ELPA, and MELPA automatically — except `consult-claude`, which is installed
 straight from its git repo
 ([amiorin/consult-claude](https://github.com/amiorin/consult-claude)) with
-`package-vc-install`, and, temporarily until an upstream fix reaches MELPA,
+`package-vc-install`; `astro-ts-mode`, installed the same way from
+[its repo](https://github.com/Sorixelle/astro-ts-mode) because the current
+MELPA snapshot demands Emacs 31 while upstream still supports Emacs 30; and,
+temporarily until an upstream fix reaches MELPA,
 `kkp` (loaded from a local clone at `~/code/kkp`). After that, install the
 icon fonts once:
 

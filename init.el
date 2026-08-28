@@ -1765,7 +1765,20 @@ then reopen this file."
   (require 'astro-ts-mode)
   (astro-ts-mode))
 
+;; Installed from the upstream git repo, not MELPA: MELPA's current snapshot
+;; (20260711.131) declares `Package-Requires: ((emacs "31"))' and refuses to
+;; install on Emacs 30 -- and it was built from a commit that no longer exists
+;; upstream (rewritten history), while upstream master HEAD still declares
+;; `(emacs "30")'.  Same guarded `package-vc-install' pattern as
+;; consult-claude above (and same reason `:vc' can't be used): once installed,
+;; the quickstart bundle activates it and package.el stays off the warm path.
+;; Revisit (drop this back to a plain MELPA ensure) once a MELPA build
+;; installable on this Emacs exists, or after upgrading to Emacs 31.
+(unless (memq 'astro-ts-mode (bound-and-true-p package-activated-list))
+  (package-vc-install "https://github.com/Sorixelle/astro-ts-mode"))
+
 (use-package astro-ts-mode
+  :ensure nil
   :commands astro-ts-mode
   :mode ("\\.astro\\'" . neoemacs-astro-ts-mode))
 
