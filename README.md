@@ -46,7 +46,7 @@ M-x nerd-icons-install-fonts
   completion is [corfu](https://github.com/minad/corfu) (with corfu-terminal for
   `-nw`) plus cape for file/dabbrev fallbacks.
 - **Languages** — tree-sitter major modes for TypeScript/TSX, Python,
-  [Astro](https://github.com/Sorixelle/astro-ts-mode), YAML, and Clojure, with LSP via
+  [Astro](https://github.com/Sorixelle/astro-ts-mode), YAML, Dockerfile/Containerfile, and Clojure, with LSP via
   [lsp-mode](https://github.com/emacs-lsp/lsp-mode) (astro-ls — installed
   automatically on first Astro visit — typescript-language-server, clojure-lsp), on-save formatting via
   [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL

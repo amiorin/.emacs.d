@@ -1677,12 +1677,13 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 ;; grammars in addition to its own. `clojure-ts-mode' also uses embedded
 ;; markdown-inline and regex parsers, and expects a pinned Clojure grammar
 ;; revision. tsx/typescript live in subdirectories of one repo, hence the
-;; explicit SOURCE-DIR field. Python and YAML use their built-in `*-ts-mode'
-;; major modes and only need grammar sources here.
+;; explicit SOURCE-DIR field. Python, YAML, and Dockerfile use their built-in
+;; `*-ts-mode' major modes and only need grammar sources here.
 (setq treesit-language-source-alist
       '((astro      "https://github.com/virchau13/tree-sitter-astro")
         (css        "https://github.com/tree-sitter/tree-sitter-css")
         (clojure    "https://github.com/sogaiu/tree-sitter-clojure.git" "unstable-20250526")
+        (dockerfile "https://github.com/camdencheek/tree-sitter-dockerfile")
         (markdown-inline "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
                          "v0.5.2"
                          "tree-sitter-markdown-inline/src")
@@ -1810,6 +1811,23 @@ then reopen this file."
   :ensure nil
   :commands yaml-ts-mode
   :mode ("\\.ya?ml\\'" . neoemacs-yaml-ts-mode))
+
+;; dockerfile-ts-mode ships with Emacs (29+), so `:ensure nil'.  Same top-level
+;; `treesit-ready-p' problem as typescript-ts-mode above, same dispatcher fix.
+;; The `:mode' regexp extends the one the library's own tail would install
+;; (Dockerfile, Dockerfile.<suffix>, *.dockerfile) with Podman's Containerfile
+;; spellings, which upstream doesn't match.
+(defun neoemacs-dockerfile-ts-mode ()
+  "Install the dockerfile tree-sitter grammar, then enter `dockerfile-ts-mode'."
+  (interactive)
+  (neoemacs--ensure-treesit-grammars 'dockerfile)
+  (dockerfile-ts-mode))
+
+(use-package dockerfile-ts-mode
+  :ensure nil
+  :commands dockerfile-ts-mode
+  :mode ("\\(?:\\(?:Docker\\|Container\\)file\\(?:\\..*\\)?\\|\\.\\(?:[Dd]ocker\\|[Cc]ontainer\\)file\\)\\'"
+         . neoemacs-dockerfile-ts-mode))
 
 (use-package terraform-mode
   :mode "\\.tf\\'")

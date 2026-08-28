@@ -160,11 +160,12 @@ source file is opened.
 
 - **Tree-sitter grammars.** `treesit-language-source-alist` is populated
   eagerly (it's just an alist) for `astro`, `css`, `clojure` (plus its embedded
-  `markdown-inline`/`regex`), `python`, `typescript`, `tsx`, and `yaml`.
+  `markdown-inline`/`regex`), `dockerfile`, `python`, `typescript`, `tsx`, and
+  `yaml`.
   `neoemacs--ensure-treesit-grammars` runs the slow git-clone + C compile
   lazily when a matching file is first visited, and only when a grammar is
-  missing. Astro, TypeScript/TSX, and YAML route through `neoemacs-*-ts-mode`
-  dispatchers that install the grammars *before* requiring the mode library —
+  missing. Astro, TypeScript/TSX, YAML, and Dockerfile route through
+  `neoemacs-*-ts-mode` dispatchers that install the grammars *before* requiring the mode library —
   those libraries call `treesit-ready-p` at top level while loading (their
   tails conditionally add `auto-mode-alist` entries), so a `use-package
   :config` install runs too late and the first visit on a grammar-less machine
@@ -177,7 +178,8 @@ source file is opened.
   only warning the user sees is the *downstream*
   `treesit-load-language-error` — a wall of ".so: cannot open shared object
   file" lines that never mentions the missing compiler.
-  Major modes: `typescript-ts-mode`/`tsx-ts-mode` (built in, `:ensure nil`),
+  Major modes: `typescript-ts-mode`/`tsx-ts-mode` and `dockerfile-ts-mode`
+  (built in, `:ensure nil`),
   `astro-ts-mode` (needs the css + tsx grammars too, since Astro injects other
   languages), and the `clojure-ts-mode` family (`.clj`/`.cljs`/`.cljc`/`.edn`).
 - **lsp-mode** (fully deferred): `lsp-deferred` on the TS/TSX/Astro/Clojure
