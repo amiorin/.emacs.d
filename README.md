@@ -129,6 +129,7 @@ elsewhere.
 | `SPC /`   | search in project (ripgrep)     |
 | `SPC f f` | find file                       |
 | `SPC f p` | find file in this config        |
+| `SPC f w` | find file in getcolors workspace |
 | `SPC f r` | recent file                     |
 | `SPC f d` | switch directory (consult-dir)  |
 | `SPC b b` | switch buffer                   |
