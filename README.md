@@ -91,7 +91,8 @@ M-x nerd-icons-install-fonts
   `open` and work under zellij.
 - **Markdown** — [markdown-mode](https://github.com/jrblevin/markdown-mode);
   `README.md` opens in `gfm-mode` (GitHub-Flavored Markdown). Obsidian-style
-  `[[wiki links]]` are enabled and resolve names across subdirectories.
+  `[[wiki links]]` are enabled and resolve names across subdirectories. The
+  `*scratch*` buffer is an empty `markdown-mode` buffer, not elisp.
 - **Editor server** — an Emacs server starts with a per-PID socket, and
   `$EDITOR` points `emacsclient` at it, so git commit messages and other
   `$EDITOR` shell-outs from the embedded terminal open in the running Emacs

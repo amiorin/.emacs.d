@@ -488,6 +488,11 @@ source file is opened.
   vaults — `markdown-wiki-link-search-subdirectories` resolves a bare name to a
   file anywhere under the tree, and `markdown-link-space-sub-char " "` keeps
   link text matching real filenames with spaces. Follow a link with `C-c C-o`.
+  `*scratch*` is a markdown buffer too (`initial-major-mode` is
+  `markdown-mode`, `initial-scratch-message` nil so it starts empty); these
+  live in the markdown-mode `:custom` block, which use-package evaluates
+  eagerly, and startup.el funcalls `initial-major-mode` after init.el so the
+  autoload resolves it.
 - Wheel scrolling moves the view, not point. This config runs in a
   **terminal** (`emacs -nw`), so the scrolling setup is terminal-specific (no
   GUI/`pixel-scroll-precision-mode` config):

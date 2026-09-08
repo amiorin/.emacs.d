@@ -1796,7 +1796,9 @@ With a prefix arg (or non-nil HERE), start in the current
   :custom
   (markdown-enable-wiki-links t)
   (markdown-wiki-link-search-subdirectories t)
-  (markdown-link-space-sub-char " "))</pre>
+  (markdown-link-space-sub-char " ")
+  (initial-major-mode 'markdown-mode)
+  (initial-scratch-message nil))</pre>
     <div class="prose">
       <p><strong>markdown-mode</strong> with file-pattern associations. <code>README.md</code>
       gets <code>gfm-mode</code> (GitHub-Flavored Markdown); other <code>.md</code> /
@@ -1807,6 +1809,11 @@ With a prefix arg (or non-nil HERE), start in the current
       anywhere under the tree (Obsidian flattens names), and
       <code>markdown-link-space-sub-char " "</code> keeps link text matching real filenames
       with spaces. Follow the link under point with <code>C-c C-o</code>.</p>
+      <p>The <code>*scratch*</code> buffer is Markdown too: <code>initial-major-mode</code>
+      is <code>markdown-mode</code> and <code>initial-scratch-message</code> is
+      <code>nil</code>, so it starts empty rather than with the elisp comment banner.
+      startup.el calls <code>initial-major-mode</code> after init.el has loaded, so the
+      autoload resolves it.</p>
     </div>
   </div>
 

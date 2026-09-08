@@ -1661,6 +1661,13 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
 ;; and `markdown-link-space-sub-char' " " keeps the link text matching real
 ;; filenames with spaces instead of substituting underscores. Follow the link
 ;; under point with `C-c C-o' (`markdown-follow-thing-at-point').
+;;
+;; `*scratch*' is a Markdown buffer too: `initial-major-mode' is
+;; `markdown-mode' and `initial-scratch-message' is nil, so it starts empty
+;; instead of with the elisp comment banner. startup.el funcalls
+;; `initial-major-mode' after init.el has loaded, so the autoload from the
+;; quickstart bundle resolves it. (`M-:' / `SPC :' still evaluates elisp
+;; anywhere; `lisp-interaction-mode' is a keystroke away when needed.)
 (use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'"       . markdown-mode)
@@ -1668,7 +1675,9 @@ dynamically bound, so the `setenv' lands in the spawned shell's env."
   :custom
   (markdown-enable-wiki-links t)
   (markdown-wiki-link-search-subdirectories t)
-  (markdown-link-space-sub-char " "))
+  (markdown-link-space-sub-char " ")
+  (initial-major-mode 'markdown-mode)
+  (initial-scratch-message nil))
 
 ;; --- Tree-sitter grammars --------------------------------------------------
 ;;
