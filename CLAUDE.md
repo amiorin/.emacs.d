@@ -314,13 +314,7 @@ source file is opened.
   Meta chords as distinct events instead of folding Shift into the base key, a
   block of `key-translation-map` entries re-maps them to the symbol/upper-case
   forms commands actually bind (`M-S-]` → `M-}`, `M-S-9` → `M-(`, `M-S-j` →
-  `M-J`, etc.), so those chords stay reachable from the keyboard. **Gotcha:** kkp re-encodes
-  `C-g` as an escape sequence (`ESC [ 103;5 u`) instead of the raw byte 7, so
-  Emacs's low-level quit detection during a blocking `call-process` can't see
-  it. `envrc--export` runs direnv synchronously and advertises "C-g to abort",
-  so an `:around` advice (kkp's own `kkp-restore-legacy-keys`) restores the raw
-  C-g byte for the duration of the call — restoring the abort. Any other
-  synchronous command that relies on `C-g` would need the same advice.
+  `M-J`, etc.), so those chords stay reachable from the keyboard.
 - Cursor: `evil-terminal-cursor-changer` reflects the evil state in the host
   terminal's cursor via DECSCUSR sequences (`cursor-type` alone only affects
   GUI Emacs). Shapes: normal/visual/motion = block, insert = bar,
@@ -430,7 +424,15 @@ source file is opened.
 - Environment: `envrc` (`envrc-global-mode`) applies each buffer's directory
   `.envrc` via direnv. It's enabled on `after-init` *deliberately* — the
   global mode must layer on top of other global modes, so don't move it
-  earlier. Requires the `direnv` executable on PATH.
+  earlier. Requires the `direnv` executable on PATH. Keep the default
+  `envrc-async` value of nil so subsequent modes see the project environment.
+  Current envrc runs direnv asynchronously and waits using `sleep-for` in
+  `envrc--maybe-wait`. KKP's encoded `C-g` cannot interrupt that wait, so
+  `kkp-restore-legacy-keys` advises `envrc--maybe-wait` to restore the raw quit
+  byte temporarily. `C-g` stops waiting while the export continues in the
+  background; KKP is restored afterward, including on quit. The old
+  `envrc--export` function no longer exists; don't target it with advice.
+  Use `envrc-reload` after changing an environment to refresh cached results.
 - Server / `$EDITOR`: an Emacs `server` is started on `emacs-startup-hook` (off
   the critical path) with a **per-PID socket name** (`neoemacs-<pid>`) so
   concurrent Emacs instances don't collide on the default `server` name.

@@ -1534,8 +1534,6 @@ With a prefix arg (or non-nil HERE), start in the current
 
   <div class="row">
 <pre class="code">(use-package kkp
-  :ensure nil
-  :load-path "~/code/kkp"
   :config
   (global-kkp-mode 1))
 
@@ -1557,16 +1555,7 @@ With a prefix arg (or non-nil HERE), start in the current
       <code>M-(</code>, <code>M-J</code>, etc. would be unreachable. The
       <code>key-translation-map</code> entries re-map each <code>M-S-…</code> form to the
       symbol/upper-case key the commands actually bind.</p>
-      <div class="gotcha"><span class="tag">Side effect (see direnv)</span> kkp re-encodes
-      <kbd>C-g</kbd> as an escape sequence instead of the raw byte 7, which breaks Emacs's
-      low-level quit detection during blocking calls — handled later by the envrc advice.</div>
-      <div class="gotcha"><span class="tag">Temporary local clone</span> kkp is loaded from
-      <code>~/code/kkp</code> (<code>:ensure nil</code> + <code>:load-path</code>) instead of
-      ELPA: the MELPA build restores KKP after the envrc advice with a bare stack pop, which
-      zellij — implementing the protocol <em>without</em> the flag stack — treats as a plain
-      disable, leaving kkp dead after the first <code>envrc--export</code>. The clone carries
-      the fix (<a href="https://github.com/benotn/kkp/pull/36">PR #36</a>); revert to the
-      plain ELPA package once it's merged and on MELPA.</div>
+
     </div>
   </div>
 
@@ -1995,29 +1984,29 @@ With a prefix arg (or non-nil HERE), start in the current
   </div>
 
   <!-- ===================================================================== -->
-  <div class="sec-head" id="env"><h2>Environment — direnv</h2><p>Per-directory environment, plus the C-g abort fix.</p></div>
+  <div class="sec-head" id="env"><h2>Environment — direnv</h2><p>Per-directory environment and direnv loading.</p></div>
 
   <div class="row">
 <pre class="code">(use-package envrc
   :hook (after-init . envrc-global-mode)
   :config
-  ;; kkp re-encodes C-g as an escape sequence, so it can't abort the blocking
-  ;; direnv `call-process'. `kkp-restore-legacy-keys' restores the raw C-g
-  ;; byte for the duration of the call (no-op when kkp isn't active).
-  (advice-add 'envrc--export :around #'kkp-restore-legacy-keys))</pre>
+  (advice-add 'envrc--maybe-wait :around #'kkp-restore-legacy-keys))</pre>
     <div class="prose">
       <p><strong>envrc</strong> applies each buffer's directory <code>.envrc</code> via
       <code>direnv</code> (needs the <code>direnv</code> executable on PATH).</p>
       <div class="why"><span class="tag">Why <code>after-init</code></span> The global mode
       must layer <em>on top</em> of the other global modes, so it's enabled late and
       deliberately — don't move it earlier.</div>
-      <div class="gotcha"><span class="tag">The C-g fix</span> <code>envrc--export</code>
-      runs direnv through a synchronous <code>call-process</code> and advertises "C-g to
-      abort." That abort relies on Emacs seeing the raw <kbd>C-g</kbd> byte (ASCII 7) — but
-      kkp re-encodes it as <code>ESC [ 103;5 u</code>, so the blocking call never sees the
-      quit. kkp's own <code>kkp-restore-legacy-keys</code> <code>:around</code> advice
-      restores the raw byte for the duration of the export and puts kkp back afterward
-      no matter what. When kkp isn't active (e.g. GUI), it just calls through.</div>
+      <p>With the default <code>envrc-async</code> value of <code>nil</code>, Emacs
+      waits for the environment so subsequent modes can find project executables.
+      Direnv itself runs as an asynchronous process: <kbd>C-g</kbd> stops waiting
+      while the export continues in the background and applies its results when done.</p>
+      <p>The wait loop uses <code>sleep-for</code>, which still needs the raw
+      <kbd>C-g</kbd> byte to detect quit. The advice temporarily disables KKP encoding
+      during <code>envrc--maybe-wait</code> and restores it afterward, including on quit.
+      Advising the removed <code>envrc--export</code> function has no effect.</p>
+      <p>Use <code>M-x envrc-reload</code> after changing an environment;
+      envrc caches results across buffers.</p>
     </div>
   </div>
 

@@ -2204,18 +2204,14 @@ then reopen this file."
 ;; mode late (on `after-init') so it layers on top of other global modes, as
 ;; its README requires. Needs the `direnv' executable on PATH.
 (use-package envrc
+  ;; Keep the default wait for direnv so subsequent modes see its environment.
   :hook (after-init . envrc-global-mode)
   :config
-  ;; `envrc--export' (used by both first-time load and `envrc-reload') runs
-  ;; direnv via a synchronous `call-process' and advertises "C-g to abort".
-  ;; That abort relies on Emacs's low-level quit detection, which only fires
-  ;; on the raw C-g byte (ASCII 7) in the terminal input stream. With `kkp'
-  ;; active the Kitty Keyboard Protocol re-encodes C-g as an escape sequence
-  ;; (ESC [ 103;5 u), so the blocking call never sees a quit and C-g cannot
-  ;; abort. `kkp-restore-legacy-keys' restores the raw C-g byte for the
-  ;; duration of the advised call (no-op when kkp isn't active, e.g. GUI) --
-  ;; the upstream-supported replacement for the old hand-rolled teardown.
-  (advice-add 'envrc--export :around #'kkp-restore-legacy-keys))
+  ;; Direnv runs asynchronously, but `envrc--maybe-wait' uses `sleep-for',
+  ;; where KKP's encoded C-g cannot interrupt the wait. Restore the raw quit
+  ;; byte while waiting, then restore KKP even on quit. C-g stops waiting;
+  ;; the export continues in the background and applies its results later.
+  (advice-add 'envrc--maybe-wait :around #'kkp-restore-legacy-keys))
 
 ;;; --- Server / EDITOR -------------------------------------------------------
 

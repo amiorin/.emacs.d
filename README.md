@@ -19,10 +19,8 @@ straight from its git repo
 ([amiorin/consult-claude](https://github.com/amiorin/consult-claude)) with
 `package-vc-install`; `astro-ts-mode`, installed the same way from
 [its repo](https://github.com/Sorixelle/astro-ts-mode) because the current
-MELPA snapshot demands Emacs 31 while upstream still supports Emacs 30; and,
-temporarily until an upstream fix reaches MELPA,
-`kkp` (loaded from a local clone at `~/code/kkp`). After that, install the
-icon fonts once:
+MELPA snapshot demands Emacs 31 while upstream still supports Emacs 30.
+After that, install the icon fonts once:
 
 ```
 M-x nerd-icons-install-fonts
