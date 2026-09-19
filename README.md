@@ -13,6 +13,15 @@ git clone <repo-url> ~/.config/neoemacs
 emacs --init-directory ~/.config/neoemacs   # Emacs 29+
 ```
 
+Dired requires GNU coreutils in your Nix profile (`~/.nix-profile/bin/ls`).
+Install it before launching Emacs:
+
+```sh
+nix profile add nixpkgs#coreutils
+```
+
+If that executable is missing, the config reports an error with this command.
+
 On first launch the package system fetches everything from GNU ELPA, NonGNU
 ELPA, and MELPA automatically — except `consult-claude`, which is installed
 straight from its git repo
@@ -63,7 +72,7 @@ M-x nerd-icons-install-fonts
   binary).
 - **Files** — [dirvish](https://github.com/alexluigit/dirvish) as a polished
   dired replacement: dotfiles shown but `.`/`..` hidden, long `ls -l` detail
-  columns, directory-first sorting when GNU `gls` is available, diredfl
+  columns, directory-first sorting with GNU `ls` from the Nix profile, diredfl
   coloring, omitted generated files, two-pane copy/rename targets, a visible
   block cursor, and `TAB` to expand/collapse subtrees inline.
 - **Terminal** — `ghostel`, a libghostty-backed terminal. `s-t` (or `SPC t`)

@@ -1451,10 +1451,13 @@ With a prefix arg (or non-nil HERE), start in the current
   :custom
   (dirvish-attributes '(nerd-icons subtree-state))
   (dirvish-hide-details nil)
-  (insert-directory-program (if (executable-find "gls") "gls" "ls"))
-  (dired-listing-switches (if (executable-find "gls")
-                              "-Al --group-directories-first"
-                            "-Al"))
+  (insert-directory-program
+   (let ((program (expand-file-name "~/.nix-profile/bin/ls")))
+     (unless (file-executable-p program)
+       (error "Dired requires ~/.nix-profile/bin/ls; install it with: nix profile add nixpkgs#coreutils"))
+     program))
+  (dired-use-ls-dired t)
+  (dired-listing-switches "-Al --group-directories-first")
   (dirvish-hide-cursor nil)
   (dired-dwim-target t)
   :bind ("C-c f" . dirvish)
@@ -1486,10 +1489,10 @@ With a prefix arg (or non-nil HERE), start in the current
         <li><code>dirvish-hide-details nil</code> — keep the full <code>ls -l</code>
         detail columns visible.</li>
         <li><code>dired-listing-switches</code> — <code>-A</code> "almost all" shows
-        dotfiles but hides <code>.</code>/<code>..</code>; <code>-l</code> long format. When GNU
-        <code>ls</code> (Homebrew coreutils <code>gls</code>) is present,
-        <code>--group-directories-first</code> is added to sort directories ahead of files, and
-        <code>insert-directory-program</code> is pointed at <code>gls</code>.</li>
+        dotfiles but hides <code>.</code>/<code>..</code>; <code>-l</code> long format.
+        <code>--group-directories-first</code> sorts directories ahead of files.
+        <code>insert-directory-program</code> uses GNU <code>ls</code> at
+        <code>~/.nix-profile/bin/ls</code>, with <code>dired-use-ls-dired</code> enabled.</li>
         <li><code>dirvish-hide-cursor nil</code> — keep a real block cursor visible (dirvish
         normally hides it and relies on hl-line; here etcc renders a proper terminal
         block).</li>
@@ -1502,11 +1505,11 @@ With a prefix arg (or non-nil HERE), start in the current
       kill ring (<code>yl</code> true path, <code>yn</code> name, <code>yp</code> path,
       <code>yr</code> remote path), with <code>yy</code> kept as the classic
       <code>dired-do-copy</code>.</p>
-      <div class="gotcha"><span class="tag">macOS / BSD ls</span>
-      <code>--group-directories-first</code> is a GNU <code>ls</code> extension; the BSD
-      <code>ls</code> that ships with macOS rejects it. The <code>executable-find "gls"</code>
-      guard keeps directory-first grouping where coreutils is installed and falls back to plain
-      <code>-Al</code> otherwise, so dired never errors out.</div>
+      <div class="gotcha"><span class="tag">Nix coreutils required</span>
+      Install GNU coreutils with <code>nix profile add nixpkgs#coreutils</code>.
+      If <code>~/.nix-profile/bin/ls</code> is not executable, configuration reports
+      an error containing that command. Using the profile path avoids hardcoding
+      a versioned Nix store path or relying on the system's <code>ls</code>.</div>
     </div>
   </div>
 

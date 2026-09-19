@@ -370,7 +370,9 @@ source file is opened.
   hiding it behind the hl-line. `dirvish-hide-details nil` keeps the long
   `ls -l` columns visible. `dired-listing-switches` is `-Al` (`-A` =
   "almost all": shows dotfiles but omits `.`/`..`), with
-  `--group-directories-first` added when Homebrew `gls` is available. In normal
+  `--group-directories-first` always enabled. `insert-directory-program` uses
+  `~/.nix-profile/bin/ls`; if it is not executable, configuration reports an
+  error asking to run `nix profile add nixpkgs#coreutils`. In normal
   state `h`/`l` go up/into a directory and `TAB` toggles subtrees; `y` is a
   "yank" prefix that copies the entry's name/path to the kill ring (`yl`
   true-path, `yn` name, `yp` path, `yr` remote-path, with `yy` kept as the

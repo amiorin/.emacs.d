@@ -1408,18 +1408,15 @@ With no file at point, fall back to `magit-ediff-dwim'."
   (dirvish-hide-details nil)
   ;; `-A' ("almost all") lists dotfiles but omits the `.' and `..' entries;
   ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
-  ;; `--group-directories-first' and `--dired' metadata are GNU `ls' extensions;
-  ;; macOS ships BSD `ls' which lacks them, so use Homebrew coreutils `gls'
-  ;; when present. On Linux the system `ls' is GNU — detect via `--dired'.
-  (insert-directory-program (if (executable-find "gls") "gls" "ls"))
-  (dired-use-ls-dired (or (executable-find "gls")
-                          (eq 0 (ignore-errors
-                                  (call-process "ls" nil nil nil "--dired")))))
-  (dired-listing-switches (if (or (executable-find "gls")
-                                  (eq 0 (ignore-errors
-                                          (call-process "ls" nil nil nil "--dired"))))
-                              "-Al --group-directories-first"
-                            "-Al"))
+  ;; Use GNU coreutils from the user's Nix profile on every platform.
+  ;; System ls may be BSD or uutils, with different sorting behavior.
+  (insert-directory-program
+   (let ((program (expand-file-name "~/.nix-profile/bin/ls")))
+     (unless (file-executable-p program)
+       (error "Dired requires ~/.nix-profile/bin/ls; install it with: nix profile add nixpkgs#coreutils"))
+     program))
+  (dired-use-ls-dired t)
+  (dired-listing-switches "-Al --group-directories-first")
   ;; Show a real block cursor in dired/dirvish buffers. By default dirvish
   ;; hides it (`cursor-type' nil + a zero-width `evil-normal-state-cursor')
   ;; and relies on the hl-line highlight; keeping it visible makes dirvish
