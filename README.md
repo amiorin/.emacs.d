@@ -3,6 +3,11 @@
 A personal terminal Emacs configuration with Vim-style editing, a `SPC`
 leader, project/file workflows, and a modern minibuffer completion stack.
 
+Browse the [annotated configuration](https://amiorin.github.io/.emacs.d/)
+and [keybindings reference](https://amiorin.github.io/.emacs.d/bindings.html)
+on GitHub Pages. Both pages publish from the root of `main`; `.nojekyll`
+serves the HTML without Jekyll processing.
+
 ## Install
 
 This config lives in an XDG-style Emacs directory. Point Emacs at it via a
