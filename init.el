@@ -735,6 +735,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "cS" '(consult-lsp-symbols :which-key "workspace symbols")
     "n"  '(neoemacs/vsplit-window-follow :which-key "vsplit & follow")
     "s"  '(save-buffer :which-key "save buffer")
+    "v"  '(visual-line-mode :which-key "toggle visual line mode")
     "t"  '(neoemacs/vsplit-ghostel :which-key "ghostel (project root)")
     "w"  '(evil-window-delete :which-key "delete window")
     "u"  '(:ignore t :which-key "ghostel")

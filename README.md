@@ -145,6 +145,7 @@ elsewhere.
 | `SPC b i` | ibuffer                         |
 | `SPC b n` / `SPC b p` | next / previous buffer |
 | `SPC b u` | vundo undo tree                 |
+| `SPC v` | toggle visual line mode           |
 | `SPC p p` | switch project                  |
 | `SPC p f` | find file in project            |
 | `SPC p b` | switch to project buffer        |
