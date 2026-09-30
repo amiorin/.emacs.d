@@ -1933,31 +1933,7 @@ With a prefix arg (or non-nil HERE), start in the current
   :config
   (add-to-list 'apheleia-mode-alist '(astro-ts-mode . prettier)))
 
-;; Structural editing on the Lisp-family modes: the tree-sitter Clojure modes
-;; AND emacs-lisp-mode / lisp-interaction-mode.
-(use-package smartparens
-  :hook ((emacs-lisp-mode lisp-interaction-mode
-          clojure-ts-mode clojure-ts-clojurescript-mode
-          clojure-ts-clojurec-mode)
-         . smartparens-strict-mode)
-  :config
-  (require 'smartparens-config))
-
-(use-package evil-cleverparens
-  :hook ((emacs-lisp-mode lisp-interaction-mode
-          clojure-ts-mode clojure-ts-clojurescript-mode
-          clojure-ts-clojurec-mode)
-         . evil-cleverparens-mode)
-  :bind (:map evil-cleverparens-mode-map
-              ("M-5" . evil-cp-wrap-next-square)
-              ("M-]" . evil-cp-wrap-previous-square))
-  :init
-  (setq evil-cleverparens-use-additional-bindings t)
-  (setq evil-cleverparens-use-s-and-S nil)   ; keep `s' free for avy
-  :config
-  (evil-define-key 'normal evil-cleverparens-mode-map
-    "S" 'evil-cp-change-whole-line))
-
+;; Color delimiters by nesting depth in the Lisp-family modes.
 (use-package rainbow-delimiters
   :hook ((emacs-lisp-mode lisp-interaction-mode
           clojure-ts-mode clojure-ts-clojurescript-mode
@@ -1977,17 +1953,12 @@ With a prefix arg (or non-nil HERE), start in the current
       (preferable to <code>lsp-format-buffer</code> on save in a terminal). Armed via
       <code>apheleia-global-mode</code> on <code>emacs-startup-hook</code>. Astro maps to
       <code>prettier</code>; TS/TSX use apheleia's defaults.</p>
-      <p><strong>Lisp structural editing.</strong> Three layers ride on the Lisp-family
-      modes — the tree-sitter Clojure modes <em>and</em> <code>emacs-lisp-mode</code> /
-      <code>lisp-interaction-mode</code>: <code>smartparens</code> in strict mode refuses
-      edits that would unbalance a sexp (<code>smartparens-config</code> loads the default
-      pairs); <code>evil-cleverparens</code> adds paredit-style slurp/barf/wrap through evil
-      motions (<code>M-5</code> / <code>M-]</code> wrap the next/previous form in square
-      brackets); and <code>rainbow-delimiters</code> depth-colors the parens.
-      <code>evil-cleverparens-use-s-and-S</code> is nil because minor-mode maps beat
-      <code>evil-normal-state-map</code> — cleverparens' <code>s</code> would shadow the avy
-      jump in every Lisp buffer; the paren-safe <code>S</code>
-      (<code>evil-cp-change-whole-line</code>) is re-added on its own.</p>
+      <p><strong>Lisp delimiter highlighting.</strong> <code>rainbow-delimiters</code>
+      colors delimiters by nesting depth in the tree-sitter Clojure modes and
+      <code>emacs-lisp-mode</code> / <code>lisp-interaction-mode</code>. These buffers
+      use ordinary Evil editing; delimiter highlighting does not enforce balanced
+      forms. The visual-state <code>v</code> / <code>V</code> expand/contract-region
+      bindings remain available.</p>
       <p><strong>Clojure REPL.</strong> <code>cider</code> is the nREPL runtime half — REPL,
       inline eval, test runner — complementary to clojure-lsp's static analysis (they run
       together); <code>:after clojure-ts-mode</code> keeps it deferred, and

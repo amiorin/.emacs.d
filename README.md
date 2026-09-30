@@ -66,8 +66,8 @@ M-x nerd-icons-install-fonts
   automatically on first Astro visit — typescript-language-server, clojure-lsp), on-save formatting via
   [apheleia](https://github.com/radian-software/apheleia), and Clojure REPL
   tooling via [cider](https://github.com/clojure-emacs/cider). The Lisp-family
-  modes (Clojure and Emacs Lisp) get structural editing — smartparens strict
-  mode, evil-cleverparens paredit motions, and rainbow-delimiters.
+  modes (Clojure and Emacs Lisp) use rainbow-delimiters to color delimiters
+  by nesting depth, with ordinary Evil editing.
 - **Project & Git** — projectile, consult-ripgrep project
   search, and [magit](https://magit.vc/) (`magit-status` opens in the current
   window; `e` on a file opens a two-buffer ediff of its working-tree version

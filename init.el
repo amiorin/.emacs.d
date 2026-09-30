@@ -1807,7 +1807,7 @@ then reopen this file."
 ;; Deferred via `:mode' like astro/typescript -- the grammar is ensured
 ;; (compiled if missing) on first visit, so there's zero startup cost. lsp-mode
 ;; attaches via the shared hook in the lsp-mode block below; cider and
-;; evil-cleverparens hook on at the end of the file.
+;; rainbow-delimiters are configured at the end of the file.
 (use-package clojure-ts-mode
   :mode (("\\.clj\\'"  . clojure-ts-mode)
          ("\\.cljs\\'" . clojure-ts-clojurescript-mode)
@@ -2105,54 +2105,12 @@ then reopen this file."
 ;;; --- Clojure tooling -------------------------------------------------------
 ;;
 ;; The major mode (`clojure-ts-mode') and its LSP attach (clojure-lsp via lsp-mode)
-;; are set up above with the other tree-sitter languages. These two add the
-;; editing and REPL layers.
+;; are set up above with the other tree-sitter languages. Below are delimiter
+;; highlighting for Lisp buffers and the CIDER REPL integration.
 
-;; smartparens: structural paren handling (auto-pairs, balanced editing). Run
-;; the *strict* mode on the Lisp-family modes -- the tree-sitter Clojure modes
-;; and Emacs Lisp -- where unbalanced parens are always a mistake: strict mode
-;; refuses commands that would unbalance the sexp (so e.g. deleting a lone paren
-;; deletes the whole pair instead). `require'ing `smartparens-config' loads the
-;; sensible default pair/skip definitions. Deferred via `:hook', so it costs
-;; nothing until such a buffer is opened. `evil-cleverparens' (below) layers its
-;; evil-motion slurp/barf/wrap commands on top of this.
-(use-package smartparens
-  :hook ((emacs-lisp-mode lisp-interaction-mode
-			  clojure-ts-mode clojure-ts-clojurescript-mode
-			  clojure-ts-clojurec-mode)
-         . smartparens-strict-mode)
-  :config
-  (require 'smartparens-config))
-
-;; evil-cleverparens: paredit-style structural editing (slurp/barf, wrap, etc.)
-;; expressed through evil motions, so paren editing doesn't fight evil's keys.
-;; Builds on the `smartparens' configured above (also pulls in paredit). Enabled
-;; on the Lisp-family modes -- the Clojure tree-sitter modes plus Emacs Lisp --
-;; matching where `smartparens-strict-mode' runs.
-(use-package evil-cleverparens
-  :hook ((emacs-lisp-mode lisp-interaction-mode
-			  clojure-ts-mode clojure-ts-clojurescript-mode
-			  clojure-ts-clojurec-mode)
-         . evil-cleverparens-mode)
-  :bind (:map evil-cleverparens-mode-map
-              ("M-5" . evil-cp-wrap-next-square)
-              ("M-]" . evil-cp-wrap-previous-square))
-  :init
-  (setq evil-cleverparens-use-additional-bindings t)
-  ;; Don't let cleverparens bind `s'/`S' in its mode map -- minor-mode maps
-  ;; beat `evil-normal-state-map', so its `s' (evil-cp-substitute) would
-  ;; shadow the avy jump in every Lisp buffer. The paren-safe `S' is worth
-  ;; keeping, so it's re-added by itself in `:config'.
-  (setq evil-cleverparens-use-s-and-S nil)
-  :config
-  (evil-define-key 'normal evil-cleverparens-mode-map
-    "S" 'evil-cp-change-whole-line))
-
-;; rainbow-delimiters: depth-colored parens/brackets/braces. Hooked on the
-;; Lisp-family modes where nesting depth matters most -- the tree-sitter
-;; Clojure modes (alongside `evil-cleverparens' structural editing) plus
-;; Emacs Lisp. Deferred via `:hook', so it costs nothing until such a buffer
-;; is opened.
+;; rainbow-delimiters: depth-colored parens/brackets/braces in the tree-sitter
+;; Clojure modes and Emacs Lisp. This visual aid leaves ordinary Evil editing
+;; intact. Deferred via `:hook', so it loads when a matching buffer is opened.
 (use-package rainbow-delimiters
   :hook ((emacs-lisp-mode lisp-interaction-mode
 			  clojure-ts-mode clojure-ts-clojurescript-mode

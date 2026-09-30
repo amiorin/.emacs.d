@@ -249,18 +249,11 @@ source file is opened.
   `cider-repl-mode-map`, and `cider-test-report-mode-map`, and unbinds the
   map's `C-<letter>` duplicates so only the plain-letter finals remain
   (`C-c ,` is left as cider's alternate prefix).
-- **Lisp structural editing.** Three layers ride on the Lisp-family modes — the
-  tree-sitter Clojure modes (`clojure-ts-mode` + cljs/cljc) *and* `emacs-lisp-mode`
-  / `lisp-interaction-mode`: `smartparens` (`smartparens-strict-mode`, refuses
-  edits that would unbalance a sexp; `smartparens-config` loads the default
-  pairs), `evil-cleverparens` (paredit-style slurp/barf/wrap through evil
-  motions, `evil-cleverparens-use-additional-bindings t`, with `M-5` /
-  `M-]` bound to wrap-square; `evil-cleverparens-use-s-and-S` is nil so
-  cleverparens' mode map doesn't shadow the avy `s` binding in Lisp buffers —
-  minor-mode maps beat `evil-normal-state-map` — with the paren-safe `S`
-  (`evil-cp-change-whole-line`) re-added on its own), and
-  `rainbow-delimiters` (depth-colored parens).
-  evil-cleverparens pulls in paredit + smartparens.
+- **Lisp delimiter highlighting.** `rainbow-delimiters` colors delimiters by
+  nesting depth in the tree-sitter Clojure modes (`clojure-ts-mode` + cljs/cljc)
+  and `emacs-lisp-mode` / `lisp-interaction-mode`. These buffers use ordinary
+  Evil editing; delimiter highlighting does not enforce balanced forms.
+  The visual-state `v` / `V` expand/contract-region bindings remain available.
 
 ## Notable conventions
 
