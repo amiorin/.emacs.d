@@ -120,6 +120,9 @@
 ;; when another process has the same file open, which doesn't matter here.
 (setq create-lockfiles nil)
 
+;; Keep the symlink path when visiting version-controlled files, without asking.
+(setq vc-follow-symlinks nil)
+
 ;; Redirect auto-save files (the `#filename#' clutter) into a central
 ;; directory instead of scattering them next to edited files.
 (let ((auto-save-dir (locate-user-emacs-file "auto-save/")))
