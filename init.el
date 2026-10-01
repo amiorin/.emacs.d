@@ -1217,17 +1217,15 @@ Wraps the affixation-function returned further down the advice chain
   ;; preselect the first candidate, so RET completes to a real candidate.
   (corfu-preselect 'valid))
 
-;; corfu-terminal: corfu's default popup is a child frame, which doesn't exist
-;; in `emacs -nw'. This package re-renders the popup as a buffer overlay so it
-;; works in the terminal. `:after corfu' loads it when corfu loads (on the
-;; startup hook above), and the `display-graphic-p' guard makes it a no-op if
-;; this config is ever opened in a GUI frame (where the native child frame is
-;; better).
-(use-package corfu-terminal
-  :after corfu
-  :config
-  (unless (display-graphic-p)
-    (corfu-terminal-mode 1)))
+;; Emacs 31 supports corfu's child-frame popup in terminals natively.
+;; On older versions, corfu-terminal renders it as a buffer overlay instead.
+;; Load it with corfu on the startup hook, enabling it only in terminal frames.
+(when (< emacs-major-version 31)
+  (use-package corfu-terminal
+    :after corfu
+    :config
+    (unless (display-graphic-p)
+      (corfu-terminal-mode 1))))
 
 ;; Cape: extra `completion-at-point' backends. lsp-mode installs its own LSP capf
 ;; buffer-locally in managed buffers (so code completion there comes from the

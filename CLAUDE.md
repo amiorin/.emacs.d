@@ -147,9 +147,10 @@ is the bulk buffer-management view, grouped by project with `ibuffer-projectile`
 
 In-buffer completion (distinct from the minibuffer stack above) is `corfu`: the
 at-point popup, armed via `global-corfu-mode` on `emacs-startup-hook` (off the
-critical path). `corfu-terminal` re-renders its child-frame popup as a buffer
-overlay so it works under `emacs -nw` (guarded by `display-graphic-p`, so it's
-a no-op in a GUI frame). `cape` adds `cape-file` and `cape-dabbrev` capfs as
+critical path). On Emacs versions before 31, `corfu-terminal` re-renders its
+child-frame popup as a buffer overlay under `emacs -nw` (guarded by
+`display-graphic-p`, so it is a no-op in a GUI frame). Its enclosing version guard
+skips it on Emacs 31 and later, which support terminal child frames natively. `cape` adds `cape-file` and `cape-dabbrev` capfs as
 fallbacks; in lsp-mode-managed buffers the LSP capf supplies code completion.
 
 ## Languages & dev environment

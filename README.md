@@ -59,7 +59,7 @@ M-x nerd-icons-install-fonts
   directory from the minibuffer), consult-lsp (LSP symbols/diagnostics through
   consult), embark, embark-consult, and wgrep. In-buffer
   completion is [corfu](https://github.com/minad/corfu) (with corfu-terminal for
-  `-nw`) plus cape for file/dabbrev fallbacks.
+  `-nw` on Emacs versions before 31) plus cape for file/dabbrev fallbacks.
 - **Languages** — tree-sitter major modes for TypeScript/TSX, Python,
   [Astro](https://github.com/Sorixelle/astro-ts-mode), YAML, Dockerfile/Containerfile, and Clojure, with LSP via
   [lsp-mode](https://github.com/emacs-lsp/lsp-mode) (astro-ls — installed

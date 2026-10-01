@@ -1298,11 +1298,12 @@ With a prefix arg (or non-nil HERE), start in the current
   (corfu-quit-at-boundary nil)
   (corfu-preselect 'valid))
 
-(use-package corfu-terminal
-  :after corfu
-  :config
-  (unless (display-graphic-p)
-    (corfu-terminal-mode 1)))
+(when (&lt; emacs-major-version 31)
+  (use-package corfu-terminal
+    :after corfu
+    :config
+    (unless (display-graphic-p)
+      (corfu-terminal-mode 1))))
 
 (use-package cape
   :after corfu
@@ -1322,7 +1323,8 @@ With a prefix arg (or non-nil HERE), start in the current
       <code>corfu-quit-at-boundary nil</code> keeps the popup open across completion
       boundaries like <code>/</code> in paths.</p>
       <p><strong>corfu-terminal</strong> re-renders corfu's child-frame popup as a buffer
-      overlay so it works under <code>emacs -nw</code>; the <code>display-graphic-p</code>
+      overlay under <code>emacs -nw</code> on Emacs versions before 31. Emacs 31
+      uses native terminal child frames instead. The <code>display-graphic-p</code>
       guard makes it a no-op in a GUI frame. <strong>cape</strong> adds file-path and
       in-buffer-word (dabbrev) completion-at-point backends as fallbacks; in lsp-mode-managed
       buffers the LSP capf supplies code completion.</p>
