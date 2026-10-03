@@ -216,9 +216,10 @@ source file is opened.
   Requires `typescript-language-server` and `clojure-lsp` on PATH as
   appropriate. `astro-ls` is **auto-installed**: the Astro hook is
   `neoemacs/lsp-astro-deferred`, not plain `lsp-deferred` — it runs
-  `lsp-deferred` when the binary is found, else `lsp-ensure-server`, which
-  npm-installs `@astrojs/language-server` into `lsp-server-install-dir` and
-  auto-starts `lsp` in the waiting buffers when done (lsp-mode would otherwise
+  `lsp-deferred` when both dependencies are found, else `lsp-package-ensure`,
+  which installs missing TypeScript and `@astrojs/language-server` dependencies
+  in sequence into `lsp-server-install-dir`, then calls `lsp-deferred` in the
+  original buffer if it is still live and in Astro mode (lsp-mode would otherwise
   block on an interactive "could be installed automatically" prompt).
   lsp-mode's own `lsp-astro.el` registers the npm bin as `astroserver` (the
   real name is `astro-ls`) and starts a bare `astro-ls` looked up only on

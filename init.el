@@ -1014,7 +1014,7 @@ Wraps the affixation-function returned further down the advice chain
                                (or (xref-location-line loc) 0)
                                (xref-item-summary xref))))
                (add-text-properties
-                0 1 `(consult-xref ,xref consult--prefix-group ,display-group)
+                0 1 `(consult-xref ,xref consult--group ,display-group)
                 new-cand)
                new-cand))))
        candidates)))
@@ -1883,12 +1883,12 @@ then reopen this file."
 ;; arrives over the diagnostics provider with no separate linter package).
 ;; Requires `typescript-language-server' and `clojure-lsp' on PATH as
 ;; appropriate. `astro-ls' is auto-installed instead: the Astro hook is
-;; `neoemacs/lsp-astro-deferred', which runs `lsp-deferred' when the binary is
-;; available and otherwise calls `lsp-ensure-server', which npm-installs
-;; `@astrojs/language-server' into lsp-mode's cache (`lsp-server-install-dir')
-;; and auto-starts `lsp' in the waiting Astro buffers once the install
-;; finishes. Without this, lsp-mode stops at an interactive "could be
-;; installed automatically: eslint / astro-ls" prompt on every visit.
+;; `neoemacs/lsp-astro-deferred', which runs `lsp-deferred' when both
+;; dependencies are available and otherwise uses `lsp-package-ensure' to install missing
+;; TypeScript and server dependencies in sequence into lsp-mode's cache
+;; (`lsp-server-install-dir'), then calls `lsp-deferred' in the original
+;; Astro buffer once both are ready. Without this, lsp-mode stops at an
+;; interactive "could be installed automatically: eslint / astro-ls" prompt.
 (use-package lsp-mode
   :defer t
   :hook ((astro-ts-mode . neoemacs/lsp-astro-deferred)
@@ -1955,19 +1955,26 @@ then reopen this file."
   (defun neoemacs/lsp-astro-deferred ()
     "Start LSP for Astro, installing `astro-ls' (and TypeScript) if missing."
     (require 'lsp-astro)
-    (cond
-     ((not (lsp--server-binary-present? (gethash 'astro-ls lsp-clients)))
-      ;; Async npm install; lsp-mode starts `lsp' here when it completes.
-      (lsp-ensure-server 'astro-ls))
-     ((not (neoemacs--lsp-astro-tsdk))
-      (let ((buf (current-buffer)))
-        (lsp-package-ensure 'neoemacs-typescript
-                            (lambda ()
-                              (when (buffer-live-p buf)
-                                (with-current-buffer buf (lsp))))
-                            (lambda (err)
-                              (lsp-warn "Installing typescript failed: %s" err)))))
-     (t (lsp-deferred))))
+    ;; Ensure one missing dependency at a time, then recheck in the original
+    ;; buffer.  The server installer alone neither ensures TypeScript nor
+    ;; registers this buffer for automatic startup.
+    (let ((dependency
+           (cond
+            ((not (neoemacs--lsp-astro-tsdk)) 'neoemacs-typescript)
+            ((not (lsp--server-binary-present? (gethash 'astro-ls lsp-clients)))
+             'astro-language-server))))
+      (if dependency
+          (let ((buf (current-buffer)))
+            (lsp-package-ensure
+             dependency
+             (lambda ()
+               (when (buffer-live-p buf)
+                 (with-current-buffer buf
+                   (when (derived-mode-p 'astro-ts-mode)
+                     (neoemacs/lsp-astro-deferred)))))
+             (lambda (err)
+               (lsp-warn "Installing %s failed: %s" dependency err))))
+        (lsp-deferred))))
   ;; After `npm install' of a server, lsp-mode runs `npx i-peers' to add the
   ;; package's peer dependencies.  For @astrojs/language-server that step
   ;; re-resolves the whole dependency tree and dies on `astro-scripts@0.0.14'
@@ -2228,6 +2235,10 @@ then reopen this file."
   (defun neoemacs--server-buffer-keys ()
     "Bind client finish/abort keys locally in a plain emacsclient buffer."
     (unless (bound-and-true-p with-editor-mode)
+      ;; Major-mode maps are shared; copy before adding client-only keys.
+      (use-local-map (if (current-local-map)
+                         (copy-keymap (current-local-map))
+                       (make-sparse-keymap)))
       (local-set-key (kbd "C-c C-c") #'server-edit)
       (local-set-key (kbd "C-c C-k") #'server-edit-abort)
       (when (fboundp 'evil-local-set-key)
