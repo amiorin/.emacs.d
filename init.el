@@ -22,11 +22,35 @@
 ;; are configured via `with-eval-after-load' so they're in place whenever
 ;; package.el *does* load (first-run bootstrap, `M-x package-install',
 ;; `list-packages', or the ensure fallback installing something new).
+(defun neoemacs--elpa-download-with-fallback (download url &rest args)
+  "Call DOWNLOAD for URL with ARGS, retrying unreachable GNU ELPA via USTC.
+Only transport failures are retried; package signature verification remains
+the responsibility of package.el, with its normal settings."
+  (let* ((mirrors '(("https://elpa.gnu.org/packages/" . "https://mirrors.ustc.edu.cn/elpa/gnu/")
+                    ("https://elpa.nongnu.org/nongnu/" . "https://mirrors.ustc.edu.cn/elpa/nongnu/")))
+         (archive (seq-find (lambda (entry) (string-prefix-p (car entry) url))
+                            mirrors)))
+    (if (not archive)
+        (apply download url args)
+      (condition-case err
+          (or (apply download url args)
+              (signal 'file-error (list "No data from ELPA" url)))
+        (file-error
+         (message "ELPA transport failed (%s); retrying via USTC"
+                  (error-message-string err))
+         (apply download
+                (concat (cdr archive) (substring url (length (car archive))))
+                args))))))
+
 (with-eval-after-load 'package
   (setq package-archives
         '(("gnu"    . "https://elpa.gnu.org/packages/")
           ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-          ("melpa"  . "https://melpa.org/packages/"))))
+          ("melpa"  . "https://melpa.org/packages/")))
+  ;; Startup installs synchronously. Keep this off the warm startup path,
+  ;; and retry only the GNU archive URLs, including tarballs and signatures.
+  (advice-add 'url-retrieve-synchronously :around
+              #'neoemacs--elpa-download-with-fallback))
 
 ;; Fast activation via `package-quickstart'. A full `package-initialize' scans
 ;; every installed package's directory and `*-autoloads.el' on each startup
@@ -559,7 +583,7 @@ Uses Helpful, then selects the `helpful-mode' window so focus lands there
     (if sym
         (progn
           (helpful-symbol sym)
-          (when-let ((win (seq-find
+          (when-let* ((win (seq-find
                            (lambda (w)
                              (provided-mode-derived-p
                               (buffer-local-value 'major-mode (window-buffer w))
@@ -2064,7 +2088,7 @@ then reopen this file."
     ;; `cl-defstruct' has loaded, so expand this form at runtime, not while
     ;; reading init.el.
     (eval
-     '(when-let ((client (gethash 'clojure-lsp lsp-clients)))
+     '(when-let* ((client (gethash 'clojure-lsp lsp-clients)))
         (setf (lsp--client-path->uri-fn client) #'neoemacs--lsp-truename-path-to-uri
               (lsp--client-uri->path-fn client) #'neoemacs--lsp-uri-to-abbreviated-path))))
   ;; Map the tree-sitter mode names to their LSP language ids. Current lsp-mode

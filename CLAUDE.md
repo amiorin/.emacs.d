@@ -38,6 +38,9 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
 
 - Built-in `package.el` + `use-package`, with archives GNU ELPA, NonGNU
   ELPA, and MELPA.
+  Synchronous GNU/NonGNU downloads retry via USTC on transport errors (or no
+  response), using `neoemacs--elpa-download-with-fallback`. The advice is added
+  only after package.el loads; signature verification stays with package.el.
 - `package-enable-at-startup` is `nil` (set in `early-init.el`), so `init.el`
   activates packages explicitly. It loads the quickstart bundle by its
   suffix-less name (`(load (locate-user-emacs-file "package-quickstart") 'noerror

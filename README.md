@@ -34,6 +34,9 @@ straight from its git repo
 `package-vc-install`; `astro-ts-mode`, installed the same way from
 [its repo](https://github.com/Sorixelle/astro-ts-mode) because the current
 MELPA snapshot demands Emacs 31 while upstream still supports Emacs 30.
+If a synchronous download from GNU or NonGNU ELPA fails to connect, it retries
+through the USTC mirror, keeping package.el's signature checks enabled. This
+also covers package files and signatures; warm startup makes no network request.
 After that, install the icon fonts once:
 
 ```
