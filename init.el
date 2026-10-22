@@ -626,6 +626,12 @@ Opens a `find-file' prompt rooted at the private config dir (currently
   (let ((default-directory (expand-file-name "~/code/pocketcontext/")))
     (call-interactively #'find-file)))
 
+(defun neoemacs/find-file-in-pocketcontext-labs ()
+  "Find a file under the pocketcontext-labs workspace (`~/code/pocketcontext-labs')."
+  (interactive)
+  (let ((default-directory (expand-file-name "~/code/pocketcontext-labs/")))
+    (call-interactively #'find-file)))
+
 (defun neoemacs--start-gui-process (name &rest program-args)
   "Like `start-process' (BUFFER nil) but survives zellij's session boundary.
 Inside zellij, Emacs is a child of zellij's detached background server,
@@ -732,6 +738,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "ff" '(find-file :which-key "find file")
     "fp" '(neoemacs/find-file-in-config :which-key "find file in private config")
     "fw" '(neoemacs/find-file-in-pocketcontext :which-key "find file in pocketcontext")
+    "fe" '(neoemacs/find-file-in-pocketcontext-labs :which-key "find file in pocketcontext-labs")
     "fq" '(neoemacs/find-file-in-workspace :which-key "find file in getcolors")
     "fr" '(neoemacs/consult-recent-file :which-key "recent file")
     "fd" '(neoemacs/consult-dir :which-key "switch dir (consult-dir)")

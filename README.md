@@ -146,6 +146,7 @@ elsewhere.
 | `SPC f f` | find file                       |
 | `SPC f p` | find file in this config        |
 | `SPC f w` | find file in pocketcontext workspace |
+| `SPC f e` | find file in pocketcontext-labs workspace |
 | `SPC f q` | find file in getcolors workspace |
 | `SPC f r` | recent file                     |
 | `SPC f d` | switch directory (consult-dir)  |
