@@ -1526,7 +1526,20 @@ With no file at point, fall back to `magit-ediff-dwim'."
 ;; clipetty: send kills to the host system clipboard via the OSC 52 escape
 ;; sequence, so copying in terminal Emacs works through SSH and tmux.
 (use-package clipetty
-  :hook (after-init . global-clipetty-mode))
+  :hook (after-init . global-clipetty-mode)
+  :config
+  (defun neoemacs--clipetty-emit-in-zellij (emit string)
+    "Send STRING through the active Zellij pane, otherwise call EMIT."
+    ;; SSH_TTY can refer to a disconnected SSH session (and its device number
+    ;; can be reused by another user).  Zellij forwards OSC 52 itself, so use
+    ;; Emacs's open terminal instead of reopening that inherited path.
+    ;; Leave tmux routing and Clipetty's oversized-selection handling intact.
+    (if (and (getenv "ZELLIJ" (selected-frame))
+             (not (getenv "TMUX" (selected-frame)))
+             (<= (length string) clipetty--max-cut))
+        (send-string-to-terminal string (frame-terminal (selected-frame)))
+      (funcall emit string)))
+  (advice-add 'clipetty--emit :around #'neoemacs--clipetty-emit-in-zellij))
 
 ;; Ghostel: terminal emulator powered by libghostty. The native module is a
 ;; prebuilt binary that auto-downloads on first use.
