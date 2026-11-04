@@ -86,13 +86,7 @@ Three layers, used deliberately:
    (terminal in the current dir), `SPC h` → help). Add user-facing commands
    here with a `:which-key` label.
 2. **`general-define-key`** for state/keymap-scoped bindings (e.g. `-` →
-   `dired-jump`, `ff` → `neoemacs/consult-recent-file`, `fd` →
-   `neoemacs/consult-dir`, and `fc` → `consult-claude-sessions` in normal
-   state — the `f` bindings sit on an explicit prefix map
-   (`neoemacs--normal-f-map`) bound through a `general-predicate-dispatch`
-   filter that returns nil in `magit-mode` buffers, so `f` falls through to
-   magit's native `magit-fetch` instead of being swallowed by the override
-   prefix,
+   `dired-jump`,
    `s-hjkl` window movement, `s-n` vsplit +
    follow (`neoemacs/vsplit-window-follow` splits *right* with plain
    `split-window` and selects the new window, copying the original window's
@@ -145,7 +139,7 @@ is installed for editable grep results. `consult-ripgrep` is the project search
 edit loop. `consult-dir` switches the *directory context* from inside the
 minibuffer (`C-x C-d` globally, `C-x C-d` to re-root an active prompt,
 `C-x C-j` to fuzzy-jump to a file under the chosen dir, `SPC f d` on the
-leader and `fd` in normal state). `helpful` replaces the main help commands under `help-map`. `ibuffer`
+leader). `helpful` replaces the main help commands under `help-map`. `ibuffer`
 is the bulk buffer-management view, grouped by project with `ibuffer-projectile`.
 
 In-buffer completion (distinct from the minibuffer stack above) is `corfu`: the
@@ -454,8 +448,7 @@ source file is opened.
   unconditionally at every startup, which autoloads package.el back onto the
   warm path (see *Package management*). The package is terminal-agnostic: it owns the
   in-memory session registry, the `consult-claude-status` status RPC, the
-  marginalia annotator, and the `consult-claude-sessions` picker (`fc` in
-  normal state, alongside `ff`/`fd` in the override map) —
+  marginalia annotator, and the `consult-claude-sessions` picker (`M-x consult-claude-sessions`) —
   a consult switcher listing sessions with live status
   (`working`/`waiting`/`done`/`idle`), age, and directory; selecting one jumps
   to its terminal. The ghostel-specific glue stays in `init.el` and feeds the

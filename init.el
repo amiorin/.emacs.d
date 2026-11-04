@@ -789,25 +789,10 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
   ;; Bound into `help-map' the same way embark-bindings is (see the embark form).
   (define-key help-map "t" #'emacs-init-time)
   ;; `-' in normal state jumps to dired (vinegar-style).
-  ;; The `f' bindings sit on an explicit prefix map dispatched through a
-  ;; `general-predicate-dispatch' filter instead of plain "ff"/"fd"/"fc"
-  ;; sequences: a two-key sequence would make `f' an unconditional prefix in
-  ;; the override map, shadowing magit's `f' (magit-fetch) -- magit keeps its
-  ;; native keymap (no evil-collection), so only a filter that returns nil in
-  ;; magit buffers lets the key fall through to it.
-  (defvar neoemacs--normal-f-map
-    (let ((map (make-sparse-keymap)))
-      (define-key map "f" #'neoemacs/consult-recent-file)
-      (define-key map "d" #'neoemacs/consult-dir)
-      (define-key map "c" #'consult-claude-sessions)
-      map)
-    "Normal-state `f' prefix map (inactive in magit buffers).")
   (general-define-key
    :states 'normal
    :keymaps 'override
-   "-" 'dired-jump
-   "f" (general-predicate-dispatch neoemacs--normal-f-map
-         (derived-mode-p 'magit-mode) nil))
+   "-" 'dired-jump)
   ;; Super-key window shortcuts, plus `s-s' to save the current buffer.
   (general-define-key
    :keymaps 'override
@@ -1911,6 +1896,12 @@ then reopen this file."
 (use-package terraform-mode
   :mode "\\.tf\\'")
 
+;; Nix expressions, including devenv.nix, flake.nix, and shell.nix.
+;; Apheleia already maps nix-mode to nixfmt; install nil and nixfmt on PATH
+;; (or expose them through the project's direnv environment).
+(use-package nix-mode
+  :mode "\\.nix\\'")
+
 ;; --- LSP via lsp-mode -------------------------------------------------------
 ;;
 ;; lsp-mode is fully deferred: `lsp-deferred' is autoloaded, so listing it on
@@ -1919,13 +1910,14 @@ then reopen this file."
 ;; a real source file), never during init. `lsp-deferred' (unlike plain `lsp')
 ;; also waits until the buffer is actually displayed before starting a server.
 ;;
-;; All three servers used here ship as built-in lsp-mode clients:
+;; The servers used here ship as built-in lsp-mode clients:
 ;; `typescript-language-server' (ts-ls) for TS/TSX, `astro-ls' for Astro
 ;; (lsp-astro points `tsdk' at the workspace's own
 ;; `node_modules/typescript/lib', same as the old eglot entry did), and
 ;; `clojure-lsp' for the Clojure family (it bundles clj-kondo, so linting
 ;; arrives over the diagnostics provider with no separate linter package).
-;; Requires `typescript-language-server' and `clojure-lsp' on PATH as
+;; Nix uses `nil', with `nixfmt' for LSP formatting as well as Apheleia.
+;; Requires `typescript-language-server', `clojure-lsp', and `nil' on PATH as
 ;; appropriate. `astro-ls' is auto-installed instead: the Astro hook is
 ;; `neoemacs/lsp-astro-deferred', which runs `lsp-deferred' when both
 ;; dependencies are available and otherwise uses `lsp-package-ensure' to install missing
@@ -1936,7 +1928,7 @@ then reopen this file."
 (use-package lsp-mode
   :defer t
   :hook ((astro-ts-mode . neoemacs/lsp-astro-deferred)
-         ((typescript-ts-mode tsx-ts-mode
+         ((nix-mode typescript-ts-mode tsx-ts-mode
 			 clojure-ts-mode clojure-ts-clojurescript-mode
 			 clojure-ts-clojurec-mode)
           . lsp-deferred)
@@ -1947,6 +1939,7 @@ then reopen this file."
   ;; Must be set before lsp-mode loads. The prefix map holds the long tail of
   ;; LSP commands (the everyday ones live on the leader under `SPC c').
   (setq lsp-keymap-prefix "C-c l")
+  (setq lsp-nix-nil-formatter ["nixfmt"])
   ;; In LSP buffers, use Vim's gd/gr mnemonics for server-backed navigation.
   ;; Associate the bindings with the `lsp-mode' minor mode here, before the
   ;; server eventually starts, so Evil does not need a later keymap refresh.

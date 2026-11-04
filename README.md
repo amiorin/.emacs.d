@@ -71,6 +71,12 @@ M-x nerd-icons-install-fonts
   tooling via [cider](https://github.com/clojure-emacs/cider). The Lisp-family
   modes (Clojure and Emacs Lisp) use rainbow-delimiters to color delimiters
   by nesting depth, with ordinary Evil editing.
+- **Nix** — `nix-mode` provides highlighting and indentation for all `.nix`
+  files, including `devenv.nix`, `flake.nix`, and `shell.nix`. LSP completion,
+  diagnostics, and navigation use `nil`; Apheleia and LSP formatting use
+  `nixfmt`. Install the tools with `nix profile add nixpkgs#nil nixpkgs#nixfmt`,
+  or provide them through the project's direnv environment. The Emacs package
+  installs automatically on next startup and loads when a Nix file is opened.
 - **Project & Git** — projectile, consult-ripgrep project
   search, and [magit](https://magit.vc/) (`magit-status` opens in the current
   window; `e` on a file opens a two-buffer ediff of its working-tree version
@@ -185,9 +191,6 @@ elsewhere.
 | `,`       | alias for the `C-c` prefix (normal/visual/motion) |
 | `j` / `k` | down / up by visual line (`gj`/`gk` logical) |
 | `-`       | jump to dired (current dir)     |
-| `ff`      | recent file (normal state)      |
-| `fd`      | switch directory (normal state) |
-| `fc`      | Claude Code sessions (normal state) |
 | `s`       | avy jump to chars (normal state) |
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
