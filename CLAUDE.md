@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
-(an `XDG`-style Emacs config dir). There is no build step and no general test suite (only the targeted ERT
-tests in `test/`) — the
-"product" is Emacs itself, configured by these files.
+(an `XDG`-style Emacs config dir). There is no build step and no general
+test suite (only the targeted ERT tests in `test/`) — the "product" is Emacs
+itself, configured by these files.
 
 > **IMPORTANT:** `~/.emacs.d` MUST never be read or written. This config lives
 > exclusively at `~/.config/neoemacs` — that is the only Emacs configuration
