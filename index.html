@@ -975,7 +975,7 @@ With a prefix arg (or non-nil HERE), start in the current
         "jump to the directory of this file").</li>
         <li><code>s-h/j/k/l</code> — move between windows (the Super/Cmd key + hjkl).</li>
         <li><code>s-n</code> — vertical split and follow; <code>s-s</code> — save buffer; <code>s-w</code> — delete window.</li>
-        <li><code>s-y</code> — pick a link in the buffer (<code>neoemacs/consult-buffer-links</code>, see the ghostel section). Being in the <code>override</code> block, it works in every state, including ghostel insert state.</li>
+        <li><code>s-y</code> — pick a link or file path in the buffer (<code>neoemacs/consult-buffer-links</code>, see the ghostel section). Being in the <code>override</code> block, it works in every state, including ghostel insert state.</li>
         <li><code>S-s-[</code> — rotate windows; <code>S-s-]</code> — maximize (delete
         others).</li>
         <li><code>K</code> — only in <code>emacs-lisp-mode</code> /
@@ -1911,19 +1911,21 @@ peek sessions retain their own behavior and session lookup rules."
   (or (getenv "SSH_CONNECTION") (getenv "SSH_TTY")))
 
 (defun neoemacs/consult-buffer-links ()
-  "Pick an http(s) link in the current buffer; open it, or copy it over SSH."
+  "Pick a link or file path in the buffer; open/visit it, or copy a URL over SSH."
   (interactive)
   ...)</pre>
     <div class="prose">
-      <p><strong>Link picker.</strong> <code>s-y</code> collects every http(s) link in the
-      current buffer into a <code>consult--read</code> picker: category <code>url</code> (so
-      <code>s-]</code> Embark offers URL actions), deduplicated, and <em>unsorted</em> so the most
+      <p><strong>Link picker.</strong> <code>s-y</code> collects every http(s) link and local
+      file path in the current buffer into a <code>consult--read</code> picker. Each candidate
+      carries a <code>multi-category</code> property (<code>url</code> or <code>file</code>), so
+      <code>s-]</code> Embark offers the matching actions and marginalia/nerd-icons annotate
+      files. The list is deduplicated, and <em>unsorted</em> so the most
       recent — bottom-most — link is on top. Previewing a candidate jumps to it and highlights every row of a wrapped link.</p>
       <ul>
         <li><strong>ghostel links</strong> — the URI stored in the <code>help-echo</code> property
         of spans whose <code>keymap</code> is <code>ghostel-link-map</code>. This covers OSC 8
         hyperlinks whose visible text differs from the target, and soft-wrapped links whose rows
-        share a <code>ghostel-link-id</code>; <code>fileref:</code> targets are skipped.</li>
+        share a <code>ghostel-link-id</code>; <code>fileref:</code> targets feed the file list.</li>
         <li><strong>Regex fallback</strong> — rows joined across <code>ghostel-wrap</code>
         soft-wrap newlines — for links ghostel hasn't linkified yet (the cursor line, queued
         detection) and for non-terminal buffers.</li>
@@ -1933,11 +1935,19 @@ peek sessions retain their own behavior and session lookup rules."
         3), the next line's leading whitespace/border is skipped and its URL characters appended,
         repeating for multi-line splits; trailing punctuation is trimmed. OSC 8 links carry the
         full target and are not rejoined.</li>
+        <li><strong>File paths</strong> — ghostel's <code>fileref:</code> spans (already resolved
+        and checked), plus a regex sweep with ghostel's path pattern
+        (<code>ghostel-file-detection-path-regex</code>) and an optional
+        <code>:LINE[:COL]</code> tail. A path needs a <code>/</code>, except a bare
+        <code>name:LINE</code>. Paths resolve against <code>default-directory</code> and only
+        existing regular files are kept — directories are skipped, since every shell prompt shows
+        one. A hard-wrapped path is rejoined only when the joined path exists.</li>
       </ul>
       <p>On selection, over SSH (<code>$SSH_CONNECTION</code>/<code>$SSH_TTY</code>) the URL is
       copied to the kill ring, which clipetty forwards to the local clipboard via OSC 52; locally
       it is opened with macOS <code>open</code> through <code>neoemacs--start-gui-process</code>,
-      so it crosses zellij's session boundary.</p>
+      so it crosses zellij's session boundary. A file is visited at its line and column — in
+      another window when <code>s-y</code> was pressed in a terminal, else in the same one.</p>
       <div class="gotcha"><span class="tag">Caveats</span> The environment is read as captured at Emacs start: a locally started Emacs
       reattached over SSH still counts as local. The rejoin is a heuristic — a URL ending exactly
       at the right edge above a line of ordinary words can be over-joined — which is why the picker

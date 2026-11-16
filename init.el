@@ -794,7 +794,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    :keymaps 'override
    "-" 'dired-jump)
   ;; Super-key window shortcuts, plus `s-s' to save the current buffer and
-  ;; `s-y' to pick a link in the buffer (`neoemacs/consult-buffer-links').
+  ;; `s-y' to pick a link or file path in the buffer
+  ;; (`neoemacs/consult-buffer-links').
   (general-define-key
    :keymaps 'override
    "s-h" 'evil-window-left
@@ -1759,8 +1760,10 @@ peek sessions retain their own behavior and session lookup rules."
 ;; previewing each one by moving point onto it.  Selecting a link opens it in
 ;; the local browser via macOS `open', or, in an SSH session (where `open'
 ;; would launch on the wrong machine), copies it to the kill ring so clipetty
-;; carries it to the local clipboard over OSC 52.  `:category url' lets Embark
-;; (`s-]') offer its URL actions on the candidate instead.
+;; carries it to the local clipboard over OSC 52.  Local file paths are listed
+;; too (see the section above `neoemacs--file-path-regex'); selecting one
+;; visits it.  Each candidate carries a `multi-category' property, so Embark
+;; (`s-]') offers URL or file actions on it instead.
 ;;
 ;; Links come from two sources, merged by start position:
 ;;   1. ghostel's own link spans (OSC 8 hyperlinks and the URLs it detected),
@@ -1888,9 +1891,11 @@ WIDTH is the wrap width (see `neoemacs--link-row-full-p')."
                   end stop))))))
   url)
 
-(defun neoemacs--link-ghostel-spans ()
+(defun neoemacs--link-ghostel-spans (&optional fileref)
   "Return ghostel's link spans in the buffer as (START END URI OSC8-P) lists.
-Rows sharing a `ghostel-link-id' (one soft-wrapped link) are merged."
+Rows sharing a `ghostel-link-id' (one soft-wrapped link) are merged.
+`fileref:' spans are skipped, or with FILEREF non-nil are the only ones
+returned."
   (let ((pos (point-min)) (by-id (make-hash-table :test 'equal)) (spans nil))
     (while (< pos (point-max))
       (let ((uri (get-text-property pos 'help-echo))
@@ -1898,7 +1903,7 @@ Rows sharing a `ghostel-link-id' (one soft-wrapped link) are merged."
         (when (and (stringp uri)
                    (boundp 'ghostel-link-map)
                    (eq (get-text-property pos 'keymap) ghostel-link-map)
-                   (not (string-prefix-p "fileref:" uri)))
+                   (eq (not fileref) (not (string-prefix-p "fileref:" uri))))
           (let* ((id (get-text-property pos 'ghostel-link-id))
                  (prev (and id (gethash id by-id))))
             (if (and prev (equal (nth 2 prev) uri)
@@ -1955,6 +1960,121 @@ above `neoemacs-link-wrap-margin' for the sources and rejoining rules."
                           (unless (gethash (car link) seen)
                             (puthash (car link) t seen)))
                         links)))))))
+
+;; Local file paths.  ghostel marks the `path[:LINE[:COL]]' references it
+;; found (and checked exist) with a `fileref:/abs/path:L:C' target; a regex
+;; sweep using the same path pattern covers what it hasn't scanned and
+;; non-terminal buffers.  A path needs a `/', except a bare `name:LINE'.
+;; Paths resolve against `default-directory' and only existing ones are kept,
+;; which also decides whether a hard-wrapped path is rejoined.  The sweep
+;; skips directories (shell prompts would flood it); ghostel-marked ones stay.
+
+(defconst neoemacs--file-path-regex
+  "[~[:alnum:]_.-]*/[^] \t\n\r:\"<>(){}[`']*[^] \t\n\r:\"<>(){}[`'.,;!?]"
+  "Fallback for `ghostel-file-detection-path-regex' when ghostel isn't loaded.")
+
+(defconst neoemacs--file-ref-regex
+  "\\`\\(.*?\\)\\(:[0-9]+\\(?::[0-9]+\\)?\\)?\\'"
+  "Split a `path[:LINE[:COL]]' string into path (group 1) and tail (group 2).")
+
+(defun neoemacs--file-sweep-regex ()
+  "Regex matching a path reference: path in group 1, `:L[:C]' in group 2.
+The second alternative is a bare name (no `/') with a mandatory `:LINE'."
+  (let ((anchor "\\(?:^\\|[^[:alnum:]_./~-]\\)")
+        (tail "\\(?::[0-9]+\\(?::[0-9]+\\)?\\)"))
+    (concat anchor "\\(?:"
+            "\\(" (if (boundp 'ghostel-file-detection-path-regex)
+                      ghostel-file-detection-path-regex
+                    neoemacs--file-path-regex)
+            "\\)\\(" tail "?\\)"
+            "\\|\\([[:alnum:]_.-]*[[:alnum:]_]\\)\\(" tail "\\)\\)")))
+
+(defun neoemacs--file-resolve (raw exists)
+  "Resolve RAW `path[:L[:C]]' text to (ABS . TAIL) if the file exists.
+Directories don't count: every shell prompt shows one, which would then
+top the picker.  EXISTS is a hash table caching the check per name."
+  (when (string-match neoemacs--file-ref-regex raw)
+    (let ((path (match-string 1 raw)) (tail (or (match-string 2 raw) "")))
+      (unless (or (string-empty-p path) (string-prefix-p "//" path))
+        (let* ((abs (expand-file-name path))
+               (cached (gethash abs exists 'unset))
+               (ok (if (not (eq cached 'unset))
+                       cached
+                     (puthash abs (and (file-exists-p abs)
+                                       (not (file-directory-p abs)))
+                              exists))))
+          (and ok (cons abs tail)))))))
+
+(defun neoemacs--buffer-file-refs (&optional buffer)
+  "Return the existing file references in BUFFER, newest (last) first.
+Each is (ABS TAIL POS RAW): the absolute path, its `:L[:C]' tail (maybe
+\"\"), the start position and the raw text as shown.  Duplicate
+ABS+TAIL keep their bottom-most position."
+  (with-current-buffer (or buffer (current-buffer))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (let ((width (and neoemacs--link-wrap-width-function
+                          (funcall neoemacs--link-wrap-width-function)))
+              (exists (make-hash-table :test 'equal))
+              (by-start (make-hash-table))
+              (case-fold-search nil)
+              (regex (neoemacs--file-sweep-regex)))
+          ;; 1. ghostel-marked references (already resolved and checked).
+          (pcase-dolist (`(,start ,end ,uri) (neoemacs--link-ghostel-spans t))
+            (let ((ref (substring uri (length "fileref:"))))
+              (when (string-match neoemacs--file-ref-regex ref)
+                (puthash start (list (match-string 1 ref)
+                                     (or (match-string 2 ref) "")
+                                     start (neoemacs--link-text start end))
+                         by-start))))
+          ;; 2. Regex sweep; a ghostel span at the same start wins.
+          (goto-char (point-min))
+          (while (re-search-forward regex nil t)
+            (let* ((g (if (match-beginning 1) 1 3))
+                   (start (match-beginning g))
+                   (end (match-end (1+ g)))
+                   (raw (neoemacs--link-text start end))
+                   ;; Rejoin a hard-wrapped path when the joined one exists.
+                   (joined (and (string-empty-p (match-string (1+ g)))
+                                (neoemacs--link-trim
+                                 (neoemacs--link-join-hard-wraps raw end width))))
+                   (res (or (and joined (not (equal joined raw))
+                                 (when-let* ((r (neoemacs--file-resolve joined exists)))
+                                   (setq raw joined)
+                                   r))
+                            (neoemacs--file-resolve raw exists))))
+              (when (and res (not (gethash start by-start)))
+                (puthash start (list (car res) (cdr res) start raw) by-start))
+              (goto-char (max end (1+ (match-beginning 0))))))
+          ;; Newest first, deduplicated on ABS+TAIL.
+          (let ((refs nil) (seen (make-hash-table :test 'equal)))
+            (maphash (lambda (_ ref) (push ref refs)) by-start)
+            (setq refs (sort refs (lambda (a b) (> (nth 2 a) (nth 2 b)))))
+            (seq-filter (lambda (ref)
+                          (let ((key (concat (nth 0 ref) (nth 1 ref))))
+                            (unless (gethash key seen)
+                              (puthash key t seen))))
+                        refs)))))))
+
+(defun neoemacs--file-ref-candidate (abs tail)
+  "Display string for file reference ABS + TAIL, tagged `multi-category'."
+  (let ((name (abbreviate-file-name abs)))
+    (when (and (file-directory-p abs) (not (string-suffix-p "/" name)))
+      (setq name (concat name "/")))
+    (propertize (concat name tail) 'multi-category (cons 'file abs))))
+
+(defun neoemacs--file-ref-act (abs tail)
+  "Visit ABS at the `:LINE[:COL]' in TAIL.
+From a terminal buffer it opens in another window, elsewhere in this one."
+  (let ((other (derived-mode-p 'ghostel-mode)))
+    (if other (find-file-other-window abs) (find-file abs))
+    (when (string-match "\\`:\\([0-9]+\\)\\(?::\\([0-9]+\\)\\)?" tail)
+      (let ((line (string-to-number (match-string 1 tail)))
+            (col (and (match-string 2 tail) (string-to-number (match-string 2 tail)))))
+        (goto-char (point-min))
+        (forward-line (1- (max 1 line)))
+        (when col (move-to-column (max 0 (1- col))))))))
 
 (defun neoemacs--link-row-tail-p (pos)
   "Non-nil when only whitespace and box borders follow POS on its row."
@@ -2033,44 +2153,68 @@ One range per row, so a link that wraps is highlighted on every row."
 (declare-function consult--read "consult")
 (declare-function consult--jump-preview "consult")
 
+(defun neoemacs--buffer-link-entries ()
+  "Return this buffer's URLs and file references as picker entries.
+Each is (CANDIDATE POS TEXT ACTION), newest (bottom-most) first:
+CANDIDATE is the `multi-category' display string, TEXT what the buffer
+shows at POS (for the preview highlight) and ACTION a thunk."
+  (let ((entries
+         (append
+          (mapcar (lambda (link)
+                    (let ((url (car link)))
+                      (list (propertize url 'multi-category (cons 'url url))
+                            (cdr link) url
+                            (lambda () (neoemacs--link-act url)))))
+                  (neoemacs--buffer-links))
+          (mapcar (lambda (ref)
+                    (pcase-let ((`(,abs ,tail ,pos ,raw) ref))
+                      (list (neoemacs--file-ref-candidate abs tail) pos raw
+                            (lambda () (neoemacs--file-ref-act abs tail)))))
+                  (neoemacs--buffer-file-refs)))))
+    (sort entries (lambda (a b) (> (nth 1 a) (nth 1 b))))))
+
 (defun neoemacs/consult-buffer-links ()
-  "Pick an http(s) link in this buffer (newest first) and open or copy it.
-Opens it with macOS `open', or in an SSH session copies it to the kill
-ring (which clipetty forwards to the local clipboard).  Previews move
-point to the link and highlight it."
+  "Pick an http(s) link or local file path in this buffer and act on it.
+Candidates are newest (bottom-most) first.  A URL opens with macOS
+`open', or in an SSH session is copied to the kill ring (which clipetty
+forwards to the local clipboard).  A file opens in Emacs at its
+`:LINE[:COL]', in another window when called from a terminal.  Previews
+move point to the reference and highlight it."
   (interactive)
   (require 'consult)
-  (let* ((links (or (neoemacs--buffer-links) (user-error "No links in buffer")))
-         ;; URL -> (MARKER (BEG . END)...), the candidate shape
-         ;; `consult--jump-preview' previews: one highlight per row the link
-         ;; occupies, as offsets relative to the marker.
+  (let* ((entries (or (neoemacs--buffer-link-entries)
+                      (user-error "No links or file paths in buffer")))
+         ;; CANDIDATE -> (MARKER (BEG . END)...), the candidate shape
+         ;; `consult--jump-preview' previews: one highlight per row the
+         ;; reference occupies, as offsets relative to the marker.
          (targets (mapcar
-                   (lambda (link)
-                     (let ((pos (cdr link)))
-                       (cons (car link)
+                   (lambda (entry)
+                     (pcase-let ((`(,cand ,pos ,text) entry))
+                       (cons cand
                              (cons (copy-marker pos)
                                    (mapcar (lambda (frag)
                                              (cons (- (car frag) pos)
                                                    (- (cdr frag) pos)))
-                                           (neoemacs--link-fragments
-                                            pos (car link)))))))
-                   links))
+                                           (neoemacs--link-fragments pos text))))))
+                   entries))
          (preview (consult--jump-preview))
-         (url (unwind-protect
-                  (consult--read
-                   (mapcar #'car links)
-                   :prompt "Link: "
-                   :category 'url
-                   :sort nil
-                   :require-match t
-                   :history 'neoemacs--consult-buffer-links-history
-                   ;; Preview only: no jump on return, so point is restored
-                   ;; after both selection and abort.
-                   :state (lambda (action cand)
-                            (funcall preview action
-                                     (and cand (cdr (assoc cand targets))))))
-                (dolist (target targets) (set-marker (nth 1 target) nil)))))
-    (neoemacs--link-act url)))
+         (choice (unwind-protect
+                     (consult--read
+                      (mapcar #'car entries)
+                      :prompt "Link: "
+                      ;; Per-candidate `url'/`file' via the `multi-category'
+                      ;; property, for Embark, marginalia and nerd-icons.
+                      :category 'multi-category
+                      :sort nil
+                      :require-match t
+                      :history 'neoemacs--consult-buffer-links-history
+                      ;; Preview only: no jump on return, so point is
+                      ;; restored after both selection and abort.
+                      :state (lambda (action cand)
+                               (funcall preview action
+                                        (and cand (cdr (assoc cand targets))))))
+                   (dolist (target targets) (set-marker (nth 1 target) nil)))))
+    (funcall (nth 3 (assoc choice entries)))))
 
 ;;; --- Claude Code session tracking ------------------------------------------
 

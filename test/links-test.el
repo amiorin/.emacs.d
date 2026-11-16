@@ -160,7 +160,7 @@
                 ((symbol-function 'neoemacs--link-act) (lambda (u) (setq acted u))))
         (neoemacs/consult-buffer-links))
       (should (equal seen-cands '("https://b.example" "https://a.example")))
-      (should (eq (plist-get seen-opts :category) 'url))
+      (should (eq (plist-get seen-opts :category) 'multi-category))
       (should (equal acted "https://a.example"))
       (should (= (point) 1)))))
 
@@ -229,3 +229,151 @@
                 ((symbol-function 'neoemacs--link-act) #'ignore))
         (neoemacs/consult-buffer-links))
       (should (equal ranges '((3 . 31) (36 . 45)))))))
+
+;;; Local file paths.
+
+(defmacro links-test--with-files (files &rest body)
+  "Run BODY in a temp buffer whose `default-directory' holds FILES.
+Binds `dir' to that directory (with a trailing slash)."
+  (declare (indent 1))
+  `(let* ((dir (file-name-as-directory (make-temp-file "links-test" t))))
+     (unwind-protect
+         (progn
+           (dolist (f ,files)
+             (make-directory (file-name-directory (expand-file-name f dir)) t)
+             (with-temp-file (expand-file-name f dir) (insert "l1\nl2\nline three\n")))
+           (with-temp-buffer
+             (setq default-directory dir)
+             (let ((neoemacs--link-wrap-width-function (lambda () nil)))
+               ,@body)))
+       (delete-directory dir t))))
+
+(defun links-test--refs ()
+  (mapcar (lambda (r) (list (file-relative-name (nth 0 r) default-directory) (nth 1 r)))
+          (neoemacs--buffer-file-refs)))
+
+(ert-deftest files-relative-absolute-and-tails ()
+  (links-test--with-files '("src/a.el" "src/b.el")
+    (insert "error at src/a.el:12:3 here\n"
+            "see " dir "src/b.el.\n")
+    (should (equal (links-test--refs) '(("src/b.el" "") ("src/a.el" ":12:3"))))))
+
+(ert-deftest files-home-relative ()
+  (links-test--with-files '("notes/x.md")
+    (let ((process-environment (cons (concat "HOME=" dir) process-environment)))
+      (insert "open ~/notes/x.md now\n")
+      (should (equal (links-test--refs) '(("notes/x.md" "")))))))
+
+(ert-deftest files-bare-name-needs-line ()
+  (links-test--with-files '("init.el")
+    (insert "init.el alone, then init.el:7 with a line\n")
+    (should (equal (links-test--refs) '(("init.el" ":7"))))))
+
+(ert-deftest files-missing-skipped ()
+  (links-test--with-files '("real/a.txt")
+    (insert "real/a.txt and fake/b.txt and nope.el:3\n")
+    (should (equal (links-test--refs) '(("real/a.txt" ""))))))
+
+(ert-deftest files-not-inside-urls ()
+  (links-test--with-files '()
+    ;; /tmp exists, but here it's a URL's path.
+    (insert "https://localhost/tmp and http://x.example:8080/tmp\n")
+    (should-not (neoemacs--buffer-file-refs))))
+
+(ert-deftest files-directory-candidate ()
+  (links-test--with-files '("sub/f.txt")
+    ;; The sweep skips directories (shell prompts show one on every line)...
+    (insert "look in ./sub please\n")
+    (should-not (neoemacs--buffer-file-refs))
+    ;; ...but a ghostel-marked one is displayed with a trailing slash.
+    (let ((abs (expand-file-name "sub" dir)))
+      (should (equal (neoemacs--file-ref-candidate abs "")
+                     (concat (abbreviate-file-name abs) "/")))
+      (should (equal (get-text-property 0 'multi-category
+                                        (neoemacs--file-ref-candidate abs ""))
+                     (cons 'file abs))))))
+
+(ert-deftest files-ghostel-fileref-span ()
+  (links-test--with-files '("deep/target.el")
+    (let ((abs (expand-file-name "deep/target.el" dir)))
+      (insert "at " (links-test--ghostel-span "target.el:4" (concat "fileref:" abs ":4")
+                                           '(ghostel-detected . 9))
+              " ok\n")
+      ;; The regex alone would miss it (resolves against the wrong dir).
+      (should (equal (neoemacs--buffer-file-refs) `((,abs ":4" 4 "target.el:4")))))))
+
+(ert-deftest files-hard-wrap-rejoined-when-exists ()
+  (links-test--with-files '("abcdefgh/ijklmnop.el")
+    (let ((neoemacs--link-wrap-width-function (lambda () 12)))
+      (insert "abcdefgh/ijk\n"
+              "  lmnop.el is the file\n")
+      (should (equal (links-test--refs) '(("abcdefgh/ijklmnop.el" "")))))))
+
+(ert-deftest files-hard-wrap-not-joined-when-missing ()
+  (links-test--with-files '("abcdefgh/ijk")
+    (let ((neoemacs--link-wrap-width-function (lambda () 12)))
+      (insert "abcdefgh/ijk\n"
+              "  zzz words\n")
+      (should (equal (links-test--refs) '(("abcdefgh/ijk" "")))))))
+
+(ert-deftest files-dedupe-newest-first ()
+  (links-test--with-files '("a/x.el" "a/y.el")
+    (insert "a/x.el\na/y.el\na/x.el\na/x.el:2\n")
+    (should (equal (mapcar (lambda (r) (list (file-relative-name (car r) dir) (nth 1 r) (nth 2 r)))
+                           (neoemacs--buffer-file-refs))
+                   '(("a/x.el" ":2" 22) ("a/x.el" "" 15) ("a/y.el" "" 8))))))
+
+(ert-deftest files-and-urls-mixed-order ()
+  (links-test--with-files '("a/x.el")
+    (insert "https://one.example\na/x.el:3\nhttps://two.example\n")
+    (should (equal (mapcar (lambda (e) (substring-no-properties (car e)))
+                           (neoemacs--buffer-link-entries))
+                   (list "https://two.example"
+                         (concat (abbreviate-file-name (expand-file-name "a/x.el" dir)) ":3")
+                         "https://one.example")))
+    (should (equal (get-text-property 0 'multi-category
+                                      (car (car (neoemacs--buffer-link-entries))))
+                   '(url . "https://two.example")))))
+
+(ert-deftest files-act-opens-at-line-and-column ()
+  (links-test--with-files '("a/x.el")
+    (let ((abs (expand-file-name "a/x.el" dir)) other)
+      (cl-letf (((symbol-function 'find-file-other-window)
+                 (lambda (f) (setq other t) (set-buffer (find-file-noselect f)))))
+        (save-window-excursion
+          (neoemacs--file-ref-act abs ":3:6")
+          (should (equal buffer-file-name abs))
+          (should (= (line-number-at-pos) 3))
+          (should (= (current-column) 5))
+          (kill-buffer))
+        (should-not other)))))
+
+(ert-deftest files-act-other-window-from-terminal ()
+  (links-test--with-files '("a/x.el")
+    (let ((abs (expand-file-name "a/x.el" dir)) opened)
+      (cl-letf (((symbol-function 'derived-mode-p) (lambda (&rest _) t))
+                ((symbol-function 'find-file-other-window) (lambda (f) (setq opened f)))
+                ((symbol-function 'find-file) (lambda (_) (error "Same window"))))
+        (neoemacs--file-ref-act abs "")
+        (should (equal opened abs))))))
+
+(ert-deftest files-command-end-to-end ()
+  (links-test--with-files '("a/x.el")
+    (insert "https://u.example then a/x.el:2 here\n")
+    (goto-char (point-min))
+    (let ((file (concat (abbreviate-file-name (expand-file-name "a/x.el" dir)) ":2"))
+          acted)
+      (cl-letf (((symbol-function 'consult--read)
+                 (lambda (cands &rest opts)
+                   (let ((state (plist-get opts :state)))
+                     (funcall state 'setup nil)
+                     (funcall state 'preview file)
+                     (should (= (point) 24))
+                     (funcall state 'preview nil)
+                     (funcall state 'exit nil))
+                   (should (member file cands))
+                   file))
+                ((symbol-function 'neoemacs--file-ref-act)
+                 (lambda (abs tail) (setq acted (list abs tail)))))
+        (neoemacs/consult-buffer-links))
+      (should (equal acted (list (expand-file-name "a/x.el" dir) ":2"))))))

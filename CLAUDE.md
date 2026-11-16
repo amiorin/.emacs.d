@@ -98,7 +98,7 @@ Three layers, used deliberately:
    window; ghostel splits then hijacked the original window's history and
    left a history-less window whose `q`/`bury-buffer` fell back to the MRU
    ghostel buffer), `s-s` save buffer, `s-w` window delete, `s-y` →
-   `neoemacs/consult-buffer-links` (link picker, see *Terminal* below), `S-s-[` rotate windows, `S-s-]`
+   `neoemacs/consult-buffer-links` (link/file picker, see *Terminal* below), `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
    dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`). Two editing-model
    tweaks live here too: `,` (normal/visual/motion) is a `general-simulate-key`
@@ -357,15 +357,18 @@ source file is opened.
   Ctrl-letter keys instead of being swallowed by Emacs prefix maps.
   **Link picker:** `s-y` (in the `:keymaps 'override` block, so it works in
   every evil state including ghostel insert) runs
-  `neoemacs/consult-buffer-links`, a `consult--read` over every http(s) link in
-  the current buffer — category `url` (so `s-]` Embark offers URL actions),
-  deduplicated and *unsorted* with the most recent (bottom-most) link first;
+  `neoemacs/consult-buffer-links`, a `consult--read` over every http(s) link
+  and local file path in the current buffer — category `multi-category`, each
+  candidate tagged `(url . URL)` or `(file . ABS)` so `s-]` Embark offers the
+  matching actions and marginalia/nerd-icons annotate files — deduplicated
+  and *unsorted* with the most recent (bottom-most) entry first;
   preview jumps to the link and highlights every row it occupies
   (`neoemacs--link-fragments` follows the URL across soft and hard wraps).
   Sources: (1) ghostel's own links —
   the URI in the `help-echo` property of spans whose `keymap` is
   `ghostel-link-map` (covers OSC 8 links whose text differs from the target and
-  soft-wrapped links sharing a `ghostel-link-id`; `fileref:` skipped); (2) a
+  soft-wrapped links sharing a `ghostel-link-id`; `fileref:` spans go to the
+  file list); (2) a
   regex fallback, rows joined across `ghostel-wrap` soft-wrap newlines, for
   links ghostel hasn't linkified yet (cursor line, queued detection) and for
   non-terminal buffers. TUIs like Claude Code hard-wrap long lines with real
@@ -383,6 +386,19 @@ source file is opened.
   `neoemacs--start-gui-process` (crossing zellij's session boundary) —
   "Opened <url>". The env is captured at Emacs start, so a locally started
   Emacs reattached over SSH still counts as local.
+  **File paths** (`neoemacs--buffer-file-refs`): ghostel's `fileref:` spans
+  (already resolved and existence-checked) plus a regex sweep built from
+  `ghostel-file-detection-path-regex` (local fallback copy when ghostel isn't
+  loaded) with an optional `:LINE[:COL]` tail; a path needs a `/`, except a
+  bare `name:LINE`. Matches resolve against `default-directory` and only
+  existing regular files survive (cached per call) — the sweep skips
+  directories because every shell prompt shows one and it would always top
+  the list. Paths inside URLs are excluded by ghostel's `//` rule. A
+  hard-wrapped path is rejoined only when the joined path exists (the
+  existence check removes the URL over-join risk here). Displayed as
+  `~/abbreviated/path:L:C`; selecting one (`neoemacs--file-ref-act`) visits it
+  at that line/column — `find-file-other-window` from a ghostel buffer, else
+  `find-file` — regardless of SSH, since the file is on Emacs's host.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
   gutter line numbers and highlight the cursor's line.
   `display-line-numbers-type` is `t` (absolute); switch to `'relative`/`'visual`
@@ -564,8 +580,8 @@ emacs --batch --init-directory=$HOME/.config/neoemacs \
 (Note this will install any newly-added packages on first run.)
 
 The link picker (`s-y`, `neoemacs/consult-buffer-links`) has ERT tests in
-`test/links-test.el` covering link collection, soft/hard-wrap rejoining,
-dedup/order and the SSH-vs-local action. Run them after touching that code:
+`test/links-test.el` covering link and file-path collection, soft/hard-wrap
+rejoining, dedup/order, the SSH-vs-local URL action and file visiting. Run them after touching that code:
 
 ```sh
 emacs --batch --init-directory=$HOME/.config/neoemacs -l early-init.el \

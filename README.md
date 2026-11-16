@@ -98,12 +98,14 @@ M-x nerd-icons-install-fonts
   to Evil normal state; `C-c` and `C-x` are forwarded to the running terminal
   program.
 - **Link picker** — `s-y` (any state, including inside a ghostel terminal)
-  lists every http(s) link in the current buffer in a Consult picker, most
-  recent first, with preview. It understands terminal hyperlinks (OSC 8) and
-  rejoins URLs that a TUI such as Claude Code split across lines. Picking one
-  opens it with macOS `open`; in an SSH session it copies the URL instead
-  (reaching your local clipboard via OSC 52). `s-]` on a candidate offers
-  Embark's URL actions.
+  lists every http(s) link and local file path in the current buffer in a
+  Consult picker, most recent first, with preview. It understands terminal
+  hyperlinks (OSC 8) and rejoins URLs and paths that a TUI such as Claude Code
+  split across lines. Picking a URL opens it with macOS `open`; in an SSH
+  session it copies the URL instead (reaching your local clipboard via OSC 52).
+  Picking a file (`path[:line[:col]]`, only ones that exist) visits it at that
+  line — in another window from a terminal. `s-]` on a candidate offers
+  Embark's URL or file actions.
 - **Claude Code sessions** — when Claude Code runs inside a ghostel terminal,
   `consult-claude` tracks each session's live status; `f c` (normal state) opens a switcher
   to jump between them.
@@ -202,7 +204,7 @@ elsewhere.
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
 | `s-w`     | delete current window           |
-| `s-y`     | pick a link in the buffer: open it (copy over SSH) |
+| `s-y`     | pick a link or file path in the buffer: open/visit it (URLs copied over SSH) |
 | `S-s-[`   | rotate windows                  |
 | `S-s-]`   | maximize window (delete others) |
 | `s-]`     | embark act                      |
