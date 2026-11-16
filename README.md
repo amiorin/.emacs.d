@@ -219,6 +219,18 @@ toggles a directory's subtree. `y` is a "yank" prefix that copies the entry's
 path to the kill ring (`yl` true path, `yn` name, `yp` path, `yr` remote path),
 with `yy` kept as the classic copy.
 
+Directory navigation keeps one folder buffer per window: `-` from a file
+replaces that window’s previous listing, and `h` / `l` / `RET` replace it as
+you browse. Opening a file retains the listing for the next jump. Separate
+windows keep independent folders for two-pane copy/move. Listings still used
+by another window, modified listings, and Emacs client buffers are preserved.
+Closing a window also cleans up its directory listings, including a listing
+hidden behind an open file. Tracking also covers directories opened through
+`find-file`, `dired`, or switching to an existing directory buffer. Cleanup
+retries replaced listings after their last use in another window ends.
+Replacing a listing discards its marks. Explicit other-window commands and
+Dirvish full-frame/side layouts retain their native behavior.
+
 ## Files
 
 - `early-init.el` — startup performance tuning and UI chrome removal, loaded

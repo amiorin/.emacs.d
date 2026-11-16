@@ -1458,14 +1458,186 @@ With a prefix arg (or non-nil HERE), start in the current
   <div class="sec-head" id="dired"><h2>Dired — dirvish</h2><p>A polished file manager replacing dired globally.</p></div>
 
   <div class="row">
-<pre class="code">(use-package dirvish
+<pre class="code">;; Directory navigation retains one folder buffer per window.
+(defvar neoemacs--dired-navigation-active nil
+  "Non-nil while navigating a window's directory buffers.")
+
+(defun neoemacs--dired-buffer-in-use-p (buffer window)
+  "Whether BUFFER is displayed or remembered by a window other than WINDOW."
+  (or (get-buffer-window buffer t)
+      (catch 'used
+        (dolist (frame (frame-list))
+          (dolist (other (window-list frame 'no-minibuffer))
+            (when (and (not (eq other window))
+                       (eq buffer (window-parameter other 'neoemacs-dired-buffer)))
+              (throw 'used t)))))))
+
+(defun neoemacs--dired-retire-buffer (buffer window)
+  "Retire WINDOW's old directory BUFFER if it is safe to do so."
+  (when (and (buffer-live-p buffer)
+             (not (neoemacs--dired-buffer-in-use-p buffer window)))
+    (with-current-buffer buffer
+      (when (and (derived-mode-p 'dired-mode)
+                 (not (buffer-modified-p))
+                 (not (bound-and-true-p server-buffer-clients)))
+        (kill-buffer buffer)))))
+
+(defvar neoemacs--dired-owned-buffers nil
+  "Alist of owning windows and their directory buffers, including orphans.")
+
+(defun neoemacs--dired-remember-buffer (window buffer)
+  "Remember BUFFER as WINDOW's current directory listing."
+  (set-window-parameter window 'neoemacs-dired-buffer buffer)
+  (cl-pushnew (cons window buffer) neoemacs--dired-owned-buffers :test #'equal))
+
+(defun neoemacs--dired-observe-windows ()
+  "Track displayed ordinary listings regardless of how they were opened.
+This includes directory visits through `find-file' and buffer switching."
+  (dolist (frame (frame-list))
+    (dolist (window (window-list frame 'no-minibuffer))
+      (with-current-buffer (window-buffer window)
+        (when (and (derived-mode-p 'dired-mode)
+                   (not (and (featurep 'dirvish)
+                             (when-let* ((dv (dirvish-curr)))
+                               (or (not (eq (dv-type dv) 'default))
+                                   (dv-curr-layout dv))))))
+          (neoemacs--dired-remember-buffer window (current-buffer)))))))
+
+(defun neoemacs--dired-collect-orphans ()
+  "Track visible listings and retire closed or superseded window ownership.
+Keep protected orphans pending so a later window change can retry cleanup."
+  (neoemacs--dired-observe-windows)
+  (setq neoemacs--dired-owned-buffers
+        (cl-delete-if
+         (lambda (entry)
+           (let ((window (car entry)) (buffer (cdr entry)))
+             (when (and (buffer-live-p buffer)
+                        (or (not (window-live-p window))
+                            (not (eq buffer (window-parameter
+                                             window 'neoemacs-dired-buffer)))))
+               (neoemacs--dired-retire-buffer buffer window))
+             (not (buffer-live-p buffer))))
+         neoemacs--dired-owned-buffers)))
+
+(defun neoemacs--dired-navigate (original &amp;rest args)
+  "Run ORIGINAL with ARGS, retaining one directory buffer per window.
+Only retire old buffers after successful navigation.  File buffers and
+folders displayed or remembered by other windows are left intact."
+  (if (or neoemacs--dired-navigation-active
+          ;; Explicit other-window requests and special layouts keep their
+          ;; native display/session rules.  Our bindings navigate in place.
+          (car args)
+          (and (featurep 'dirvish)
+               (when-let* ((dv (dirvish-curr)))
+                 (or (not (eq (dv-type dv) 'default))
+                     (dv-curr-layout dv)))))
+      (apply original args)
+    (let* ((neoemacs--dired-navigation-active t)
+           ;; Our cleanup also protects hidden buffers owned by other windows.
+           (dired-kill-when-opening-new-dired-buffer nil)
+           (origin (selected-window))
+           (initial (and (derived-mode-p 'dired-mode) (current-buffer)))
+           (previous (window-parameter origin 'neoemacs-dired-buffer))
+           (result (apply original args))
+           (target (selected-window)))
+      (cond
+       ((derived-mode-p 'dired-mode)
+        (let ((old (if (eq target origin) previous
+                     (window-parameter target 'neoemacs-dired-buffer)))
+              (buffer (current-buffer)))
+          (neoemacs--dired-remember-buffer target buffer)
+          (dolist (candidate (delete-dups
+                             (list old (and (eq target origin) initial))))
+            (unless (eq candidate buffer)
+              (neoemacs--dired-retire-buffer candidate target)))))
+       ;; Dirvish retains the directory when opening a regular file.
+       ((and initial (buffer-live-p initial))
+        (neoemacs--dired-remember-buffer origin initial)
+        (unless (eq previous initial)
+          (neoemacs--dired-retire-buffer previous origin))))
+      result)))
+
+(defvar dirvish--props)
+
+(defun neoemacs--dired-noselect-in-window (orig &amp;rest args)
+  "Call ORIG with ARGS using this window's ordinary Dirvish session.
+Only apply during managed directory navigation.  Full-frame, side and
+peek sessions retain their own behavior and session lookup rules."
+  (let ((current (and (featurep 'dirvish) (dirvish-curr))))
+    (if (or (not neoemacs--dired-navigation-active)
+            (not (bound-and-true-p dirvish-override-dired-mode))
+            (and current (or (not (eq (dv-type current) 'default))
+                             (dv-curr-layout current))))
+        (apply orig args)
+      (let* ((window (selected-window))
+             (stored (window-parameter window 'neoemacs-dirvish-session))
+             (session (and stored
+                           (eq stored (gethash (dv-id stored) dirvish--sessions))
+                           (eq (dv-type stored) 'default)
+                           (not (dv-curr-layout stored))
+                           stored))
+             (lookup (symbol-function 'dirvish--get-session))
+             result)
+        ;; Keep the global registry intact for asynchronous Dirvish hooks.
+        ;; Only default-session discovery during this call is window-scoped.
+        (cl-letf (((symbol-function 'dirvish--get-session)
+                   (lambda (&amp;optional key value)
+                     (if (and (or (null key) (eq key 'type))
+                              (or (null value) (eq value 'default)))
+                         session
+                       (funcall lookup key value)))))
+          (setq result
+                (if (and current (not (eq current session)))
+                    ;; A freshly split window can display another window's
+                    ;; buffer.  Hide its session identity only in that source
+                    ;; buffer; Dirvish creates/reuses the destination in the
+                    ;; selected window's session, with its own local props.
+                    (let ((dirvish--props nil))
+                      (apply orig args))
+                  (apply orig args))))
+        (when (buffer-live-p result)
+          (with-current-buffer result
+            (when-let* ((dv (dirvish-curr)))
+              (set-window-parameter window 'neoemacs-dirvish-session dv))))
+        result))))
+
+;; Dirvish: a polished dired replacement with previews and icons.
+;; Deferred to `emacs-startup-hook': `dirvish-override-dired-mode' (an
+;; autoload) loads dirvish *and* dired, ~70ms that isn't needed until the
+;; first dired buffer -- and the hook still arms the override before any
+;; input is processed.  nerd-icons and general are both loaded during init,
+;; so they're guaranteed up by the time the hook (and dirvish's `:config',
+;; which uses `general-define-key') runs.
+(use-package dirvish
   :defer t
   :init
   (add-hook 'emacs-startup-hook (lambda () (dirvish-override-dired-mode 1)))
+  ;; `global-display-line-numbers-mode' turns the gutter on everywhere; a file
+  ;; manager has no use for it, so switch it back off in dired/dirvish buffers.
   (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
+  ;; Sort dotfiles first. UTF-8 locales collate names with the leading `.'
+  ;; ignored, so hidden files interleave with visible ones; byte-order
+  ;; collation puts `.' before any letter. Scoped to `insert-directory' so
+  ;; only the listing's sort changes — `LANG' stays intact and filenames
+  ;; still decode as UTF-8.
+  (defun neoemacs--dired-c-collate (orig &amp;rest args)
+    (let ((process-environment (cons "LC_COLLATE=C" process-environment)))
+      (apply orig args)))
+  (advice-add 'insert-directory :around #'neoemacs--dired-c-collate)
   :custom
+  ;; `vc-state' is dropped here: it's an overlay-based attribute that shows
+  ;; nothing in terminal Emacs. Per-file VC status comes from `diff-hl-dired-mode'
+  ;; instead (see the diff-hl block), which renders in the margin.
   (dirvish-attributes '(nerd-icons subtree-state))
+  ;; Show the full `ls -l' detail columns (permissions, link count, owner,
+  ;; group, size, mtime) instead of dirvish's default hidden-details view.
+  ;; `file-size' is dropped from the attributes above because `-l' already
+  ;; prints a real size column, so the overlay would be redundant.
   (dirvish-hide-details nil)
+  ;; `-A' ("almost all") lists dotfiles but omits the `.' and `..' entries;
+  ;; `-l' keeps the long format. (Plain `-a' is what shows `.' and `..'.)
+  ;; Use GNU coreutils from the user's Nix profile on every platform.
+  ;; System ls may be BSD or uutils, with different sorting behavior.
   (insert-directory-program
    (let ((program (expand-file-name "~/.nix-profile/bin/ls")))
      (unless (file-executable-p program)
@@ -1473,10 +1645,27 @@ With a prefix arg (or non-nil HERE), start in the current
      program))
   (dired-use-ls-dired t)
   (dired-listing-switches "-Al --group-directories-first")
+  ;; Show a real block cursor in dired/dirvish buffers. By default dirvish
+  ;; hides it (`cursor-type' nil + a zero-width `evil-normal-state-cursor')
+  ;; and relies on the hl-line highlight; keeping it visible makes dirvish
+  ;; use a `(box . 4)' block, which etcc renders as a terminal block cursor.
   (dirvish-hide-cursor nil)
+  ;; Two-pane file manager: with two dired/dirvish windows side by side, the
+  ;; rename/copy (`R'/`C') operations default their target to the directory
+  ;; shown in the *other* window, so `R' moves marked files across panes. The
+  ;; prompt is still editable/confirmable.
   (dired-dwim-target t)
   :bind ("C-c f" . dirvish)
   :config
+  ;; Run after window changes settle, including delete-other-windows.
+  (add-hook 'window-state-change-hook #'neoemacs--dired-collect-orphans)
+  (advice-add 'dired-noselect :around #'neoemacs--dired-noselect-in-window
+              '((depth . -90)))
+  (dolist (command '(dired-jump dired-find-file dired-up-directory))
+    (advice-add command :around #'neoemacs--dired-navigate))
+  ;; Vim-style navigation: h goes up a directory, l enters the file/dir.
+  ;; `y' is a "yank" prefix for copying the entry's name/path to the kill
+  ;; ring, with `yy' kept as the classic `dired-do-copy'.
   (general-define-key
    :states 'normal
    :keymaps 'dired-mode-map
@@ -1498,6 +1687,17 @@ With a prefix arg (or non-nil HERE), start in the current
       (which the <code>:config</code> keybindings need) both guaranteed loaded by then.</p>
       <ul>
         <li>The dired hook disables line numbers in file-manager buffers.</li>
+        <li><code>-</code>, <code>h</code>, <code>l</code>, and <code>RET</code>
+        keep one directory listing per window. Each window gets its own ordinary
+        Dirvish session; opening a file retains its listing. Replaced listings
+        are retired only when no other window displays or remembers them, and
+        they have no unsaved changes or Emacs client. Replacing a listing loses
+        its marks; two-pane copy/move remains available. Closing a window also
+        collects its hidden or visible listings once they are no longer in use
+        or protected. Tracking observes all displayed ordinary listings, including
+        direct directory visits and buffer switches; closed and superseded
+        ownership is retried on later window changes. Explicit other-window
+        commands and full-frame/side layouts retain their native behavior.</li>
         <li><code>dirvish-attributes</code> — show icons and subtree-expansion state.
         VC state is handled by <code>diff-hl-dired-mode</code> instead because it is
         visible in terminal margins.</li>

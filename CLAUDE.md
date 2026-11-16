@@ -398,6 +398,21 @@ source file is opened.
   classic `dired-do-copy`). `diredfl` colorizes long-listing columns, `dired-x`
   `dired-omit-mode` hides uninteresting generated files, and
   `dired-dwim-target` supports two-pane copy/rename targets.
+  Ordinary same-window `dired-jump`, `dired-find-file`, and `dired-up-directory`
+  use `neoemacs--dired-navigate`: window parameters retain one listing and
+  one Dirvish session per window. `neoemacs--dired-noselect-in-window` scopes
+  session discovery during these calls (outer advice at depth -90), keeping
+  Dirvish's global registry intact. Cleanup preserves listings displayed on
+  any frame, remembered by another live window, modified, or server-owned.
+  Do not replace this with `dired-kill-when-opening-new-dired-buffer`: it
+  cannot protect another window's hidden listing.
+  `neoemacs--dired-owned-buffers` tracks window/buffer pairs;
+  `neoemacs--dired-collect-orphans` on `window-state-change-hook` retires
+  first observes all displayed ordinary listings, covering direct directory
+  visits and buffer switches too. It retires listings after their windows close
+  or their ownership is superseded, retaining protected orphans for a later
+  retry. Checking only dead owners leaks a listing that was shared temporarily. Explicit other-window
+  commands and full-frame/side sessions retain native behavior.
 - Git diff sessions: `magit-status` rebinds `e` to
   `neoemacs/magit-ediff-working-vs-head`, which ediffs the file-at-point's
   working-tree version against its HEAD version as a plain **two-buffer** diff

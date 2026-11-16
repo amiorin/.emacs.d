@@ -1400,6 +1400,149 @@ With no file at point, fall back to `magit-ediff-dwim'."
 
 ;;; --- Dired / file management -----------------------------------------------
 
+;; Directory navigation retains one folder buffer per window.
+(defvar neoemacs--dired-navigation-active nil
+  "Non-nil while navigating a window's directory buffers.")
+
+(defun neoemacs--dired-buffer-in-use-p (buffer window)
+  "Whether BUFFER is displayed or remembered by a window other than WINDOW."
+  (or (get-buffer-window buffer t)
+      (catch 'used
+        (dolist (frame (frame-list))
+          (dolist (other (window-list frame 'no-minibuffer))
+            (when (and (not (eq other window))
+                       (eq buffer (window-parameter other 'neoemacs-dired-buffer)))
+              (throw 'used t)))))))
+
+(defun neoemacs--dired-retire-buffer (buffer window)
+  "Retire WINDOW's old directory BUFFER if it is safe to do so."
+  (when (and (buffer-live-p buffer)
+             (not (neoemacs--dired-buffer-in-use-p buffer window)))
+    (with-current-buffer buffer
+      (when (and (derived-mode-p 'dired-mode)
+                 (not (buffer-modified-p))
+                 (not (bound-and-true-p server-buffer-clients)))
+        (kill-buffer buffer)))))
+
+(defvar neoemacs--dired-owned-buffers nil
+  "Alist of owning windows and their directory buffers, including orphans.")
+
+(defun neoemacs--dired-remember-buffer (window buffer)
+  "Remember BUFFER as WINDOW's current directory listing."
+  (set-window-parameter window 'neoemacs-dired-buffer buffer)
+  (cl-pushnew (cons window buffer) neoemacs--dired-owned-buffers :test #'equal))
+
+(defun neoemacs--dired-observe-windows ()
+  "Track displayed ordinary listings regardless of how they were opened.
+This includes directory visits through `find-file' and buffer switching."
+  (dolist (frame (frame-list))
+    (dolist (window (window-list frame 'no-minibuffer))
+      (with-current-buffer (window-buffer window)
+        (when (and (derived-mode-p 'dired-mode)
+                   (not (and (featurep 'dirvish)
+                             (when-let* ((dv (dirvish-curr)))
+                               (or (not (eq (dv-type dv) 'default))
+                                   (dv-curr-layout dv))))))
+          (neoemacs--dired-remember-buffer window (current-buffer)))))))
+
+(defun neoemacs--dired-collect-orphans ()
+  "Track visible listings and retire closed or superseded window ownership.
+Keep protected orphans pending so a later window change can retry cleanup."
+  (neoemacs--dired-observe-windows)
+  (setq neoemacs--dired-owned-buffers
+        (cl-delete-if
+         (lambda (entry)
+           (let ((window (car entry)) (buffer (cdr entry)))
+             (when (and (buffer-live-p buffer)
+                        (or (not (window-live-p window))
+                            (not (eq buffer (window-parameter
+                                             window 'neoemacs-dired-buffer)))))
+               (neoemacs--dired-retire-buffer buffer window))
+             (not (buffer-live-p buffer))))
+         neoemacs--dired-owned-buffers)))
+
+(defun neoemacs--dired-navigate (original &rest args)
+  "Run ORIGINAL with ARGS, retaining one directory buffer per window.
+Only retire old buffers after successful navigation.  File buffers and
+folders displayed or remembered by other windows are left intact."
+  (if (or neoemacs--dired-navigation-active
+          ;; Explicit other-window requests and special layouts keep their
+          ;; native display/session rules.  Our bindings navigate in place.
+          (car args)
+          (and (featurep 'dirvish)
+               (when-let* ((dv (dirvish-curr)))
+                 (or (not (eq (dv-type dv) 'default))
+                     (dv-curr-layout dv)))))
+      (apply original args)
+    (let* ((neoemacs--dired-navigation-active t)
+           ;; Our cleanup also protects hidden buffers owned by other windows.
+           (dired-kill-when-opening-new-dired-buffer nil)
+           (origin (selected-window))
+           (initial (and (derived-mode-p 'dired-mode) (current-buffer)))
+           (previous (window-parameter origin 'neoemacs-dired-buffer))
+           (result (apply original args))
+           (target (selected-window)))
+      (cond
+       ((derived-mode-p 'dired-mode)
+        (let ((old (if (eq target origin) previous
+                     (window-parameter target 'neoemacs-dired-buffer)))
+              (buffer (current-buffer)))
+          (neoemacs--dired-remember-buffer target buffer)
+          (dolist (candidate (delete-dups
+                             (list old (and (eq target origin) initial))))
+            (unless (eq candidate buffer)
+              (neoemacs--dired-retire-buffer candidate target)))))
+       ;; Dirvish retains the directory when opening a regular file.
+       ((and initial (buffer-live-p initial))
+        (neoemacs--dired-remember-buffer origin initial)
+        (unless (eq previous initial)
+          (neoemacs--dired-retire-buffer previous origin))))
+      result)))
+
+(defvar dirvish--props)
+
+(defun neoemacs--dired-noselect-in-window (orig &rest args)
+  "Call ORIG with ARGS using this window's ordinary Dirvish session.
+Only apply during managed directory navigation.  Full-frame, side and
+peek sessions retain their own behavior and session lookup rules."
+  (let ((current (and (featurep 'dirvish) (dirvish-curr))))
+    (if (or (not neoemacs--dired-navigation-active)
+            (not (bound-and-true-p dirvish-override-dired-mode))
+            (and current (or (not (eq (dv-type current) 'default))
+                             (dv-curr-layout current))))
+        (apply orig args)
+      (let* ((window (selected-window))
+             (stored (window-parameter window 'neoemacs-dirvish-session))
+             (session (and stored
+                           (eq stored (gethash (dv-id stored) dirvish--sessions))
+                           (eq (dv-type stored) 'default)
+                           (not (dv-curr-layout stored))
+                           stored))
+             (lookup (symbol-function 'dirvish--get-session))
+             result)
+        ;; Keep the global registry intact for asynchronous Dirvish hooks.
+        ;; Only default-session discovery during this call is window-scoped.
+        (cl-letf (((symbol-function 'dirvish--get-session)
+                   (lambda (&optional key value)
+                     (if (and (or (null key) (eq key 'type))
+                              (or (null value) (eq value 'default)))
+                         session
+                       (funcall lookup key value)))))
+          (setq result
+                (if (and current (not (eq current session)))
+                    ;; A freshly split window can display another window's
+                    ;; buffer.  Hide its session identity only in that source
+                    ;; buffer; Dirvish creates/reuses the destination in the
+                    ;; selected window's session, with its own local props.
+                    (let ((dirvish--props nil))
+                      (apply orig args))
+                  (apply orig args))))
+        (when (buffer-live-p result)
+          (with-current-buffer result
+            (when-let* ((dv (dirvish-curr)))
+              (set-window-parameter window 'neoemacs-dirvish-session dv))))
+        result))))
+
 ;; Dirvish: a polished dired replacement with previews and icons.
 ;; Deferred to `emacs-startup-hook': `dirvish-override-dired-mode' (an
 ;; autoload) loads dirvish *and* dired, ~70ms that isn't needed until the
@@ -1456,6 +1599,12 @@ With no file at point, fall back to `magit-ediff-dwim'."
   (dired-dwim-target t)
   :bind ("C-c f" . dirvish)
   :config
+  ;; Run after window changes settle, including delete-other-windows.
+  (add-hook 'window-state-change-hook #'neoemacs--dired-collect-orphans)
+  (advice-add 'dired-noselect :around #'neoemacs--dired-noselect-in-window
+              '((depth . -90)))
+  (dolist (command '(dired-jump dired-find-file dired-up-directory))
+    (advice-add command :around #'neoemacs--dired-navigate))
   ;; Vim-style navigation: h goes up a directory, l enters the file/dir.
   ;; `y' is a "yank" prefix for copying the entry's name/path to the kill
   ;; ring, with `yy' kept as the classic `dired-do-copy'.
