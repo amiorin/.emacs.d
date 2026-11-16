@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
-(an `XDG`-style Emacs config dir). There is no build or test suite — the
+(an `XDG`-style Emacs config dir). There is no build step and no general test suite (only the targeted ERT
+tests in `test/`) — the
 "product" is Emacs itself, configured by these files.
 
 > **IMPORTANT:** `~/.emacs.d` MUST never be read or written. This config lives
@@ -29,6 +30,7 @@ A personal Emacs configuration ("neoemacs") that lives at `~/.config/neoemacs`
   `use-package` form per package.
 - `README.md` — user-facing overview, install notes, and keybinding table.
 - `index.html` — browser-readable annotated walkthrough of `init.el`.
+- `test/` — ERT tests (currently `links-test.el` for the `s-y` link picker).
 - Everything else in the repo is generated state ignored by git (`elpa/`,
   `eln-cache/`, `tree-sitter/`, `transient/`, `auto-save-list/`, `recentf`,
   `projectile-bookmarks.eld`, `custom.el`, `package-quickstart.el`,
@@ -548,7 +550,7 @@ source file is opened.
 
 ## Verifying changes
 
-There is no test command. To check a change, restart Emacs (or
+There is no general test suite. To check a change, restart Emacs (or
 `M-x eval-buffer` on the edited file) and watch `*Messages*` / startup for
 errors. A fast syntax/load sanity check without a full GUI session:
 
@@ -558,6 +560,18 @@ emacs --batch --init-directory=$HOME/.config/neoemacs \
 ```
 
 (Note this will install any newly-added packages on first run.)
+
+The link picker (`s-y`, `neoemacs/consult-buffer-links`) has ERT tests in
+`test/links-test.el` covering link collection, soft/hard-wrap rejoining,
+dedup/order and the SSH-vs-local action. Run them after touching that code:
+
+```sh
+emacs --batch --init-directory=$HOME/.config/neoemacs -l early-init.el \
+  -l init.el -l test/links-test.el -f ert-run-tests-batch-and-exit </dev/null
+```
+
+(`</dev/null` keeps a stray prompt from hanging the batch run; the test file
+re-enables messages, which `early-init.el` silences until startup.)
 
 > **IMPORTANT:** The `--init-directory` flag is mandatory. Without it
 > `user-emacs-directory` (and therefore `package-user-dir`) defaults to

@@ -237,6 +237,7 @@ Dirvish full-frame/side layouts retain their native behavior.
   before packages.
 - `init.el` — the main configuration.
 - `index.html` — annotated browser walkthrough of `init.el`.
+- `test/links-test.el` — ERT tests for the `s-y` link picker.
 
 See [CLAUDE.md](CLAUDE.md) for architecture notes and editing conventions, and
 [index.html](index.html) for the side-by-side walkthrough.
