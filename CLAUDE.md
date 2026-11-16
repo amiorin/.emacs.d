@@ -360,7 +360,9 @@ source file is opened.
   `neoemacs/consult-buffer-links`, a `consult--read` over every http(s) link in
   the current buffer — category `url` (so `s-]` Embark offers URL actions),
   deduplicated and *unsorted* with the most recent (bottom-most) link first;
-  preview jumps to and highlights the link. Sources: (1) ghostel's own links —
+  preview jumps to the link and highlights every row it occupies
+  (`neoemacs--link-fragments` follows the URL across soft and hard wraps).
+  Sources: (1) ghostel's own links —
   the URI in the `help-echo` property of spans whose `keymap` is
   `ghostel-link-map` (covers OSC 8 links whose text differs from the target and
   soft-wrapped links sharing a `ghostel-link-id`; `fileref:` skipped); (2) a

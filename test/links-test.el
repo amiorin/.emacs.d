@@ -163,3 +163,69 @@
       (should (eq (plist-get seen-opts :category) 'url))
       (should (equal acted "https://a.example"))
       (should (= (point) 1)))))
+
+;;; Preview highlight ranges: one per row the link occupies.
+
+(ert-deftest links-fragments-single-row ()
+  (with-temp-buffer
+    (insert "see https://a.example. next\n")
+    (should (equal (neoemacs--link-fragments 5 "https://a.example")
+                   '((5 . 22))))))
+
+(ert-deftest links-fragments-soft-wrap ()
+  (with-temp-buffer
+    (insert "x https://example." (propertize "\n" 'ghostel-wrap t)
+            "com/aaaa/bbbb tail\n")
+    (should (equal (neoemacs--link-fragments 3 "https://example.com/aaaa/bbbb")
+                   '((3 . 19) (20 . 33))))))
+
+(ert-deftest links-fragments-hard-wrap-border ()
+  (with-temp-buffer
+    (insert "  https://example.com/abcdefgh\n"
+            "  │ ijkl/mnop and more words\n")
+    (should (equal (neoemacs--link-fragments 3 "https://example.com/abcdefghijkl/mnop")
+                   '((3 . 31) (36 . 45))))))
+
+(ert-deftest links-fragments-hard-wrap-trailing-border ()
+  (with-temp-buffer
+    (insert "│ https://example.com/abcdefgh │\n"
+            "│ ijkl/mnop.                   │\n")
+    (should (equal (neoemacs--link-fragments 3 "https://example.com/abcdefghijkl/mnop")
+                   '((3 . 31) (36 . 45))))))
+
+(ert-deftest links-fragments-osc8-two-rows ()
+  (with-temp-buffer
+    (insert "click " (links-test--ghostel-span "here" "https://real.example/t" "osc-2")
+            "\n" (links-test--ghostel-span "too" "https://real.example/t" "osc-2")
+            " end\n")
+    (should (equal (neoemacs--link-fragments 7 "https://real.example/t")
+                   '((7 . 11) (12 . 15))))))
+
+(ert-deftest links-preview-highlights-every-row ()
+  ;; The command's preview puts one match overlay on each row of a
+  ;; hard-wrapped link.
+  (links-test--with 30
+    (insert "  https://example.com/abcdefgh\n"
+            "  │ ijkl/mnop and more words\n")
+    (goto-char (point-max))
+    (let (ranges)
+      (cl-letf (((symbol-function 'consult--read)
+                 (lambda (_cands &rest opts)
+                   (let ((state (plist-get opts :state)))
+                     (funcall state 'setup nil)
+                     (funcall state 'preview "https://example.com/abcdefghijkl/mnop")
+                     (setq ranges
+                           (sort (mapcar (lambda (ov)
+                                           (cons (overlay-start ov) (overlay-end ov)))
+                                         (seq-filter
+                                          (lambda (ov)
+                                            (eq (overlay-get ov 'category)
+                                                'consult-preview-match-overlay))
+                                          (overlays-in (point-min) (point-max))))
+                                 (lambda (a b) (< (car a) (car b)))))
+                     (funcall state 'preview nil)
+                     (funcall state 'exit nil))
+                   "https://example.com/abcdefghijkl/mnop"))
+                ((symbol-function 'neoemacs--link-act) #'ignore))
+        (neoemacs/consult-buffer-links))
+      (should (equal ranges '((3 . 31) (36 . 45)))))))

@@ -1956,6 +1956,73 @@ above `neoemacs-link-wrap-margin' for the sources and rejoining rules."
                             (puthash (car link) t seen)))
                         links)))))))
 
+(defun neoemacs--link-row-tail-p (pos)
+  "Non-nil when only whitespace and box borders follow POS on its row."
+  (save-excursion
+    (goto-char pos)
+    (skip-chars-forward (concat " \t" neoemacs--link-border-chars) (pos-eol))
+    (and (eolp) (< (point) (point-max)))))
+
+(defun neoemacs--link-text-fragments (pos url)
+  "Follow URL's characters through the buffer from POS, across wrapped rows.
+Return (FRAGMENTS . MATCHED): the (BEG . END) range of each row's piece
+and how many characters of URL were found.  Soft-wrap newlines are
+crossed directly; at a hard row end (only whitespace or a border left)
+the next row's continuation prefix is skipped, as when rejoining."
+  (let ((p pos) (beg pos) (i 0) (len (length url)) (hops 0) (frags nil))
+    (catch 'done
+      (while (< i len)
+        (cond
+         ((>= p (point-max)) (throw 'done nil))
+         ((eq (char-after p) (aref url i)) (setq p (1+ p) i (1+ i)))
+         ((and (< hops 50)
+               (or (neoemacs--link-soft-wrap-p p) (neoemacs--link-row-tail-p p)))
+          (when (< beg p) (push (cons beg p) frags))
+          (setq hops (1+ hops)
+                p (if (neoemacs--link-soft-wrap-p p)
+                      (1+ p)
+                    (save-excursion
+                      (goto-char p)
+                      (forward-line 1)
+                      (skip-chars-forward neoemacs--link-continuation-prefix-chars
+                                          (pos-eol))
+                      (point)))
+                beg p))
+         (t (throw 'done nil)))))
+    (when (< beg p) (push (cons beg p) frags))
+    (cons (nreverse frags) i)))
+
+(defun neoemacs--link-property-fragments (pos url)
+  "Return the (BEG . END) runs of the ghostel link to URL starting at POS.
+Covers OSC 8 links, whose visible text differs from URL: consecutive
+runs with the same target and `ghostel-link-id', separated only by
+whitespace, newlines or box borders."
+  (let ((p pos) (id (get-text-property pos 'ghostel-link-id))
+        (frags nil) (hops 0))
+    (while (and p (< hops 50))
+      (let ((end (next-single-property-change p 'help-echo nil (point-max))))
+        (push (cons p end) frags)
+        (setq hops (1+ hops)
+              p (save-excursion
+                  (goto-char end)
+                  (skip-chars-forward (concat " \t\n" neoemacs--link-border-chars))
+                  (and (< (point) (point-max))
+                       (equal (get-text-property (point) 'help-echo) url)
+                       (equal (get-text-property (point) 'ghostel-link-id) id)
+                       (point))))))
+    (nreverse frags)))
+
+(defun neoemacs--link-fragments (pos url)
+  "Return the (BEG . END) buffer ranges URL, starting at POS, occupies.
+One range per row, so a link that wraps is highlighted on every row."
+  (let ((text (neoemacs--link-text-fragments pos url)))
+    (cond
+     ((= (cdr text) (length url)) (car text))
+     ((equal (get-text-property pos 'help-echo) url)
+      (neoemacs--link-property-fragments pos url))
+     ((car text))
+     (t (list (cons pos (1+ pos)))))))
+
 (defun neoemacs--link-act (url)
   "Open URL locally, or copy it to the kill ring in an SSH session."
   (if (neoemacs--remote-session-p)
@@ -1974,17 +2041,19 @@ point to the link and highlight it."
   (interactive)
   (require 'consult)
   (let* ((links (or (neoemacs--buffer-links) (user-error "No links in buffer")))
-         ;; URL -> (MARKER (0 . HIGHLIGHT-LENGTH)), the candidate shape
-         ;; `consult--jump-preview' previews (offsets relative to the marker).
+         ;; URL -> (MARKER (BEG . END)...), the candidate shape
+         ;; `consult--jump-preview' previews: one highlight per row the link
+         ;; occupies, as offsets relative to the marker.
          (targets (mapcar
                    (lambda (link)
-                     (let* ((pos (cdr link))
-                            (hl (save-excursion
-                                  (goto-char pos)
-                                  (skip-chars-forward neoemacs--link-url-chars
-                                                      (pos-eol))
-                                  (max 1 (- (point) pos)))))
-                       (list (car link) (copy-marker pos) (cons 0 hl))))
+                     (let ((pos (cdr link)))
+                       (cons (car link)
+                             (cons (copy-marker pos)
+                                   (mapcar (lambda (frag)
+                                             (cons (- (car frag) pos)
+                                                   (- (cdr frag) pos)))
+                                           (neoemacs--link-fragments
+                                            pos (car link)))))))
                    links))
          (preview (consult--jump-preview))
          (url (unwind-protect
