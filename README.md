@@ -97,6 +97,13 @@ M-x nerd-icons-install-fonts
   insert state, a single `Esc` is sent to the terminal, while `Esc Esc` returns
   to Evil normal state; `C-c` and `C-x` are forwarded to the running terminal
   program.
+- **Link picker** — `s-y` (any state, including inside a ghostel terminal)
+  lists every http(s) link in the current buffer in a Consult picker, most
+  recent first, with preview. It understands terminal hyperlinks (OSC 8) and
+  rejoins URLs that a TUI such as Claude Code split across lines. Picking one
+  opens it with macOS `open`; in an SSH session it copies the URL instead
+  (reaching your local clipboard via OSC 52). `s-]` on a candidate offers
+  Embark's URL actions.
 - **Claude Code sessions** — when Claude Code runs inside a ghostel terminal,
   `consult-claude` tracks each session's live status; `f c` (normal state) opens a switcher
   to jump between them.
@@ -195,6 +202,7 @@ elsewhere.
 | `s-h/j/k/l` | move between windows          |
 | `s-n`     | vertical split + follow focus   |
 | `s-w`     | delete current window           |
+| `s-y`     | pick a link in the buffer: open it (copy over SSH) |
 | `S-s-[`   | rotate windows                  |
 | `S-s-]`   | maximize window (delete others) |
 | `s-]`     | embark act                      |

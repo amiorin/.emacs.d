@@ -793,7 +793,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    :states 'normal
    :keymaps 'override
    "-" 'dired-jump)
-  ;; Super-key window shortcuts, plus `s-s' to save the current buffer.
+  ;; Super-key window shortcuts, plus `s-s' to save the current buffer and
+  ;; `s-y' to pick a link in the buffer (`neoemacs/consult-buffer-links').
   (general-define-key
    :keymaps 'override
    "s-h" 'evil-window-left
@@ -802,6 +803,7 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
    "s-l" 'evil-window-right
    "s-n" 'neoemacs/vsplit-window-follow
    "s-s" 'save-buffer
+   "s-y" 'neoemacs/consult-buffer-links
    "s-w" 'evil-window-delete
    "S-s-[" 'evil-window-rotate-downwards
    "S-s-]" 'delete-other-windows)
@@ -1600,6 +1602,257 @@ With no file at point, fall back to `magit-ediff-dwim'."
     (kbd "<escape>") #'neoemacs/ghostel-escape-dwim
     (kbd "C-c") #'neoemacs/ghostel-send-current-control
     (kbd "C-x") #'neoemacs/ghostel-send-current-control))
+
+;;; --- Buffer links picker (`s-y') -------------------------------------------
+
+;; `neoemacs/consult-buffer-links' lists every http(s) link in the current
+;; buffer in a Consult picker -- newest (bottom-most) first, deduplicated --
+;; previewing each one by moving point onto it.  Selecting a link opens it in
+;; the local browser via macOS `open', or, in an SSH session (where `open'
+;; would launch on the wrong machine), copies it to the kill ring so clipetty
+;; carries it to the local clipboard over OSC 52.  `:category url' lets Embark
+;; (`s-]') offer its URL actions on the candidate instead.
+;;
+;; Links come from two sources, merged by start position:
+;;   1. ghostel's own link spans (OSC 8 hyperlinks and the URLs it detected),
+;;      read from the `help-echo' it stores the target in; rows of one link
+;;      share a `ghostel-link-id'.
+;;   2. a regex sweep, for what ghostel hasn't linkified yet (the cursor line,
+;;      queued detection) and for non-terminal buffers.  Newlines carrying
+;;      `ghostel-wrap' are soft wraps and are joined through.
+;; TUIs like Claude Code also wrap long lines themselves, with *hard* newlines
+;; (often followed by indentation or a `│' box border).  A plain-text URL
+;; whose row runs to the wrap edge -- the terminal width (or a trailing box
+;; border) minus `neoemacs-link-wrap-margin' -- is continued with the next
+;; row's leading run of URL characters, repeatedly.  OSC 8 links carry their
+;; full target, so they are never rejoined.
+
+(defvar neoemacs-link-wrap-margin 3
+  "Columns short of the wrap edge a URL row may end and still be rejoined.")
+
+(defvar neoemacs--link-wrap-width-function #'neoemacs--link-wrap-width
+  "Function returning the current buffer's wrap width in columns, or nil.
+nil disables rejoining at the width edge (box borders still apply).")
+
+(defvar neoemacs--consult-buffer-links-history nil
+  "Minibuffer history for `neoemacs/consult-buffer-links'.")
+
+(defconst neoemacs--link-url-chars "^ \t\n\r\"<>`│┃║"
+  "`skip-chars-forward' set of characters that may appear in a URL.")
+
+(defconst neoemacs--link-border-chars "│┃║"
+  "Box-drawing characters TUIs draw as a right-hand border after a wrapped row.")
+
+(defconst neoemacs--link-continuation-prefix-chars " \t│┃║>▏▎▍"
+  "`skip-chars-forward' set skipped at the start of a hard-wrap continuation row.")
+
+(defun neoemacs--link-wrap-width ()
+  "Wrap width of the current buffer: the terminal width in ghostel, else the
+body width of a window showing the buffer, else nil."
+  (or (bound-and-true-p ghostel--term-cols)
+      (when-let* ((win (get-buffer-window (current-buffer) t)))
+        (window-body-width win))))
+
+(defun neoemacs--remote-session-p ()
+  "Non-nil when Emacs runs inside an SSH session."
+  (or (getenv "SSH_CONNECTION") (getenv "SSH_TTY")))
+
+(defun neoemacs--link-soft-wrap-p (pos)
+  "Non-nil when POS is a newline ghostel marked as a soft wrap."
+  (and (eq (char-after pos) ?\n) (get-text-property pos 'ghostel-wrap)))
+
+(defun neoemacs--link-scan-end (pos)
+  "Return the end of the run of URL characters at POS, through soft wraps."
+  (save-excursion
+    (goto-char pos)
+    (skip-chars-forward neoemacs--link-url-chars)
+    (while (neoemacs--link-soft-wrap-p (point))
+      (forward-char)
+      (skip-chars-forward neoemacs--link-url-chars))
+    (point)))
+
+(defun neoemacs--link-text (beg end)
+  "Return the text between BEG and END with soft-wrap newlines removed."
+  (let ((parts nil) (pos beg))
+    (while (< pos end)
+      (let ((wrap (or (text-property-not-all pos end 'ghostel-wrap nil) end)))
+        (push (buffer-substring-no-properties pos wrap) parts)
+        (setq pos wrap)
+        (when (< pos end)
+          (let ((stop (next-single-property-change pos 'ghostel-wrap nil end)))
+            (push (string-replace "\n" "" (buffer-substring-no-properties pos stop))
+                  parts)
+            (setq pos stop)))))
+    (apply #'concat (nreverse parts))))
+
+(defun neoemacs--link-trim (url)
+  "Strip trailing sentence punctuation and unbalanced closers from URL."
+  (let ((count (lambda (c) (seq-count (lambda (ch) (eq ch c)) url)))
+        (done nil))
+    (while (and (not done) (> (length url) 0))
+      (let ((last (aref url (1- (length url)))))
+        (if (or (memq last '(?. ?, ?\; ?: ?! ??))
+                (and (eq last ?\)) (> (funcall count ?\)) (funcall count ?\()))
+                (and (eq last ?\]) (> (funcall count ?\]) (funcall count ?\[))))
+            (setq url (substring url 0 -1))
+          (setq done t))))
+    url))
+
+(defun neoemacs--link-row-full-p (end width)
+  "Non-nil when a URL ending at END runs to the wrap edge of its row.
+Only whitespace and an optional box border may follow it on the row.
+The edge is the border's column when there is one, else WIDTH; the URL
+must end within `neoemacs-link-wrap-margin' columns of it.  The row
+must also be followed by another line."
+  (save-excursion
+    (goto-char end)
+    (let* ((bol (pos-bol))
+           (eol (pos-eol))
+           (tail (buffer-substring-no-properties end eol))
+           (limit (cond ((string-match-p "\\`[ \t]*\\'" tail) width)
+                        ((string-match (format "\\`[ \t]*\\([%s]\\)[ \t]*\\'"
+                                               neoemacs--link-border-chars)
+                                       tail)
+                         (string-width (buffer-substring-no-properties
+                                        bol (+ end (match-beginning 1))))))))
+      (and limit
+           (< eol (point-max))
+           (>= (string-width (buffer-substring-no-properties bol end))
+               (- limit neoemacs-link-wrap-margin))))))
+
+(defun neoemacs--link-join-hard-wraps (url end width)
+  "Extend URL, whose text ends at END, across rows a TUI hard-wrapped.
+WIDTH is the wrap width (see `neoemacs--link-row-full-p')."
+  (let ((guard 0))
+    (while (and (< guard 50) (neoemacs--link-row-full-p end width))
+      (setq guard (1+ guard))
+      (save-excursion
+        (goto-char end)
+        (forward-line 1)
+        (skip-chars-forward neoemacs--link-continuation-prefix-chars (pos-eol))
+        (let* ((beg (point))
+               (stop (neoemacs--link-scan-end beg))
+               (run (neoemacs--link-text beg stop)))
+          (if (or (string-empty-p run) (string-match-p "\\`https?://" run))
+              (setq guard 50)
+            (setq url (concat url run)
+                  end stop))))))
+  url)
+
+(defun neoemacs--link-ghostel-spans ()
+  "Return ghostel's link spans in the buffer as (START END URI OSC8-P) lists.
+Rows sharing a `ghostel-link-id' (one soft-wrapped link) are merged."
+  (let ((pos (point-min)) (by-id (make-hash-table :test 'equal)) (spans nil))
+    (while (< pos (point-max))
+      (let ((uri (get-text-property pos 'help-echo))
+            (next (next-single-property-change pos 'help-echo nil (point-max))))
+        (when (and (stringp uri)
+                   (boundp 'ghostel-link-map)
+                   (eq (get-text-property pos 'keymap) ghostel-link-map)
+                   (not (string-prefix-p "fileref:" uri)))
+          (let* ((id (get-text-property pos 'ghostel-link-id))
+                 (prev (and id (gethash id by-id))))
+            (if (and prev (equal (nth 2 prev) uri)
+                     (string-blank-p (buffer-substring-no-properties
+                                      (nth 1 prev) pos)))
+                (setcar (cdr prev) next)
+              (let ((span (list pos next uri
+                                (not (eq (car-safe id) 'ghostel-detected)))))
+                (push span spans)
+                (when id (puthash id span by-id))))))
+        (setq pos next)))
+    spans))
+
+(defun neoemacs--buffer-links (&optional buffer)
+  "Return the http(s) links in BUFFER as (URL . POS), newest (last) first.
+Duplicate URLs keep their bottom-most position.  See the commentary
+above `neoemacs-link-wrap-margin' for the sources and rejoining rules."
+  (with-current-buffer (or buffer (current-buffer))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (let ((width (and neoemacs--link-wrap-width-function
+                          (funcall neoemacs--link-wrap-width-function)))
+              (by-start (make-hash-table))
+              (case-fold-search nil))
+          ;; 1. ghostel-marked links.
+          (pcase-dolist (`(,start ,end ,uri ,osc8) (neoemacs--link-ghostel-spans))
+            (let ((url (if osc8 uri
+                         (neoemacs--link-trim
+                          (neoemacs--link-join-hard-wraps uri end width)))))
+              (when (string-match-p "\\`https?://." url)
+                (puthash start (cons url osc8) by-start))))
+          ;; 2. Regex sweep; an OSC 8 link at the same start wins, otherwise
+          ;; the longer (more fully joined) URL does.
+          (goto-char (point-min))
+          (while (re-search-forward "https?://" nil t)
+            (let* ((start (match-beginning 0))
+                   (end (neoemacs--link-scan-end start))
+                   (url (neoemacs--link-trim
+                         (neoemacs--link-join-hard-wraps
+                          (neoemacs--link-text start end) end width)))
+                   (old (gethash start by-start)))
+              (when (and (string-match-p "\\`https?://." url)
+                         (not (cdr old))
+                         (> (length url) (length (car old))))
+                (puthash start (cons url nil) by-start))
+              (goto-char (max end (match-end 0)))))
+          ;; Newest first, deduplicated on URL.
+          (let ((links nil) (seen (make-hash-table :test 'equal)))
+            (maphash (lambda (start entry) (push (cons (car entry) start) links))
+                     by-start)
+            (setq links (sort links (lambda (a b) (> (cdr a) (cdr b)))))
+            (seq-filter (lambda (link)
+                          (unless (gethash (car link) seen)
+                            (puthash (car link) t seen)))
+                        links)))))))
+
+(defun neoemacs--link-act (url)
+  "Open URL locally, or copy it to the kill ring in an SSH session."
+  (if (neoemacs--remote-session-p)
+      (progn (kill-new url) (message "Copied %s" url))
+    (neoemacs--start-gui-process "open-url" "open" url)
+    (message "Opened %s" url)))
+
+(declare-function consult--read "consult")
+(declare-function consult--jump-preview "consult")
+
+(defun neoemacs/consult-buffer-links ()
+  "Pick an http(s) link in this buffer (newest first) and open or copy it.
+Opens it with macOS `open', or in an SSH session copies it to the kill
+ring (which clipetty forwards to the local clipboard).  Previews move
+point to the link and highlight it."
+  (interactive)
+  (require 'consult)
+  (let* ((links (or (neoemacs--buffer-links) (user-error "No links in buffer")))
+         ;; URL -> (MARKER (0 . HIGHLIGHT-LENGTH)), the candidate shape
+         ;; `consult--jump-preview' previews (offsets relative to the marker).
+         (targets (mapcar
+                   (lambda (link)
+                     (let* ((pos (cdr link))
+                            (hl (save-excursion
+                                  (goto-char pos)
+                                  (skip-chars-forward neoemacs--link-url-chars
+                                                      (pos-eol))
+                                  (max 1 (- (point) pos)))))
+                       (list (car link) (copy-marker pos) (cons 0 hl))))
+                   links))
+         (preview (consult--jump-preview))
+         (url (unwind-protect
+                  (consult--read
+                   (mapcar #'car links)
+                   :prompt "Link: "
+                   :category 'url
+                   :sort nil
+                   :require-match t
+                   :history 'neoemacs--consult-buffer-links-history
+                   ;; Preview only: no jump on return, so point is restored
+                   ;; after both selection and abort.
+                   :state (lambda (action cand)
+                            (funcall preview action
+                                     (and cand (cdr (assoc cand targets))))))
+                (dolist (target targets) (set-marker (nth 1 target) nil)))))
+    (neoemacs--link-act url)))
 
 ;;; --- Claude Code session tracking ------------------------------------------
 

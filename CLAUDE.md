@@ -95,7 +95,8 @@ Three layers, used deliberately:
    selects the new *left* window so "move right" lands back in the original
    window; ghostel splits then hijacked the original window's history and
    left a history-less window whose `q`/`bury-buffer` fell back to the MRU
-   ghostel buffer), `s-s` save buffer, `s-w` window delete, `S-s-[` rotate windows, `S-s-]`
+   ghostel buffer), `s-s` save buffer, `s-w` window delete, `s-y` →
+   `neoemacs/consult-buffer-links` (link picker, see *Terminal* below), `S-s-[` rotate windows, `S-s-]`
    `delete-other-windows`, `v`/`V` expand/contract region in visual state,
    dired `h`/`l` and `TAB` → `dirvish-subtree-toggle`). Two editing-model
    tweaks live here too: `,` (normal/visual/motion) is a `general-simulate-key`
@@ -352,6 +353,32 @@ source file is opened.
   Evil's insert-state Escape binding so the terminal receives no Escape.
   `C-c` and `C-x` in ghostel insert state are forwarded as real terminal
   Ctrl-letter keys instead of being swallowed by Emacs prefix maps.
+  **Link picker:** `s-y` (in the `:keymaps 'override` block, so it works in
+  every evil state including ghostel insert) runs
+  `neoemacs/consult-buffer-links`, a `consult--read` over every http(s) link in
+  the current buffer — category `url` (so `s-]` Embark offers URL actions),
+  deduplicated and *unsorted* with the most recent (bottom-most) link first;
+  preview jumps to and highlights the link. Sources: (1) ghostel's own links —
+  the URI in the `help-echo` property of spans whose `keymap` is
+  `ghostel-link-map` (covers OSC 8 links whose text differs from the target and
+  soft-wrapped links sharing a `ghostel-link-id`; `fileref:` skipped); (2) a
+  regex fallback, rows joined across `ghostel-wrap` soft-wrap newlines, for
+  links ghostel hasn't linkified yet (cursor line, queued detection) and for
+  non-terminal buffers. TUIs like Claude Code hard-wrap long lines with real
+  newlines (often indented or behind a `│` border), so a detected/regex URL
+  that runs to the end of a line filling the terminal width (minus
+  `neoemacs-link-wrap-margin`, default 3) is rejoined: the next line's leading
+  whitespace/border chars are skipped and its URL-character run appended,
+  repeating for multi-line splits, then trailing punctuation is trimmed. OSC 8
+  links aren't rejoined (they carry the full target). Heuristic risk: a URL
+  ending exactly at the right edge before a word line can be over-joined — the
+  picker shows the URL before acting. On selection, `neoemacs--remote-session-p`
+  (`$SSH_CONNECTION` or `$SSH_TTY` in Emacs's environment) picks the action:
+  over SSH the URL goes to the kill ring (clipetty forwards it via OSC 52) —
+  "Copied <url>"; locally it's opened with macOS `open` through
+  `neoemacs--start-gui-process` (crossing zellij's session boundary) —
+  "Opened <url>". The env is captured at Emacs start, so a locally started
+  Emacs reattached over SSH still counts as local.
 - Display: `global-display-line-numbers-mode` + `global-hl-line-mode` show
   gutter line numbers and highlight the cursor's line.
   `display-line-numbers-type` is `t` (absolute); switch to `'relative`/`'visual`
