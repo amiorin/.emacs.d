@@ -339,7 +339,10 @@ source file is opened.
   session if exactly one exists. Don't test renames against a freshly
   created session: zellij checks the name only against a peer cache that
   isn't filled yet, so the rename can overwrite another live session's
-  socket file.
+  socket file. A session whose socket file is gone keeps running but can't be
+  reached by any `zellij` CLI call, which only prints "There is no active
+  session!". `SPC z r` checks `list-sessions` first and reports that the
+  session is unreachable and zellij needs a restart.
 - Clipboard: `clipetty` (`global-clipetty-mode`) sends kills to the host
   system clipboard via the OSC 52 escape sequence, so copying works over SSH
   and through tmux.

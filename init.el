@@ -3045,6 +3045,19 @@ pane/tab) so separate frames don't clobber each other's dedup state."
       (user-error "Empty session name"))
     ;; Re-resolve first: the session may have been renamed outside Emacs.
     (neoemacs--zellij-resolve-session)
+    ;; zellij finds sessions only through their socket files. If ours is not
+    ;; listed, the server is still running but nothing can reach it: the
+    ;; socket file was deleted, typically by a rename racing a freshly created
+    ;; session. zellij's own message for this case is just "There is no active
+    ;; session!", so explain it here instead.
+    (unless (member neoemacs--zellij-session (neoemacs--zellij-live-sessions))
+      (user-error
+       "zellij session %s is unreachable (its socket file under %s is gone); \
+restart zellij to rename it"
+       neoemacs--zellij-session
+       (or (getenv "ZELLIJ_SOCKET_DIR")
+           (expand-file-name "zellij" (or (getenv "XDG_RUNTIME_DIR")
+                                          temporary-file-directory)))))
     (with-temp-buffer
       (let ((status (apply #'call-process "zellij" nil t nil
                            (neoemacs--zellij-args "action" "rename-session"
