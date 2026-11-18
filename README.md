@@ -197,6 +197,7 @@ elsewhere.
 | `SPC n`   | vertical split + follow focus   |
 | `SPC t`   | vsplit + ghostel terminal (project root) |
 | `SPC u t` | vsplit + ghostel terminal (current dir) |
+| `SPC z r` | rename the zellij session (imac / neo / walter-aws / walter-ampere, or type a name) |
 | `,`       | alias for the `C-c` prefix (normal/visual/motion) |
 | `j` / `k` | down / up by visual line (`gj`/`gk` logical) |
 | `-`       | jump to dired (current dir)     |

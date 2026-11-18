@@ -78,7 +78,9 @@ Three layers, used deliberately:
 1. **Leader key** via `general` — `neoemacs/leader` is a definer with prefix
    `SPC` (and `M-SPC` as a global fallback for non-normal states). Mnemonic
    groups: `f` files, `b` buffers, `p` project, `g` git, `o` open/external
-   apps, `c` code (lsp-mode/flymake actions), `u` ghostel, plus top-level
+   apps, `c` code (lsp-mode/flymake actions), `u` ghostel, `z` zellij
+   (`SPC z r` → `neoemacs/zellij-rename-session`, a consult picker of
+   session names that also accepts free input), plus top-level
    shortcuts (`SPC SPC` → `projectile-find-file`, `SPC ,` → `consult-buffer`,
    `SPC :` → `eval-expression`, `SPC x` → `execute-extended-command`,
    `SPC /` / `SPC p s` → `consult-ripgrep`, `SPC b u` → `vundo`,

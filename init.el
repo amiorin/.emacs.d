@@ -781,6 +781,8 @@ name.  Hands an `obsidian://open' URL to macOS `open' (async, via
     "w"  '(evil-window-delete :which-key "delete window")
     "u"  '(:ignore t :which-key "ghostel")
     "ut" '(neoemacs/vsplit-ghostel-here :which-key "ghostel here (current dir)")
+    "z"  '(:ignore t :which-key "zellij")
+    "zr" '(neoemacs/zellij-rename-session :which-key "rename session")
     "/"  '(consult-ripgrep :which-key "search in project")
     "h"  '(help-command :which-key "help"))
   ;; Startup time readout. The dashboard used to show "Emacs started in N
@@ -2954,6 +2956,30 @@ pane/tab) so separate frames don't clobber each other's dedup state."
                 dired-after-readin-hook
                 dirvish-setup-hook))
   (add-hook hook #'neoemacs--zellij-update-tab-name))
+
+;;; --- Zellij session name ----------------------------------------------------
+
+;; `SPC z r': rename the current zellij session from a consult list of the
+;; usual host names. Typing a name not in the list uses it as-is.
+(defun neoemacs/zellij-rename-session ()
+  "Rename the current zellij session, picking from a list of host names."
+  (interactive)
+  (unless (getenv "ZELLIJ")
+    (user-error "Not running inside zellij"))
+  (require 'consult)
+  (let ((name (string-trim
+               (consult--read '("imac" "neo" "walter-aws" "walter-ampere")
+                              :prompt "Rename zellij session: "
+                              :require-match nil
+                              :sort nil))))
+    (when (string-empty-p name)
+      (user-error "Empty session name"))
+    (with-temp-buffer
+      (if (zerop (call-process "zellij" nil t nil
+                               "action" "rename-session" name))
+          (message "Renamed zellij session to %s" name)
+        (user-error "zellij rename-session failed: %s"
+                    (string-trim (buffer-string)))))))
 
 (provide 'init)
 ;;; init.el ends here
