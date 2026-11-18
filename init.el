@@ -2900,6 +2900,76 @@ then reopen this file."
         (evil-local-set-key 'normal (kbd "ZQ") #'server-edit-abort))))
   (add-hook 'server-switch-hook #'neoemacs--server-buffer-keys))
 
+;;; --- Zellij session targeting ----------------------------------------------
+
+;; `zellij action' picks its session from $ZELLIJ_SESSION_NAME, which zellij
+;; sets once when it spawns a pane. Renaming the session (`SPC z r', the zellij
+;; UI, or a shell) leaves Emacs's copy pointing at a name that no longer
+;; exists, and zellij then falls back to its interactive session picker: with
+;; one session alive it guesses right, but with two or more the call *blocks
+;; forever* -- a synchronous `call-process' freezes Emacs until C-g, and the
+;; async tab renames pile up as hung processes. So every zellij call passes the
+;; session explicitly (`-s NAME' fails fast with "Session 'NAME' not found"),
+;; tracked in `neoemacs--zellij-session' and re-resolved when it goes stale.
+(defvar neoemacs--zellij-session (getenv "ZELLIJ_SESSION_NAME")
+  "Name of the zellij session this Emacs runs in, kept current across renames.")
+
+(defun neoemacs--zellij-live-sessions ()
+  "Return the names of the live zellij sessions (never prompts or blocks)."
+  (with-temp-buffer
+    (when (eq 0 (ignore-errors
+                  (call-process "zellij" nil t nil
+                                "list-sessions" "--no-formatting" "--short")))
+      (split-string (buffer-string) "\n" t "[ \t]+"))))
+
+(defun neoemacs--zellij-set-session (name)
+  "Record NAME as the current zellij session, in Emacs and its environment.
+Updates the global `process-environment' (not a buffer-local envrc copy) so
+terminals spawned from now on inherit the right $ZELLIJ_SESSION_NAME."
+  (setq neoemacs--zellij-session name)
+  (setq-default process-environment
+                (setenv-internal (default-value 'process-environment)
+                                 "ZELLIJ_SESSION_NAME" name t)))
+
+(defun neoemacs--zellij-resolve-session ()
+  "Return the current zellij session name, re-resolving it if it went stale.
+When the remembered name is no longer live (the session was renamed outside
+Emacs) and exactly one session is running, adopt that one; otherwise there
+is no safe guess and the stale name is returned unchanged."
+  (let ((live (neoemacs--zellij-live-sessions)))
+    (when (and live
+               (not (member neoemacs--zellij-session live))
+               (null (cdr live)))
+      (neoemacs--zellij-set-session (car live))))
+  neoemacs--zellij-session)
+
+(defun neoemacs--zellij-args (&rest args)
+  "Return a zellij argument list running ARGS against this Emacs's session."
+  (if neoemacs--zellij-session
+      (append (list "-s" neoemacs--zellij-session) args)
+    args))
+
+(defun neoemacs--zellij-action-async (&rest args)
+  "Run `zellij action ARGS' asynchronously against this Emacs's session.
+zellij exits 0 even when the session is missing, so the output is checked
+for \"not found\": then the session is re-resolved (it was renamed
+elsewhere) and the action retried once under the new name."
+  (let ((session neoemacs--zellij-session)
+        (out (generate-new-buffer " *zellij-action*" t)))
+    (make-process
+     :name "zellij-action" :buffer out :noquery t :connection-type 'pipe
+     :command (cons "zellij" (apply #'neoemacs--zellij-args "action" args))
+     :sentinel
+     (lambda (proc _event)
+       (unless (process-live-p proc)
+         (let ((stale (with-current-buffer out
+                        (goto-char (point-min))
+                        (search-forward "not found" nil t))))
+           (kill-buffer out)
+           (when (and stale
+                      (not (equal session (neoemacs--zellij-resolve-session))))
+             (apply #'neoemacs--zellij-action-async args))))))))
+
 ;;; --- Zellij tab name -------------------------------------------------------
 
 ;; Keep the focused zellij tab named after the current buffer's location, as
@@ -2942,8 +3012,7 @@ pane/tab) so separate frames don't clobber each other's dedup state."
           ;; Run async and discard output so buffer switches never block on the
           ;; zellij subprocess.
           (when (executable-find "zellij")
-            (start-process "zellij-rename-tab" nil
-                           "zellij" "action" "rename-tab" name)))))))
+            (neoemacs--zellij-action-async "rename-tab" name)))))))
 
 ;; Trigger on the full range of context changes: window focus
 ;; (`window-selection-change-functions'), a window's buffer changing
@@ -2974,12 +3043,21 @@ pane/tab) so separate frames don't clobber each other's dedup state."
                               :sort nil))))
     (when (string-empty-p name)
       (user-error "Empty session name"))
+    ;; Re-resolve first: the session may have been renamed outside Emacs.
+    (neoemacs--zellij-resolve-session)
     (with-temp-buffer
-      (if (zerop (call-process "zellij" nil t nil
-                               "action" "rename-session" name))
-          (message "Renamed zellij session to %s" name)
-        (user-error "zellij rename-session failed: %s"
-                    (string-trim (buffer-string)))))))
+      (let ((status (apply #'call-process "zellij" nil t nil
+                           (neoemacs--zellij-args "action" "rename-session"
+                                                  name)))
+            (output (string-trim (buffer-string))))
+        ;; zellij reports a refused rename (name taken, session missing) on
+        ;; stdout but still exits 0, so the output counts as failure too.
+        (if (and (eq status 0) (string-empty-p output))
+            (progn
+              (neoemacs--zellij-set-session name)
+              (message "Renamed zellij session to %s" name))
+          (user-error "zellij rename-session failed: %s"
+                      (if (string-empty-p output) status output)))))))
 
 (provide 'init)
 ;;; init.el ends here

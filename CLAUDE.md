@@ -326,6 +326,20 @@ source file is opened.
   `dired-after-readin-hook` / `dirvish-setup-hook` — the dired/dirvish hooks
   are needed because in-place directory navigation doesn't change the selected
   window, so the window hooks alone miss it.
+- Zellij session targeting: every `zellij action` call passes `-s
+  <session>` from `neoemacs--zellij-session` (seeded from
+  `$ZELLIJ_SESSION_NAME`) instead of relying on the inherited env var.
+  After a session rename the env var is stale. zellij then drops into its
+  session picker: with one session it guesses right, but with two or more
+  `zellij action` **blocks forever**. That froze `SPC z r` on the second
+  rename and silently hung the tab renames. `SPC z r` updates the variable
+  and the global `$ZELLIJ_SESSION_NAME` (so new terminals inherit it). An
+  outside rename is detected by the "Session 'X' not found" output, which
+  zellij prints while still exiting 0. Emacs then adopts the only live
+  session if exactly one exists. Don't test renames against a freshly
+  created session: zellij checks the name only against a peer cache that
+  isn't filled yet, so the rename can overwrite another live session's
+  socket file.
 - Clipboard: `clipetty` (`global-clipetty-mode`) sends kills to the host
   system clipboard via the OSC 52 escape sequence, so copying works over SSH
   and through tmux.
