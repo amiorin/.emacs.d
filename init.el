@@ -3037,7 +3037,8 @@ pane/tab) so separate frames don't clobber each other's dedup state."
     (user-error "Not running inside zellij"))
   (require 'consult)
   (let ((name (string-trim
-               (consult--read '("imac" "neo" "walter-aws" "walter-ampere")
+               (consult--read '("imac" "neo" "walter-aws" "walter-ampere"
+                                "drop-ax41")
                               :prompt "Rename zellij session: "
                               :require-match nil
                               :sort nil))))
